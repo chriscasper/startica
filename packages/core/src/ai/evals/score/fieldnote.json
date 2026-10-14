@@ -1,0 +1,178 @@
+{
+  "product": "Fieldnote",
+  "productContext": "Product: Fieldnote (https://fieldnote.example)\nOne-liner: A note-taking app for field researchers.\nSummary: Fieldnote is an offline-first notebook for researchers who collect observations away from a desk: ecologists, archaeologists, anthropologists and UX researchers on site visits. Notes carry GPS, time, photos and audio automatically, follow reusable observation templates, and sync to a shared project when the connection comes back.\nAudience: Graduate students, field technicians and small research teams who take structured notes outdoors or on site, often without signal, and later need to analyze or share them.\nProblem: Field notes end up split between a paper notebook, a phone's camera roll and a spreadsheet typed up at night. Transcribing takes hours, locations and times get lost, and teammates can't see each other's observations until someone merges them.\nPositioning: For field researchers who juggle paper notebooks, photos and spreadsheets, Fieldnote is an offline-first field notebook that captures structured observations with location and media, and syncs them to the team. Unlike general note apps, it's designed for days without signal and data that needs to be analyzed later.\nValue: Works fully offline; syncs when you're back in range; Every note is stamped with location, time and weather; Observation templates (transects, interviews, site surveys) keep data consistent across a team; Photos, audio and sketches live next to the note they belong to; Export to CSV, GeoJSON or Markdown for analysis\nDifferentiators: Built for no-signal sites, not adapted from an office note app; Structured templates and free text in the same note; Shared projects with per-site permissions for labs and field schools\nPersonas:\n- Ecology grad student: Runs transects and plot surveys for a thesis, often alone and far from signal. Pains: Retyping paper notes every evening; Photos and GPS points that don't match up with notes; Losing a notebook to rain\n- Field school instructor: Teaches archaeology or ecology field methods to 10–30 students each summer. Pains: Every student records differently; Collecting and grading notebooks is slow; No view of what was recorded where\n- UX researcher on site visits: Does contextual inquiry at customer sites and needs quick, tagged notes with photos. Pains: Notes scattered across a laptop, phone and sticky notes; Hard to share raw observations with the team quickly\nAlternatives people use: TerraJot, Quadrat, Logbook Pro\nOwner's notes: We're two people. Focus on ecology and social-science grad students first; university lab licenses come later. Don't promise a desktop app yet.",
+  "thresholds": {
+    "relevance": 0.7,
+    "intent": 0.5
+  },
+  "cases": [
+    {
+      "id": "seed-01",
+      "source": "seed",
+      "expect": "reply",
+      "note": "Asking how to stop retyping field notes every night: the core problem.",
+      "conversation": {
+        "channel": "reddit",
+        "kind": "post",
+        "community": "ecology",
+        "title": "How do you digitize field notebooks without losing your evenings?",
+        "threadTitle": null,
+        "body": "I do vegetation plots all day and then spend hours typing my notebook into a spreadsheet and matching photos to plots. What do people use to make this less painful?"
+      }
+    },
+    {
+      "id": "seed-02",
+      "source": "seed",
+      "expect": "reply",
+      "note": "Field school instructor wants consistent student records: persona + intent.",
+      "conversation": {
+        "channel": "reddit",
+        "kind": "post",
+        "community": "Archaeology",
+        "title": "How do you keep 20 students' field notes consistent?",
+        "threadTitle": null,
+        "body": "Every summer my field school's context sheets come back in a dozen formats. Paper forms help a little but transcription is awful. What systems have worked for you?"
+      }
+    },
+    {
+      "id": "seed-03",
+      "source": "seed",
+      "expect": "reply",
+      "note": "Needs offline note taking with sync for a long trip without signal.",
+      "conversation": {
+        "channel": "hackernews",
+        "kind": "post",
+        "community": null,
+        "title": "Ask HN: Note-taking that works for weeks offline?",
+        "threadTitle": null,
+        "body": "I'm doing fieldwork in a valley with no signal for six weeks. I need notes with photos and locations that sync to my team when I'm back. Most apps lose edits or need a connection. Recommendations?"
+      }
+    },
+    {
+      "id": "seed-04",
+      "source": "seed",
+      "expect": "reply",
+      "note": "UX researcher asking for a site-visit capture setup: persona + intent.",
+      "conversation": {
+        "channel": "reddit",
+        "kind": "post",
+        "community": "UXResearch",
+        "title": "What do you use to take notes during site visits?",
+        "threadTitle": null,
+        "body": "Doing contextual inquiry in factories next month. Laptops are awkward on the floor. How do you capture observations and photos and share them with the team the same day?"
+      }
+    },
+    {
+      "id": "seed-05",
+      "source": "seed",
+      "expect": "reply",
+      "note": "Complaint about a competitor's limits, asking for something better.",
+      "conversation": {
+        "channel": "reddit",
+        "kind": "post",
+        "community": "ecology",
+        "title": "TerraJot is overkill for a thesis. Anything simpler?",
+        "threadTitle": null,
+        "body": "Our lab tried TerraJot but it's built for survey crews, the forms are rigid and it's expensive for students. I just want structured notes with GPS that export to CSV. Alternatives?"
+      }
+    },
+    {
+      "id": "seed-06",
+      "source": "seed",
+      "expect": "reply",
+      "note": "Grad student asking for tools before a field season.",
+      "conversation": {
+        "channel": "reddit",
+        "kind": "post",
+        "community": "GradSchool",
+        "title": "Apps that made your fieldwork thesis easier?",
+        "threadTitle": null,
+        "body": "Starting a field-heavy master's in the spring. What apps or setups saved you the most time collecting data?"
+      }
+    },
+    {
+      "id": "seed-07",
+      "source": "seed",
+      "expect": "skip",
+      "note": "Hardware purchase question: adjacent, not about notes.",
+      "conversation": {
+        "channel": "reddit",
+        "kind": "post",
+        "community": "ecology",
+        "title": "Best waterproof GPS unit under $300?",
+        "threadTitle": null,
+        "body": "Looking for a handheld GPS that survives rain and lasts a full day on batteries. Any recommendations?"
+      }
+    },
+    {
+      "id": "seed-08",
+      "source": "seed",
+      "expect": "skip",
+      "note": "Keyword collision: musical field notes, unrelated to research.",
+      "conversation": {
+        "channel": "reddit",
+        "kind": "post",
+        "community": "WeAreTheMusicMakers",
+        "title": "My album 'Field Notes' is finally out",
+        "threadTitle": null,
+        "body": "Three years of recording in my garage. Ten songs about road trips. Would love feedback!"
+      }
+    },
+    {
+      "id": "seed-09",
+      "source": "seed",
+      "expect": "skip",
+      "note": "On-audience but a methods question; not looking for a tool.",
+      "conversation": {
+        "channel": "reddit",
+        "kind": "post",
+        "community": "ecology",
+        "title": "How many quadrats per transect for a grassland survey?",
+        "threadTitle": null,
+        "body": "Planning a grassland diversity survey. Is 10 quadrats per 50 m transect enough, or should I go denser?"
+      }
+    },
+    {
+      "id": "seed-10",
+      "source": "seed",
+      "expect": "skip",
+      "note": "Office productivity post: wrong audience.",
+      "conversation": {
+        "channel": "reddit",
+        "kind": "post",
+        "community": "productivity",
+        "title": "My offline note-taking system for deep work",
+        "threadTitle": null,
+        "body": "Paper notebook in the morning, no phone until noon, weekly review on Fridays. Here's how I set it up."
+      }
+    },
+    {
+      "id": "seed-11",
+      "source": "seed",
+      "expect": "skip",
+      "note": "A job posting: nobody is asking for help.",
+      "conversation": {
+        "channel": "linkedin",
+        "kind": "post",
+        "community": null,
+        "title": "Hiring: field technician, summer season",
+        "threadTitle": null,
+        "body": "We're hiring three field technicians for bird surveys from May to August. Experience with point counts preferred."
+      }
+    },
+    {
+      "id": "seed-12",
+      "source": "seed",
+      "expect": "skip",
+      "note": "Self-promotion spam; joining would only add noise.",
+      "conversation": {
+        "channel": "reddit",
+        "kind": "post",
+        "community": "GradSchool",
+        "title": "50% off my thesis template pack this weekend",
+        "threadTitle": null,
+        "body": "Get my thesis LaTeX templates for half price. Link in my profile."
+      }
+    }
+  ]
+}

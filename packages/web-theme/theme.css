@@ -1,0 +1,266 @@
+/*
+ * Shared theme for mystartica.com (apps/web) and docs.mystartica.com (apps/docs).
+ * Each site's styles/main.css does: @import "tailwindcss"; @import "@startica/web-theme/theme.css";
+ *
+ * Brand colors (ink, signal…) are fixed and come from the "colors" frame in the Startica Figma file
+ * (navy #01314e, deep blue #00517c, sky #0a83b3, ember #f15e34, amber #f79827, sun #fab53b, cream #fbf5e9).
+ * Ember is too light for body text on cream (3:1), so text and links use signal-deep (#c2441c, 4.7:1). Semantic colors (bg, surface, fg, muted, line, accent)
+ * switch with <html data-theme="light|dark">, which an inline script in each site's head partial sets before first paint.
+ */
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  --st-bg: #fbf5e9;
+  --st-surface: #fffdf8;
+  --st-raised: #ffffff;
+  --st-fg: #01314e;
+  --st-muted: #4d6273;
+  --st-line: color-mix(in oklab, #01314e 13%, transparent);
+  --st-accent: #c2441c;
+  --st-accent-soft: color-mix(in oklab, #f15e34 11%, transparent);
+  --st-code-bg: #01263d;
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --st-bg: #011f33;
+  --st-surface: #01314e;
+  --st-raised: #063d5f;
+  --st-fg: #fbf5e9;
+  --st-muted: #a7b8c6;
+  --st-line: color-mix(in oklab, #fbf5e9 14%, transparent);
+  --st-accent: #f47a52;
+  --st-accent-soft: color-mix(in oklab, #f15e34 18%, transparent);
+  --st-code-bg: #00182a;
+  color-scheme: dark;
+}
+
+@theme {
+  --color-ink: #01314e;
+  --color-ink-soft: #00517c;
+  --color-sky: #0a83b3;
+  --color-signal: #f15e34;
+  --color-signal-deep: #c2441c;
+  --color-amber: #f79827;
+  --color-sun: #fab53b;
+  --color-cream: #fbf5e9;
+  --color-paper: #fbf5e9;
+  --color-chalk: #fbf5e9;
+  --color-steel: #4d6273;
+  --font-display: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@theme inline {
+  --color-bg: var(--st-bg);
+  --color-surface: var(--st-surface);
+  --color-raised: var(--st-raised);
+  --color-fg: var(--st-fg);
+  --color-muted: var(--st-muted);
+  --color-line: var(--st-line);
+  --color-accent: var(--st-accent);
+  --color-accent-soft: var(--st-accent-soft);
+  --color-code: var(--st-code-bg);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--st-bg);
+    color: var(--st-fg);
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-signal) 40%, white);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* The wordmark/mark from packages/brand: give the wrapper a height, the SVG follows. */
+  .brand-logo {
+    display: inline-flex;
+    align-items: center;
+  }
+  .brand-logo > svg {
+    display: block;
+    height: 100%;
+    width: auto;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.8rem 1.4rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    line-height: 1.2;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .btn-primary {
+    background-color: var(--color-signal);
+    color: var(--color-ink);
+  }
+  .btn-primary:hover {
+    background-color: var(--color-amber);
+  }
+  .btn-ghost {
+    border: 1px solid currentColor;
+    border-color: color-mix(in oklab, currentColor 35%, transparent);
+  }
+  .btn-ghost:hover {
+    border-color: currentColor;
+  }
+
+  /* Small uppercase label above section headings */
+  .eyebrow {
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--st-accent);
+  }
+
+  /* Inline link style for body copy */
+  .link {
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--color-signal) 70%, transparent);
+    text-underline-offset: 4px;
+  }
+  .link:hover {
+    color: var(--st-accent);
+  }
+
+  /* Theme toggle: shows the icon for the theme you'd switch to */
+  .theme-toggle .icon-sun { display: none; }
+  [data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+  [data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+}
+
+/* Long-form content (docs pages, privacy, changelog). Used instead of @tailwindcss/typography
+   so both themes and the brand fonts stay under our control. */
+@layer components {
+  .content {
+    font-size: 1rem;
+    line-height: 1.75;
+    color: var(--st-fg);
+  }
+  .content > * + * { margin-top: 1.1em; }
+  .content h2,
+  .content h3,
+  .content h4 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+    scroll-margin-top: 6rem;
+  }
+  .content h2 { font-size: 1.6rem; margin-top: 2.4em; padding-top: 0.2em; }
+  .content h3 { font-size: 1.2rem; margin-top: 2em; }
+  .content h4 { font-size: 1rem; margin-top: 1.6em; }
+  .content h2 + *, .content h3 + *, .content h4 + * { margin-top: 0.6em; }
+  .content :is(h2, h3, h4) a { color: inherit; text-decoration: none; }
+  .content :is(h2, h3, h4) a:hover::after { content: " #"; color: var(--st-accent); }
+  .content p, .content li { color: color-mix(in oklab, var(--st-fg) 88%, var(--st-muted)); }
+  .content a:not(:is(h2, h3, h4) a) {
+    color: var(--st-fg);
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--color-signal) 70%, transparent);
+    text-underline-offset: 3px;
+  }
+  .content a:not(:is(h2, h3, h4) a):hover { color: var(--st-accent); }
+  .content strong { color: var(--st-fg); font-weight: 700; }
+  .content ul { list-style: disc; padding-left: 1.4em; }
+  .content ol { list-style: decimal; padding-left: 1.4em; }
+  .content li + li { margin-top: 0.35em; }
+  .content li > ul, .content li > ol { margin-top: 0.35em; }
+  .content li::marker { color: var(--st-muted); }
+  .content hr { border: 0; border-top: 1px solid var(--st-line); margin: 2.5em 0; }
+  .content blockquote {
+    border-left: 3px solid var(--st-line);
+    padding-left: 1em;
+    color: var(--st-muted);
+  }
+  .content :not(pre) > code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    padding: 0.15em 0.35em;
+    border-radius: 4px;
+    background: color-mix(in oklab, var(--st-fg) 7%, transparent);
+    overflow-wrap: anywhere;
+  }
+  .content pre {
+    position: relative;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    line-height: 1.65;
+    padding: 1rem 1.15rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    background-color: var(--st-code-bg) !important;
+    border: 1px solid color-mix(in oklab, white 6%, transparent);
+  }
+  .content pre code { font-family: inherit; }
+  /* Shiki dual-theme output: use the dark palette in both site themes (code panels are always dark) */
+  .content pre.shiki span { color: var(--shiki-dark, inherit); }
+  .content table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.925rem;
+    display: block;
+    overflow-x: auto;
+  }
+  .content th {
+    text-align: left;
+    font-weight: 700;
+    border-bottom: 2px solid var(--st-line);
+    padding: 0.55em 0.9em 0.55em 0;
+    white-space: nowrap;
+  }
+  .content td {
+    border-bottom: 1px solid var(--st-line);
+    padding: 0.55em 0.9em 0.55em 0;
+    vertical-align: top;
+  }
+  .content img { max-width: 100%; border-radius: 6px; border: 1px solid var(--st-line); }
+
+  /* Callouts, from GitHub alert syntax (> [!NOTE]); converted at build time by apps/docs/scripts/postbuild.mjs */
+  .content .callout {
+    border: 1px solid var(--st-line);
+    border-left: 3px solid var(--callout-color);
+    background: color-mix(in oklab, var(--callout-color) 7%, transparent);
+    padding: 0.85em 1.1em;
+    border-radius: 0 6px 6px 0;
+    color: var(--st-fg);
+  }
+  .content .callout > * + * { margin-top: 0.6em; }
+  .content .callout-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--callout-color);
+  }
+  .content .callout-note { --callout-color: #0a83b3; }
+  .content .callout-tip { --callout-color: #1f9d6b; }
+  .content .callout-important { --callout-color: #7a5af5; }
+  .content .callout-warning { --callout-color: #c98a00; }
+  .content .callout-caution { --callout-color: #c2441c; }
+}

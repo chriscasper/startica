@@ -1,0 +1,28 @@
+{
+  "name": "@startica/db",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts",
+    "./migrations": "./migrations"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "lint": "echo \"(no lint config yet)\"",
+    "generate": "drizzle-kit generate"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "drizzle-kit": "^0.31.11",
+    "typescript": "^5",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.3"
+  },
+  "dependencies": {
+    "croner": "^10.0.1",
+    "drizzle-orm": "^0.45.4"
+  }
+}

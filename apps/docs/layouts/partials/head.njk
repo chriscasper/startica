@@ -1,0 +1,38 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% include "partials/theme-init.njk" %}
+<title>{% if title and title != site.title and page.url != '/' %}{{ title }} · {{ site.title }}{% else %}{{ site.title }}{% endif %}</title>
+<meta name="description" content="{{ seo.description or site.description }}">
+{% if seo.noindex %}
+<meta name="robots" content="noindex, nofollow">
+{% else %}
+<meta name="robots" content="index, follow">
+{% endif %}
+<link rel="canonical" href="{{ seo.canonical }}">
+<link rel="alternate" type="text/markdown" href="{% if page.url == '/' %}{{ '/' | absoluteUrl(site.url) }}index.md{% else %}{{ page.url | absoluteUrl(site.url) }}/index.md{% endif %}">
+<meta name="theme-color" content="#01314e">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@400;500&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+<meta property="og:site_name" content="{{ site.title }}">
+<meta property="og:title" content="{{ title or site.title }}">
+<meta property="og:description" content="{{ seo.description or site.description }}">
+<meta property="og:type" content="{{ seo.type or 'website' }}">
+<meta property="og:url" content="{{ seo.canonical }}">
+<meta property="og:image" content="{{ seo.image or (site.url + '/og.png') }}">
+<meta property="og:locale" content="{{ site.language }}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ title or site.title }}">
+<meta name="twitter:description" content="{{ seo.description or site.description }}">
+<meta name="twitter:image" content="{{ seo.image or (site.url + '/og.png') }}">
+
+{% if seo.jsonLd %}
+<script type="application/ld+json">
+{{ seo.jsonLd | json | safe }}
+</script>
+{% endif %}
+
+<link rel="stylesheet" href="/styles/main.css">
+<script src="/docs.js" defer></script>

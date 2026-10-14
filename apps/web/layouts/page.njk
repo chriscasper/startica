@@ -1,0 +1,21 @@
+{# Long-form pages written in Markdown: get started, privacy, community, changelog, roadmap #}
+{% extends "base.njk" %}
+
+{% block body %}
+{% include "partials/header.njk" %}
+<main id="main">
+  <div class="border-b border-line bg-surface">
+    <div class="mx-auto max-w-3xl px-6 pb-12 pt-16 md:px-8 md:pt-20">
+      {% if eyebrow %}<p class="eyebrow">{{ eyebrow }}</p>{% endif %}
+      <h1 class="mt-3 font-display text-4xl font-bold tracking-tight sm:text-5xl sm:leading-[1.05]">{{ title }}</h1>
+      {% if lede %}<p class="mt-5 text-lg leading-relaxed text-muted">{{ lede }}</p>{% endif %}
+    </div>
+  </div>
+  <div class="mx-auto max-w-3xl px-6 py-14 md:px-8">
+    <div class="content">
+      {{ content | safe }}
+    </div>
+  </div>
+</main>
+{% include "partials/footer.njk" %}
+{% endblock %}

@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.wrangler/
+.turbo/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+*.log
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# TypeScript
+*.tsbuildinfo
+
+# Simple Engine / Vite
+.vite/
+
+# Yarn 4
+.yarn/install-state.gz
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+
+# Next.js (apps/desktop-web)
+.next/
+.next-*/
+next-env.d.ts
+coverage/
+apps/desktop-web/tsconfig.test.json
+
+# Secrets (never commit)
+secrets/
+*.pem
+.cache/
+
+# Desktop build output
+apps/desktop/build/
+apps/desktop/dist/
+
+# Local Startica data folders (e.g. STARTICA_DATA_DIR="$PWD/.demo-data")
+.demo-data/
+.startica-data/
+
+# Eval exports of real products (`yarn eval:export score`); only the demo set is committed
+packages/core/src/ai/evals/*/*.json
+!packages/core/src/ai/evals/score/fieldnote.json
+

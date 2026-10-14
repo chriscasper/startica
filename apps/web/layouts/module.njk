@@ -1,0 +1,79 @@
+{# One page per module: /marketing, /seo, /accessibility, /security. Frontmatter: module (accent key),
+   eyebrow (module name), title (the job), lede, features [{ title, body, doc }], docs (path of the module's docs).
+   The Markdown body holds "how it works", limits and costs. #}
+{% extends "base.njk" %}
+{% import "partials/icons.njk" as icon %}
+
+{% set allModules = [
+  { key: "marketing", name: "Marketing", job: "Reach people", url: "/marketing" },
+  { key: "seo", name: "SEO & GEO", job: "Get found", url: "/seo" },
+  { key: "accessibility", name: "Accessibility", job: "Work for everyone", url: "/accessibility" },
+  { key: "security", name: "Security", job: "Stay safe", url: "/security" }
+] %}
+
+{% block body %}
+<div data-module="{{ module }}">
+  <section class="on-dark relative isolate overflow-hidden text-chalk">
+    <div class="hero-plane absolute inset-0 -z-20" aria-hidden="true"></div>
+    <div class="hero-grain absolute inset-0 -z-10" aria-hidden="true"></div>
+    {% set headerVariant = "hero" %}
+    {% include "partials/header.njk" %}
+    <div data-module="{{ module }}" class="relative z-10 mx-auto max-w-6xl px-6 pb-16 pt-8 md:px-8 md:pb-20 md:pt-12">
+      <p class="animate-enter inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[var(--module)]">
+        <span class="h-2 w-2 bg-[var(--module)]" aria-hidden="true"></span>{{ eyebrow }}
+      </p>
+      <h1 class="animate-enter-delay mt-5 max-w-3xl font-display text-5xl font-extrabold leading-[0.95] tracking-tight sm:text-6xl">{{ title }}.</h1>
+      <p class="animate-enter-delay-2 mt-6 max-w-2xl text-lg leading-relaxed text-chalk/75 sm:text-xl">{{ lede }}</p>
+      <div class="animate-enter-delay-3 mt-9 flex flex-wrap items-center gap-4">
+        <a href="/get-started" class="btn btn-primary">Get started {{ icon.arrow() }}</a>
+        <a href="{{ site.docs }}{{ docs }}" class="btn btn-ghost text-chalk">Read the docs</a>
+      </div>
+    </div>
+    <div class="h-1.5 bg-[var(--module)]" aria-hidden="true"></div>
+  </section>
+
+  <main id="main">
+    <section class="border-b border-line bg-surface">
+      <div class="mx-auto max-w-6xl px-6 py-16 md:px-8 md:py-24">
+        <p class="eyebrow">What it does</p>
+        <ul class="mt-10 grid gap-px overflow-hidden border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
+          {% for f in features %}
+          <li class="flex flex-col bg-surface p-7">
+            <span class="h-1 w-8 bg-[var(--module)]" aria-hidden="true"></span>
+            <h2 class="mt-4 font-display text-xl font-bold">{{ f.title }}</h2>
+            <p class="mt-3 flex-1 leading-relaxed text-muted">{{ f.body }}</p>
+            {% if f.doc %}<a href="{{ site.docs }}{{ f.doc }}" class="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold hover:text-[var(--module)]">Read the guide {{ icon.arrow("h-3.5 w-3.5") }}</a>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="bg-bg">
+      <div class="mx-auto max-w-3xl px-6 py-16 md:px-8 md:py-20">
+        <div class="content">
+          {{ content | safe }}
+        </div>
+      </div>
+    </section>
+
+    <section class="border-t border-line bg-surface">
+      <div class="mx-auto max-w-6xl px-6 py-16 md:px-8 md:py-20">
+        <p class="eyebrow">The other modules</p>
+        <h2 class="mt-3 max-w-2xl font-display text-3xl font-bold tracking-tight">Same app, same products, same sites.</h2>
+        <ul class="mt-10 grid gap-4 sm:grid-cols-3">
+          {% for m in allModules %}{% if m.key != module %}
+          <li data-module="{{ m.key }}">
+            <a href="{{ m.url }}" class="flex h-full flex-col border border-line border-t-4 border-t-[var(--module)] bg-bg p-5 hover:border-[var(--module)]">
+              <span class="text-xs font-bold uppercase tracking-[0.14em] text-[var(--module)]">{{ m.name }}</span>
+              <span class="mt-1 flex items-center gap-1.5 font-display text-xl font-bold">{{ m.job }} {{ icon.arrow("h-4 w-4") }}</span>
+            </a>
+          </li>
+          {% endif %}{% endfor %}
+        </ul>
+      </div>
+    </section>
+  </main>
+  {% include "partials/footer.njk" %}
+</div>
+{% endblock %}

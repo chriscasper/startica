@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/chriscasper/startica/discussions
+    about: Ask questions and discuss ideas in GitHub Discussions.
+  - name: Documentation
+    url: https://docs.mystartica.com
+    about: Install, first run, credentials and troubleshooting.
+  - name: Security vulnerability
+    url: https://github.com/chriscasper/startica/security/advisories/new
+    about: Report security problems privately, not as an issue.

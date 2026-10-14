@@ -1,0 +1,32 @@
+{# variant: "hero" sits on the dark hero plane; default sits on the page background #}
+{% import "partials/icons.njk" as icon %}
+{% set onHero = headerVariant == "hero" %}
+<header class="{% if onHero %}relative z-20 text-chalk{% else %}sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur{% endif %}">
+  <nav class="mx-auto flex max-w-6xl items-center gap-6 px-6 {% if onHero %}py-6{% else %}h-16{% endif %} md:px-8" aria-label="Primary">
+    <a href="/" class="brand-logo h-6" aria-label="Startica home">{{ site.logo | safe }}</a>
+    <ul class="ml-auto hidden items-center gap-7 text-sm font-semibold md:flex">
+      {% for item in site.nav %}
+      <li><a href="{{ item.url }}" class="{% if onHero %}text-chalk/75 hover:text-chalk{% else %}text-muted hover:text-fg{% endif %} transition-colors" {% if page.url == item.url %}aria-current="page"{% endif %}>{{ item.title }}</a></li>
+      {% endfor %}
+    </ul>
+    <div class="ml-auto flex items-center gap-2 md:ml-0">
+      <a href="{{ site.repo }}" class="flex items-center gap-2 px-2 py-2 text-sm font-semibold {% if onHero %}text-chalk/80 hover:text-chalk{% else %}text-muted hover:text-fg{% endif %}" aria-label="Startica on GitHub">
+        {{ icon.github() }}<span class="hidden sm:inline">GitHub</span>
+      </a>
+      <button type="button" class="theme-toggle p-2 {% if onHero %}text-chalk/80 hover:text-chalk{% else %}text-muted hover:text-fg{% endif %}" data-theme-toggle aria-label="Toggle dark mode">
+        {{ icon.moon() }}{{ icon.sun() }}
+      </button>
+      <button type="button" class="p-2 md:hidden {% if onHero %}text-chalk/80{% else %}text-muted{% endif %}" data-menu-toggle aria-controls="mobile-menu" aria-expanded="false" aria-label="Open menu">
+        {{ icon.menu() }}
+      </button>
+    </div>
+  </nav>
+  <div id="mobile-menu" hidden class="border-t border-line bg-surface text-fg md:hidden">
+    <ul class="mx-auto max-w-6xl space-y-1 px-6 py-4 text-base font-semibold">
+      {% for item in site.nav %}
+      <li><a href="{{ item.url }}" class="block py-2">{{ item.title }}</a></li>
+      {% endfor %}
+      <li><a href="/get-started" class="block py-2 text-accent">Get started</a></li>
+    </ul>
+  </div>
+</header>

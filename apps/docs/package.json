@@ -1,0 +1,24 @@
+{
+  "name": "@startica/docs",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "description": "Startica documentation — docs.mystartica.com",
+  "type": "module",
+  "scripts": {
+    "dev": "simple dev",
+    "build": "simple build && node scripts/postbuild.mjs",
+    "check": "node scripts/check.mjs",
+    "deploy": "yarn build && wrangler deploy",
+    "preview": "wrangler dev"
+  },
+  "devDependencies": {
+    "@startica/brand": "workspace:*",
+    "@startica/web-theme": "workspace:*",
+    "@tailwindcss/vite": "^4.0.0",
+    "pagefind": "^1.3.0",
+    "simple-engine": "^2.1.0",
+    "tailwindcss": "^4.0.0",
+    "wrangler": "^4.0.0"
+  }
+}

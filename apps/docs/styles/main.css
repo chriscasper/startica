@@ -1,0 +1,49 @@
+@import "tailwindcss";
+@import "@startica/web-theme/theme.css";
+@source "../layouts/**/*.njk";
+@source "../public/docs.js";
+
+/* Pagefind's default UI, mapped onto the site theme */
+#search-ui {
+  --pagefind-ui-scale: 0.9;
+  --pagefind-ui-primary: var(--st-accent);
+  --pagefind-ui-text: var(--st-fg);
+  --pagefind-ui-background: var(--st-surface);
+  --pagefind-ui-border: var(--st-line);
+  --pagefind-ui-tag: var(--st-raised);
+  --pagefind-ui-border-width: 1px;
+  --pagefind-ui-border-radius: 0;
+  --pagefind-ui-font: var(--font-body);
+}
+#search-ui mark {
+  background: var(--st-accent-soft);
+  color: inherit;
+}
+
+/* Copy button on code blocks (added by docs.js) */
+.copy-code {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  color: #c5d0db;
+  background: color-mix(in oklab, white 8%, transparent);
+  border: 1px solid color-mix(in oklab, white 12%, transparent);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+pre:hover .copy-code,
+.copy-code:focus-visible {
+  opacity: 1;
+}
+
+[data-toc-list] a.is-active {
+  color: var(--st-fg);
+  border-color: var(--color-signal);
+}
+
+body.nav-open [data-nav-panel] {
+  transform: translateX(0);
+}

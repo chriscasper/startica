@@ -1,0 +1,11 @@
+{# Pagefind search. The index is built by scripts/postbuild.mjs, so search only works on built output (yarn build:docs, then preview). #}
+<dialog id="search" class="m-0 mx-auto mt-[8vh] w-[min(42rem,calc(100vw-2rem))] max-h-[80vh] overflow-hidden border border-line bg-surface p-0 text-fg shadow-2xl backdrop:bg-ink/60 backdrop:backdrop-blur-sm" aria-label="Search">
+  <div class="flex max-h-[80vh] flex-col">
+    <div class="flex items-center justify-between border-b border-line px-4 py-2 text-xs text-muted">
+      <span>Search the docs</span>
+      <button type="button" data-search-close class="p-1 hover:text-fg" aria-label="Close search">Esc</button>
+    </div>
+    <div id="search-ui" class="overflow-y-auto p-4"></div>
+    <p id="search-unavailable" hidden class="px-4 pb-5 text-sm text-muted">Search isn’t available in dev mode. Run <code class="font-mono">yarn build:docs</code> and preview the build, or use the sidebar.</p>
+  </div>
+</dialog>

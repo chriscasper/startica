@@ -15,7 +15,7 @@
     "generate": "drizzle-kit generate"
   },
   "devDependencies": {
-    "@types/node": "^24",
+    "@types/node": "^26",
     "drizzle-kit": "^0.31.11",
     "typescript": "^5",
     "vite": "^8.3.4",

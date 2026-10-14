@@ -3035,7 +3035,7 @@ __metadata:
     "@google-analytics/data": "npm:^7.2.1"
     "@mozilla/readability": "npm:^0.6.0"
     "@startica/db": "workspace:*"
-    "@types/node": "npm:^24"
+    "@types/node": "npm:^26"
     "@types/nspell": "npm:^2.1.6"
     axe-core: "npm:4.14.0"
     croner: "npm:^10.0.1"
@@ -3059,7 +3059,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@startica/db@workspace:packages/db"
   dependencies:
-    "@types/node": "npm:^24"
+    "@types/node": "npm:^26"
     croner: "npm:^10.0.1"
     drizzle-kit: "npm:^0.31.11"
     drizzle-orm: "npm:^0.45.4"
@@ -3078,7 +3078,7 @@ __metadata:
     "@startica/core": "workspace:^"
     "@startica/db": "workspace:^"
     "@tailwindcss/turbopack": "npm:^4"
-    "@types/node": "npm:^24"
+    "@types/node": "npm:^26"
     "@types/react": "npm:^19"
     "@types/react-dom": "npm:^19"
     "@types/react-is": "npm:^19"
@@ -3549,7 +3549,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:^24, @types/node@npm:^24.9.0":
+"@types/node@npm:^24.9.0":
   version: 24.19.1
   resolution: "@types/node@npm:24.19.1"
   dependencies:
@@ -3564,6 +3564,15 @@ __metadata:
   dependencies:
     undici-types: "npm:>=7.24.0 <7.24.7"
   checksum: 10c0/2ba08caa7118af2f2761f2f5db9b6304faf5bd027a2dcb72bf6fcae3dd9e470d17045fec27f89023c02e7d4e0661c6e5877174bd39794bef080db8b35ad4a1ea
+  languageName: node
+  linkType: hard
+
+"@types/node@npm:^26":
+  version: 26.6.5
+  resolution: "@types/node@npm:26.6.5"
+  dependencies:
+    undici-types: "npm:~8.9.0"
+  checksum: 10c0/4f791f69466ace7842c09e7bef96cb1ddbb65cf3db916ef7e84f0e2b2a17220b6b816dc7539d01520cadfb17ed7169b8214910900493e0a83be8bc7d124ec20a
   languageName: node
   linkType: hard
 

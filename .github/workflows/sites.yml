@@ -67,7 +67,7 @@ jobs:
       - run: yarn install --immutable
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: sites
           path: apps

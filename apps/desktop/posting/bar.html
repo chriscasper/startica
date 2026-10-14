@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self'" />
+    <title>Post with Startica</title>
+    <style>
+      :root {
+        --bg: #fafafa;
+        --fg: #18181b;
+        --muted: #71717a;
+        --border: #e4e4e7;
+        --button: #18181b;
+        --button-fg: #fafafa;
+        --ok: #15803d;
+        --warn: #b45309;
+        color-scheme: light dark;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #18181b;
+          --fg: #fafafa;
+          --muted: #a1a1aa;
+          --border: #3f3f46;
+          --button: #fafafa;
+          --button-fg: #18181b;
+          --ok: #4ade80;
+          --warn: #fbbf24;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 16px;
+        font: 13px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        border-bottom: 1px solid var(--border);
+        user-select: none;
+      }
+      .label { font-weight: 600; white-space: nowrap; }
+      #message { flex: 1; min-width: 0; color: var(--muted); }
+      #message.ok { color: var(--ok); }
+      #message.warn { color: var(--warn); }
+      #message strong { color: var(--fg); }
+      .actions { display: flex; gap: 6px; align-items: center; }
+      button, input {
+        font: inherit;
+        height: 30px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--fg);
+        padding: 0 10px;
+      }
+      button { cursor: pointer; white-space: nowrap; }
+      button.primary { background: var(--button); color: var(--button-fg); border-color: var(--button); }
+      input { width: 260px; user-select: text; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <span class="label">Post with Startica</span>
+    <span id="message">Opening the page…</span>
+    <div class="actions">
+      <form id="link-form" hidden>
+        <input id="link" type="url" placeholder="Link to your post" aria-label="Link to your post" />
+        <button type="submit" class="primary">Save</button>
+      </form>
+      <button id="fill" type="button">Fill in again</button>
+      <button id="copy" type="button">Copy text</button>
+      <button id="save" type="button">Save link…</button>
+      <button id="close" type="button">Close</button>
+    </div>
+    <script src="bar.js"></script>
+  </body>
+</html>

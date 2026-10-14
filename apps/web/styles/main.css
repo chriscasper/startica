@@ -1,0 +1,158 @@
+@import "tailwindcss";
+@import "@startica/web-theme/theme.css";
+@source "../layouts/**/*.njk";
+@source "../content/**/*.{md,markdown}";
+
+@layer utilities {
+  .hero-plane {
+    /* Matches the Figma "colors" frame: navy to deep blue */
+    background: linear-gradient(126deg, var(--color-ink) 3%, var(--color-ink-soft) 98%);
+  }
+
+  .hero-grain {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+    opacity: 0.18;
+    mix-blend-mode: overlay;
+  }
+
+  .hero-bands {
+    background:
+      repeating-linear-gradient(
+        -18deg,
+        transparent 0,
+        transparent 48px,
+        color-mix(in oklab, white 4%, transparent) 48px,
+        color-mix(in oklab, white 4%, transparent) 49px
+      );
+    animation: band-drift 28s linear infinite;
+  }
+
+  .hero-horizon {
+    background:
+      radial-gradient(ellipse 90% 55% at 70% 110%, color-mix(in oklab, var(--color-signal) 55%, transparent), transparent 60%),
+      radial-gradient(ellipse 50% 40% at 10% 90%, color-mix(in oklab, var(--color-sky) 45%, transparent), transparent 70%);
+    animation: horizon-pulse 10s ease-in-out infinite alternate;
+  }
+
+  .animate-enter {
+    animation: enter 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .animate-enter-delay {
+    animation: enter 0.75s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+  }
+
+  .animate-enter-delay-2 {
+    animation: enter 0.75s cubic-bezier(0.22, 1, 0.36, 1) 0.22s both;
+  }
+
+  .animate-enter-delay-3 {
+    animation: enter 0.75s cubic-bezier(0.22, 1, 0.36, 1) 0.34s both;
+  }
+
+  .underline-grow {
+    position: relative;
+  }
+
+  .underline-grow::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -0.15em;
+    height: 3px;
+    width: 100%;
+    transform: scaleX(0);
+    transform-origin: left;
+    background: var(--color-signal);
+    animation: grow-x 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.45s both;
+  }
+
+  .step-bar {
+    width: 2.5rem;
+    height: 3px;
+    background: var(--color-signal);
+    transform: scaleX(0);
+    transform-origin: left;
+    animation: grow-x 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+/* Module accents, the same colors as the desktop app's [data-module] (desktop-web globals.css) */
+[data-module="marketing"] { --module: #c2441c; }
+[data-module="seo"] { --module: #0b7a5c; }
+[data-module="accessibility"] { --module: #0a6f99; }
+[data-module="security"] { --module: #6b4fd6; }
+[data-theme="dark"] [data-module="marketing"] { --module: #f47a52; }
+[data-theme="dark"] [data-module="seo"] { --module: #3ec79c; }
+[data-theme="dark"] [data-module="accessibility"] { --module: #4fb3e0; }
+[data-theme="dark"] [data-module="security"] { --module: #a996ff; }
+/* On the dark hero plane, always the dark-theme colors */
+.on-dark [data-module="marketing"] { --module: #f47a52; }
+.on-dark [data-module="seo"] { --module: #3ec79c; }
+.on-dark [data-module="accessibility"] { --module: #4fb3e0; }
+.on-dark [data-module="security"] { --module: #a996ff; }
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes band-drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 120px 40px;
+  }
+}
+
+@keyframes horizon-pulse {
+  from {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-bands,
+  .hero-horizon,
+  .animate-enter,
+  .animate-enter-delay,
+  .animate-enter-delay-2,
+  .animate-enter-delay-3,
+  .underline-grow::after,
+  .step-bar {
+    animation: none !important;
+  }
+
+  .underline-grow::after,
+  .step-bar {
+    transform: scaleX(1);
+  }
+}
+
+/* Card grids inside Markdown pages (/brand): drop the prose list and paragraph spacing; utilities still apply */
+@layer components {
+  .content .not-prose li + li { margin-top: 0; }
+  .content .not-prose p { margin: 0; }
+  .content .not-prose img { margin: 0; border: 0; }
+}

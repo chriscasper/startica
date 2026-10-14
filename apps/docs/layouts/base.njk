@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html lang="{{ site.language or 'en' }}">
+<head>
+  {% include "partials/head.njk" %}
+</head>
+<body class="min-h-screen bg-bg font-body text-fg antialiased">
+  <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:bg-surface focus:px-3 focus:py-2">Skip to content</a>
+  {% block body %}{% endblock %}
+</body>
+</html>

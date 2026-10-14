@@ -1,0 +1,2 @@
+{# Sets data-theme before first paint. Stored choice: "light" | "dark"; absent = follow the system. #}
+<script>(function(){var s=null;try{s=localStorage.getItem("startica-theme")}catch(e){}var d=s?s==="dark":matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.dataset.theme=d?"dark":"light"})();</script>

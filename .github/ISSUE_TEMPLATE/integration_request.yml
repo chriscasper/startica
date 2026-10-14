@@ -1,0 +1,38 @@
+name: Channel or connector request
+description: Ask for a new place to find conversations (channel) or a new data source for results (connector).
+labels: ["integration"]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - Channel (find conversations, draft replies)
+        - Connector (measure results: analytics, revenue, product data)
+    validations:
+      required: true
+  - type: input
+    id: service
+    attributes:
+      label: Service
+      placeholder: e.g. Mastodon, Discourse forums, Plausible, Paddle
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it matters
+      description: Who uses it, and what you'd do with it in Startica.
+    validations:
+      required: true
+  - type: textarea
+    id: access
+    attributes:
+      label: How could Startica access it?
+      description: Public API, RSS, OAuth, API key… Include links to the docs and any terms of service that matter. Startica doesn't scrape or automate anything that breaks a platform's terms.
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contributing
+      options:
+        - label: I'd like to help build it.

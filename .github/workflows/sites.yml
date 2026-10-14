@@ -1,0 +1,83 @@
+name: Sites
+
+# Builds mystartica.com (apps/web) and docs.mystartica.com (apps/docs) on every PR that touches them,
+# and deploys both to Cloudflare Workers on pushes to main.
+# Deploying needs the repo secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.
+
+on:
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - "apps/docs/**"
+      - "packages/web-theme/**"
+      - "CHANGELOG.md"
+      - ".github/workflows/sites.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "apps/docs/**"
+      - "packages/web-theme/**"
+      - "CHANGELOG.md"
+      - ".github/workflows/sites.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: sites-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: yarn install --immutable
+        env:
+          # The sites don't need the Electron binary
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      - run: yarn workspace @startica/docs check
+      - run: yarn build
+      - run: yarn build:docs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sites
+          path: |
+            apps/web/dist
+            apps/docs/dist
+          retention-days: 7
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: yarn install --immutable
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      - uses: actions/download-artifact@v4
+        with:
+          name: sites
+          path: apps
+      - name: Deploy mystartica.com
+        run: yarn workspace @startica/web wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Deploy docs.mystartica.com
+        run: yarn workspace @startica/docs wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

@@ -1,0 +1,36 @@
+{
+  "name": "startica",
+  "private": true,
+  "license": "MIT",
+  "version": "0.1.0",
+  "description": "Startica monorepo — get your business organized and online",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "yarn workspaces foreach --all --parallel --interlaced --verbose --jobs unlimited --include '@startica/{web,docs}' run dev",
+    "dev:web": "yarn workspace @startica/web dev",
+    "build": "yarn workspace @startica/web build",
+    "deploy": "yarn workspace @startica/web deploy",
+    "dev:docs": "yarn workspace @startica/docs dev",
+    "build:docs": "yarn workspace @startica/docs build",
+    "deploy:docs": "yarn workspace @startica/docs deploy",
+    "dev:desktop": "yarn workspace @startica/desktop dev",
+    "dev:desktop-web": "yarn workspace @startica/desktop-web dev",
+    "build:desktop": "yarn workspace @startica/desktop build",
+    "smoke:desktop": "yarn workspace @startica/desktop-web smoke",
+    "db:generate": "yarn workspace @startica/db generate",
+    "eval": "yarn workspace @startica/core eval",
+    "eval:export": "yarn workspace @startica/core eval:export",
+    "seed:demo": "yarn workspace @startica/core seed:demo",
+    "lint": "yarn workspaces foreach -A --exclude startica run lint",
+    "typecheck": "yarn workspaces foreach -A --exclude startica run typecheck",
+    "test": "yarn workspaces foreach -A --exclude startica run test",
+    "postinstall": "node scripts/ensure-electron.mjs"
+  },
+  "packageManager": "yarn@4.13.0",
+  "engines": {
+    "node": ">=24"
+  }
+}

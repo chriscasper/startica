@@ -1,0 +1,29 @@
+{
+  "name": "@startica/brand",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "The Startica logo: shared SVG data, string builders for the sites and React components for the desktop app",
+  "type": "module",
+  "exports": {
+    "./logo": {
+      "types": "./src/logo.d.ts",
+      "default": "./src/logo.js"
+    },
+    "./react": "./src/react.tsx",
+    "./assets/*": "./assets/*"
+  },
+  "scripts": {
+    "test": "node --test \"src/*.test.js\"",
+    "typecheck": "echo \"(checked through apps/desktop-web)\"",
+    "lint": "echo \"(no lint config yet)\""
+  },
+  "peerDependencies": {
+    "react": "*"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
+}

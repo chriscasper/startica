@@ -1,0 +1,25 @@
+{
+  "name": "@startica/web",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Startica marketing site — mystartica.com",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/changelog.mjs && simple dev",
+    "build": "node scripts/generate-assets.mjs && node scripts/changelog.mjs && simple build",
+    "dev:drafts": "simple dev --drafts",
+    "assets": "node scripts/generate-assets.mjs",
+    "deploy": "yarn build && wrangler deploy",
+    "preview": "wrangler dev"
+  },
+  "devDependencies": {
+    "@startica/brand": "workspace:*",
+    "@startica/web-theme": "workspace:*",
+    "@tailwindcss/vite": "^4.0.0",
+    "sharp": "^0.35.3",
+    "simple-engine": "^2.1.0",
+    "tailwindcss": "^4.0.0",
+    "wrangler": "^4.0.0"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@startica/web-theme",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Shared Tailwind theme for mystartica.com and docs.mystartica.com",
+  "exports": {
+    "./theme.css": "./theme.css"
+  },
+  "files": [
+    "theme.css"
+  ]
+}

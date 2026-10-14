@@ -1,0 +1,324 @@
+{% extends "base.njk" %}
+{% import "partials/icons.njk" as icon %}
+
+{# The four jobs: one per module, in the module's accent color (styles/main.css) #}
+{% set jobs = [
+  {
+    module: "marketing", job: "Reach people", name: "Marketing",
+    body: "Finds the conversations where people describe the problem you solve, drafts replies and posts in your voice, plans small ad tests, and tells you what brought visits, signups and revenue.",
+    points: [
+      "Inbox: threads from Reddit, Hacker News, Bluesky, Mastodon, Discourse and X, scored and drafted",
+      "Content Studio: posts, articles, newsletters and email campaigns in a voice you pick",
+      "Ads: plans, copy and images for Google, Meta and Reddit that you launch yourself",
+      "Analytics: GA4 or Umami, Stripe and your own database, traced back to each post"
+    ],
+    doc: "/guides/finding-conversations"
+  },
+  {
+    module: "seo", job: "Get found", name: "SEO & GEO",
+    body: "Checks what search engines, AI assistants and AI agents need from your site, shows how you do in Google and Bing, and asks AI assistants your customers' questions to see if they recommend you.",
+    points: [
+      "Site health: titles, indexing, broken links, structured data, AI crawler access",
+      "Search: queries, clicks and positions from Search Console and Bing",
+      "AI visibility: whether assistants mention you, and who they name instead",
+      "Opportunities, agent readiness, and the sites AI answers cite"
+    ],
+    doc: "/seo"
+  },
+  {
+    module: "accessibility", job: "Work for everyone", name: "Accessibility",
+    body: "Crawls your site in a real browser, checks every page against WCAG 2.2 with axe-core, groups the same problem across pages so you fix it once, and puts the worst first.",
+    points: [
+      "Issues ranked by impact and reach, with highlights on the page",
+      "Alt text review and fix suggestions written for your actual HTML",
+      "Links, spelling, readability and the PDFs your pages link to",
+      "A checklist for what automation can't decide, a statement and an ACR draft"
+    ],
+    doc: "/accessibility"
+  },
+  {
+    module: "security", job: "Stay safe", name: "Security",
+    body: "Once you prove a site is yours, checks what anyone on the internet can see: HTTPS, headers, cookies, exposed files and email spoofing. Then it keeps watching.",
+    points: [
+      "Findings with how to fix them, a score, and a recheck when you're done",
+      "Monitoring: new subdomains, expiring certificates, look-alike domains",
+      "Known-vulnerable libraries, ranked by how likely they are to be exploited",
+      "A security.txt, a disclosure policy and an inbox for reported problems"
+    ],
+    doc: "/security"
+  }
+] %}
+
+{% set together = [
+  { title: "Dashboard", body: "Opens on what needs you across every module, broken or risky things first, then each module's numbers for the product you're working on.", doc: "/guides/dashboard" },
+  { title: "Today", body: "Up to seven ranked moves for the day, from drafted replies to a serious security finding. Built from rules, so it's instant and free.", doc: "/guides/today" },
+  { title: "Roadmap", body: "Growth bets across the funnel, each with a playbook and a success metric. Re-planned every week from what worked, and any finding can join it.", doc: "/guides/roadmap" },
+  { title: "One scan", body: "Each page of your site is loaded once, and the accessibility, search and security checks all run on it. Problems can go straight to GitHub or GitLab issues.", doc: "/accessibility/scanning" }
+] %}
+
+{% set principles = [
+  { title: "Local-first", body: "Everything lives in one SQLite file on your computer. No account, no Startica server, no telemetry." },
+  { title: "Bring your own keys", body: "Your Claude or OpenAI key, your Google, Stripe and database connections. Secrets are encrypted with your OS keychain." },
+  { title: "Spend you control", body: "Scans and checks are free. AI is opt-in per task, under a monthly budget you set, and every call is logged with its cost." },
+  { title: "Nothing goes out without you", body: "Startica can fill in a reply, but you press the site's own button. You launch the ads. You change your site. It never acts for you." },
+  { title: "Honest about what it checks", body: "It reports what automated checks found and what still needs a person. It never calls your site compliant, certified or secure." },
+  { title: "Plays by the rules", body: "Public feeds and official APIs, no scraping. It scans only sites you own, politely, and runs security checks only after you prove it." }
+] %}
+
+{% set faqs = [
+  { q: "Is Startica free?", a: "Yes. The app is free and open source under the MIT license. Scans and checks cost nothing. You pay only for the APIs you choose to use, mainly Claude or OpenAI, under a monthly budget you set." },
+  { q: "Who is it for?", a: "Founders and small teams who look after their own product: no marketing department, no accessibility consultant, no security team. It's a single-user app with no logins or sync." },
+  { q: "Does it post or change anything for me?", a: "No. On supported sites, Startica opens the page, fills in your reply and waits for you to press the site's own button. Ads are files you import and launch yourself. Fixes for your site are suggestions to copy. It never sends email." },
+  { q: "Will it make my site compliant or secure?", a: "It will find a lot of real problems and help you fix them, but no automated tool can promise that. Startica shows what still needs a person to review, and never calls a site compliant, certified or secure." },
+  { q: "Can I scan any website?", a: "Only sites you own or are allowed to test. Startica asks you to confirm that when you add a site, crawls politely, and runs its security checks only after you prove ownership with a DNS record, a file or Search Console." },
+  { q: "Where does my data go?", a: "It stays in a SQLite file on your computer. Startica sends prompts to Claude or OpenAI with your key, reads public feeds, loads the sites you scan, and calls Google, Stripe, your database or a few free public security services only for features you turn on. The privacy page lists every one." },
+  { q: "How do I install it?", a: "For now you clone the repository and run it, or build an installer for your own machine with one command. Signed installers with automatic updates are coming to GitHub Releases." },
+  { q: "Can I try it without an API key?", a: "Yes. On the welcome screen, choose “Look around with a sample product first”. Startica opens a fictional product with sample results in every module, with scans, AI and posting turned off. Your own data stays separate." }
+] %}
+
+{% block body %}
+<div class="bg-bg">
+  {# Hero #}
+  <section class="on-dark relative isolate overflow-hidden text-chalk">
+    <div class="hero-plane absolute inset-0 -z-20" aria-hidden="true"></div>
+    <div class="hero-horizon absolute inset-0 -z-10" aria-hidden="true"></div>
+    <div class="hero-bands absolute inset-0 -z-10" aria-hidden="true"></div>
+    <div class="hero-grain absolute inset-0 -z-10" aria-hidden="true"></div>
+
+    {% set headerVariant = "hero" %}
+    {% include "partials/header.njk" %}
+
+    <div class="relative z-10 mx-auto grid max-w-6xl items-center gap-14 px-6 pb-20 pt-10 md:px-8 md:pb-28 md:pt-14 lg:grid-cols-[1.2fr_1fr]">
+      <div>
+        <p class="animate-enter inline-flex flex-wrap items-center gap-x-2 gap-y-1 border border-chalk/20 bg-chalk/5 px-3 py-1.5 text-xs font-semibold text-chalk/80">
+          <span class="h-1.5 w-1.5 rounded-full bg-signal" aria-hidden="true"></span>
+          Open source · MIT · macOS, Windows, Linux
+        </p>
+        <h1 class="animate-enter-delay mt-7 font-display text-5xl font-extrabold leading-[0.95] tracking-tight sm:text-6xl">
+          Your AI <span class="whitespace-nowrap">co-founder</span> for everything <span class="underline-grow inline-block">after you ship</span>.
+        </h1>
+        <p class="animate-enter-delay-2 mt-7 max-w-xl text-lg leading-relaxed text-chalk/75 sm:text-xl">
+          Startica finds the people who need your product, gets you found in search and AI answers, and keeps your site accessible and secure. One desktop app, your own keys, and nothing goes out without you.
+        </p>
+        <div class="animate-enter-delay-3 mt-10 flex flex-wrap items-center gap-4">
+          <a href="/get-started" class="btn btn-primary">Get started {{ icon.arrow() }}</a>
+          <a href="{{ site.repo }}" class="btn btn-ghost text-chalk">{{ icon.github("h-4 w-4") }} Star on GitHub</a>
+        </div>
+        <p class="animate-enter-delay-3 mt-5 text-sm text-chalk/55">Free and open source. Bring your own Claude or OpenAI key.</p>
+      </div>
+
+      {# App mock-up: an illustration of the Dashboard with a fictional product #}
+      <figure class="animate-enter-delay-2 relative" aria-label="Illustration of Startica's Dashboard">
+        <div class="overflow-hidden border border-chalk/15 bg-[#022a44]/90 shadow-2xl shadow-black/40 backdrop-blur">
+          <div class="flex items-center gap-2 border-b border-chalk/10 px-4 py-3">
+            <span class="h-2.5 w-2.5 rounded-full bg-chalk/20"></span><span class="h-2.5 w-2.5 rounded-full bg-chalk/20"></span><span class="h-2.5 w-2.5 rounded-full bg-chalk/20"></span>
+            <span class="ml-3 text-xs text-chalk/50">Startica — Fieldnote</span>
+          </div>
+          <div class="flex">
+            <ul class="hidden w-32 shrink-0 space-y-1 border-r border-chalk/10 p-3 text-xs text-chalk/55 sm:block">
+              <li class="bg-chalk/10 px-2 py-1.5 font-semibold text-chalk">Dashboard</li>
+              <li data-module="marketing" class="flex items-center gap-2 px-2 py-1.5"><span class="h-1.5 w-1.5 rounded-full bg-[var(--module)]"></span>Marketing</li>
+              <li data-module="seo" class="flex items-center gap-2 px-2 py-1.5"><span class="h-1.5 w-1.5 rounded-full bg-[var(--module)]"></span>SEO &amp; GEO</li>
+              <li data-module="accessibility" class="flex items-center gap-2 px-2 py-1.5"><span class="h-1.5 w-1.5 rounded-full bg-[var(--module)]"></span>Accessibility</li>
+              <li data-module="security" class="flex items-center gap-2 px-2 py-1.5"><span class="h-1.5 w-1.5 rounded-full bg-[var(--module)]"></span>Security</li>
+            </ul>
+            <div class="flex-1 p-5">
+              <p class="font-display text-lg font-bold">Needs you</p>
+              <p class="text-xs text-chalk/50">Risky things first, then waiting work</p>
+              <ol class="mt-4 space-y-2.5 text-sm">
+                <li data-module="security" class="border border-chalk/10 bg-chalk/[0.04] p-3">
+                  <p class="flex items-center gap-2 font-semibold"><span class="shrink-0 whitespace-nowrap text-[10px] font-bold uppercase tracking-wider text-[var(--module)]">Security</span> Certificate expires in 9 days</p>
+                  <p class="mt-1 text-xs text-chalk/55">fieldnote.example · renew it before visitors see a warning.</p>
+                </li>
+                <li data-module="accessibility" class="border border-chalk/10 bg-chalk/[0.04] p-3">
+                  <p class="flex items-center gap-2 font-semibold"><span class="shrink-0 whitespace-nowrap text-[10px] font-bold uppercase tracking-wider text-[var(--module)]">Accessibility</span> 3 critical issues</p>
+                  <p class="mt-1 text-xs text-chalk/55">The sign-up button has no name on 41 pages.</p>
+                </li>
+                <li data-module="marketing" class="border border-chalk/10 bg-chalk/[0.04] p-3">
+                  <p class="flex items-center gap-2 font-semibold"><span class="shrink-0 whitespace-nowrap text-[10px] font-bold uppercase tracking-wider text-[var(--module)]">Marketing</span> 4 replies to review</p>
+                  <p class="mt-1 text-xs text-chalk/55">Threads in r/fieldwork asking how to sync notes offline.</p>
+                </li>
+                <li data-module="seo" class="hidden border border-chalk/10 bg-chalk/[0.04] p-3 sm:block">
+                  <p class="flex items-center gap-2 font-semibold"><span class="shrink-0 whitespace-nowrap text-[10px] font-bold uppercase tracking-wider text-[var(--module)]">SEO &amp; GEO</span> Assistants name 2 competitors instead</p>
+                  <p class="mt-1 text-xs text-chalk/55">“Best offline notes app for fieldwork?”</p>
+                </li>
+              </ol>
+            </div>
+          </div>
+        </div>
+        <figcaption class="mt-3 text-xs text-chalk/45">Illustration with a fictional product.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <main id="main">
+    {# The four jobs #}
+    <section id="features" class="scroll-mt-20 border-b border-line bg-surface">
+      <div class="mx-auto max-w-6xl px-6 py-20 md:px-8 md:py-28">
+        <p class="eyebrow">What's inside</p>
+        <h2 class="mt-3 max-w-3xl font-display text-3xl font-bold tracking-tight sm:text-5xl sm:leading-[1.05]">Four jobs every product has after launch. One app that does them.</h2>
+        <p class="mt-5 max-w-2xl text-lg leading-relaxed text-muted">Shipping is the start. Then people have to hear about it, find it, be able to use it and trust it. Startica is built as four modules, one for each, that share your products, your sites and one daily list.</p>
+        <ul class="mt-14 grid gap-6 md:grid-cols-2">
+          {% for j in jobs %}
+          <li data-module="{{ j.module }}" class="group flex flex-col border border-line border-t-4 border-t-[var(--module)] bg-bg p-7">
+            <p class="text-xs font-bold uppercase tracking-[0.14em] text-[var(--module)]">{{ j.name }}</p>
+            <h3 class="mt-2 font-display text-3xl font-bold">{{ j.job }}</h3>
+            <p class="mt-3 leading-relaxed text-muted">{{ j.body }}</p>
+            <ul class="mt-5 flex-1 space-y-2 text-sm">
+              {% for p in j.points %}
+              <li class="flex gap-2.5"><span class="mt-2 h-1.5 w-1.5 shrink-0 bg-[var(--module)]" aria-hidden="true"></span><span>{{ p }}</span></li>
+              {% endfor %}
+            </ul>
+            <div class="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold">
+              <a href="/{{ j.module }}" class="inline-flex items-center gap-1.5 hover:text-[var(--module)]">More about {{ j.name }} {{ icon.arrow("h-3.5 w-3.5") }}</a>
+              <a href="{{ site.docs }}{{ j.doc }}" class="text-muted hover:text-[var(--module)]">Docs</a>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    {# How the modules fit together #}
+    <section class="bg-bg">
+      <div class="mx-auto max-w-6xl px-6 py-20 md:px-8 md:py-28">
+        <p class="eyebrow">How it fits together</p>
+        <h2 class="mt-3 max-w-3xl font-display text-3xl font-bold tracking-tight sm:text-5xl sm:leading-[1.05]">One place to start each day, and twenty minutes of the right work.</h2>
+        <p class="mt-5 max-w-2xl text-lg leading-relaxed text-muted">The modules feed each other. Intel shapes what the Inbox looks for, Intel's keywords shape the ads, a security finding can land on the Roadmap, and everything worth doing today lands on one list.</p>
+        <ol class="mt-14 grid gap-px overflow-hidden border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
+          {% for t in together %}
+          <li class="flex flex-col bg-surface p-7">
+            <span class="font-display text-sm font-bold tracking-[0.18em] text-accent">0{{ loop.index }}</span>
+            <h3 class="mt-2 font-display text-xl font-bold">{{ t.title }}</h3>
+            <p class="mt-3 flex-1 leading-relaxed text-muted">{{ t.body }}</p>
+            <a href="{{ site.docs }}{{ t.doc }}" class="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold hover:text-accent">Read the guide {{ icon.arrow("h-3.5 w-3.5") }}</a>
+          </li>
+          {% endfor %}
+        </ol>
+      </div>
+    </section>
+
+    {# Principles #}
+    <section class="bg-ink text-chalk">
+      <div class="mx-auto max-w-6xl px-6 py-20 md:px-8 md:py-28">
+        <p class="eyebrow !text-signal">Principles</p>
+        <h2 class="mt-3 max-w-3xl font-display text-3xl font-bold tracking-tight sm:text-5xl sm:leading-[1.05]">Your data, your keys, your call.</h2>
+        <ul class="mt-14 grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+          {% for p in principles %}
+          <li>
+            <div class="step-bar mb-5" style="animation-delay: {{ loop.index0 * 0.08 }}s" aria-hidden="true"></div>
+            <h3 class="font-display text-xl font-bold">{{ p.title }}</h3>
+            <p class="mt-3 leading-relaxed text-chalk/65">{{ p.body }}</p>
+          </li>
+          {% endfor %}
+        </ul>
+        <p class="mt-14 text-chalk/65">Exactly what leaves your computer, and when: <a href="/privacy" class="font-semibold text-chalk underline decoration-signal underline-offset-4">read the privacy page</a>.</p>
+      </div>
+    </section>
+
+    {# Under the hood #}
+    <section class="border-b border-line bg-surface">
+      <div class="mx-auto grid max-w-6xl gap-14 px-6 py-20 md:px-8 md:py-28 lg:grid-cols-[1fr_1.1fr]">
+        <div>
+          <p class="eyebrow">Under the hood</p>
+          <h2 class="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">A desktop app with a small web server inside.</h2>
+          <p class="mt-5 leading-relaxed text-muted">The Electron window talks to a Next.js server running only on your machine, behind a token that changes every launch. Background jobs scan, check, score, draft and sync on a schedule while the app sits in your menu bar or tray. Site scans load each page once in Electron's own Chromium. AI runs only in jobs, through one logged path with a budget guard.</p>
+          <ul class="mt-8 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+            <li><span class="font-semibold">Electron</span> <span class="text-muted">desktop shell</span></li>
+            <li><span class="font-semibold">Next.js 16</span> <span class="text-muted">UI and server</span></li>
+            <li><span class="font-semibold">SQLite</span> <span class="text-muted">node:sqlite + Drizzle</span></li>
+            <li><span class="font-semibold">Claude or OpenAI</span> <span class="text-muted">a model per task</span></li>
+            <li><span class="font-semibold">axe-core</span> <span class="text-muted">accessibility checks</span></li>
+            <li><span class="font-semibold">TypeScript</span> <span class="text-muted">strict, end to end</span></li>
+          </ul>
+          <a href="{{ site.docs }}/contributing/architecture" class="mt-8 inline-flex items-center gap-1.5 font-semibold hover:text-accent">Read the architecture {{ icon.arrow("h-3.5 w-3.5") }}</a>
+        </div>
+        {# Architecture diagram #}
+        <figure class="self-center" aria-label="Architecture: the Electron window and keychain talk to a local server that runs the UI, background jobs, site scans and SQLite, and calls out only to the sites you scan and the APIs you set up">
+          <div class="border border-line bg-bg p-5 font-mono text-[13px] leading-relaxed sm:p-7">
+            <div class="border border-line bg-surface p-4">
+              <p class="font-body text-xs font-bold uppercase tracking-[0.14em] text-muted">Your computer</p>
+              <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                <div class="border border-line p-3"><p class="font-semibold">Startica window</p><p class="text-muted">Electron, sandboxed</p></div>
+                <div class="border border-line p-3"><p class="font-semibold">OS keychain</p><p class="text-muted">encrypts secrets</p></div>
+              </div>
+              <p class="py-2 text-center text-muted" aria-hidden="true">↓ 127.0.0.1 + launch token</p>
+              <div class="border border-signal/60 bg-accent-soft p-3">
+                <p class="font-semibold">Local server</p>
+                <p class="text-muted">pages · jobs · site scans</p>
+                <p class="mt-2 border-t border-line pt-2"><span class="font-semibold">startica.db</span> <span class="text-muted">SQLite</span></p>
+              </div>
+            </div>
+            <p class="py-2 text-center text-muted" aria-hidden="true">↓ only what you set up</p>
+            <div class="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
+              <span class="border border-line px-2 py-1.5">Claude · OpenAI</span>
+              <span class="border border-line px-2 py-1.5">Public feeds</span>
+              <span class="border border-line px-2 py-1.5">Your sites</span>
+              <span class="border border-line px-2 py-1.5">Your accounts</span>
+            </div>
+          </div>
+        </figure>
+      </div>
+    </section>
+
+    {# Open source #}
+    <section class="bg-bg">
+      <div class="mx-auto max-w-6xl px-6 py-20 md:px-8 md:py-28">
+        <div class="grid gap-12 lg:grid-cols-[1fr_1fr]">
+          <div>
+            <p class="eyebrow">Open source</p>
+            <h2 class="mt-3 font-display text-3xl font-bold tracking-tight sm:text-5xl sm:leading-[1.05]">Built in the open. Shaped by the people who use it.</h2>
+            <p class="mt-5 text-lg leading-relaxed text-muted">Startica is MIT licensed. Read every line, fork it for your own business, or help build it: add a channel, a connector, a check or a playbook; fix a bug; improve the docs. Big ideas start in Discussions.</p>
+          </div>
+          <ul class="grid gap-4 self-end sm:grid-cols-2">
+            <li><a href="{{ site.repo }}" class="flex h-full flex-col border border-line bg-surface p-5 hover:border-signal"><span class="flex items-center gap-2 font-semibold">{{ icon.github("h-4 w-4") }} Repository</span><span class="mt-1 text-sm text-muted">Code, issues and releases</span></a></li>
+            <li><a href="{{ site.repo }}/discussions" class="flex h-full flex-col border border-line bg-surface p-5 hover:border-signal"><span class="font-semibold">Discussions</span><span class="mt-1 text-sm text-muted">Questions, ideas, show and tell</span></a></li>
+            <li><a href="{{ site.docs }}/contributing" class="flex h-full flex-col border border-line bg-surface p-5 hover:border-signal"><span class="font-semibold">Contributing guide</span><span class="mt-1 text-sm text-muted">Architecture, setup, working rules</span></a></li>
+            <li><a href="{{ site.repo }}/issues?q=is%3Aopen+label%3A%22good+first+issue%22" class="flex h-full flex-col border border-line bg-surface p-5 hover:border-signal"><span class="font-semibold">Good first issues</span><span class="mt-1 text-sm text-muted">A friendly place to start</span></a></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    {# FAQ #}
+    <section class="border-t border-line bg-surface">
+      <div class="mx-auto max-w-6xl px-6 py-20 md:px-8 md:py-28">
+        <div class="grid gap-12 lg:grid-cols-[1fr_2fr]">
+          <div>
+            <p class="eyebrow">FAQ</p>
+            <h2 class="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">Good questions.</h2>
+            <p class="mt-4 text-muted">More in the <a class="link" href="{{ site.docs }}/troubleshooting/faq">full FAQ</a>.</p>
+          </div>
+          <div class="divide-y divide-line border-y border-line">
+            {% for f in faqs %}
+            <details class="group py-5">
+              <summary class="flex cursor-pointer list-none items-center justify-between gap-6 font-display text-lg font-bold">
+                {{ f.q }}
+                <span class="text-2xl font-normal text-accent transition-transform group-open:rotate-45" aria-hidden="true">+</span>
+              </summary>
+              <p class="mt-3 max-w-2xl leading-relaxed text-muted">{{ f.a }}</p>
+            </details>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {# Final call to action #}
+    <section class="relative isolate overflow-hidden text-chalk">
+      <div class="hero-plane absolute inset-0 -z-20" aria-hidden="true"></div>
+      <div class="hero-grain absolute inset-0 -z-10" aria-hidden="true"></div>
+      <div class="mx-auto max-w-6xl px-6 py-20 md:px-8 md:py-24">
+        <h2 class="max-w-2xl font-display text-3xl font-bold tracking-tight sm:text-5xl sm:leading-[1.05]">Get Startica running in about ten minutes.</h2>
+        <p class="mt-5 max-w-xl text-lg text-chalk/70">You need Node 24, git and a Claude or OpenAI key. A short setup takes you from there, or you can look around with a sample product first.</p>
+        <div class="mt-10 flex flex-wrap gap-4">
+          <a href="/get-started" class="btn btn-primary">Get started {{ icon.arrow() }}</a>
+          <a href="{{ site.docs }}" class="btn btn-ghost text-chalk">Read the docs</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  {% include "partials/footer.njk" %}
+</div>
+{% endblock %}

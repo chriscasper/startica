@@ -1,0 +1,137 @@
+---
+title: Background jobs
+description: Every background job Startica runs, what starts it, its schedule, retries, time limit and the AI model it uses.
+layout: doc
+---
+
+Anything slow in Startica (crawling, scanning Reddit and forums, checking sites for accessibility, calling the AI, syncing metrics) runs as a background job. Jobs are rows in the local SQLite database (`jobs` table), and a runner inside the app's server process picks them up. This page lists every job, what starts it, and how it retries.
+
+## How jobs run
+
+- **One queue per job type.** Each queue has its own loop, so a 15-minute Reddit scan never holds up drafting. Within a queue, jobs run one at a time, oldest first. An idle queue checks for new work every 1.5 seconds.
+- **Lease.** When a job starts it is locked for its lease time. If the app quits or crashes mid-job, the lease expires and the job runs again the next time the app is open.
+- **Retries.** A failed job is retried until it reaches its max attempts, waiting 1, 4, 9… minutes (attempt number squared) between tries. After the last attempt it is marked `failed` and stays that way. Most jobs that call the AI allow only 1 attempt, so they never retry silently; rerun them from the button that started them.
+- **History.** Every attempt writes a row to `job_runs` with its status, result or error.
+
+> [!WARNING]
+> Jobs only run while Startica is open. Closing the window keeps the app running in the tray (menu bar) so schedules continue; **Quit Startica** stops them. A schedule that comes due while the app is closed is skipped, not caught up later. See [Running in the background](/guides/background).
+
+Setting `STARTICA_DISABLE_JOBS=1` starts the app without the runner and without schedules: jobs can still be queued but nothing runs them. See [Environment variables](/reference/environment).
+
+[Demo mode](/guides/demo-mode) works the same way: the runner and schedules never start, so no scans, AI calls or syncs happen with the sample product. Buttons that queue a job still do, but the job just waits. (Accessibility's scan buttons are disabled in the demo.)
+
+## Schedules
+
+Schedules use cron expressions in the computer's **local time**. A scheduled run queues the job with no product, so it covers every product in the workspace.
+
+| Schedule name | Cron | Plain English | Queues |
+| --- | --- | --- | --- |
+| listen | `7 * * * *` | Every hour at :07 | `listen_scan` |
+| engagement | `17 */6 * * *` | Every 6 hours at :17 (00:17, 06:17, 12:17, 18:17) | `engagement_sync` |
+| metrics | `15 8 * * *` | Every day at 08:15 | `metrics_sync` |
+| replan | `0 7 * * 1` | Every Monday at 07:00 | `roadmap_plan` |
+| security-monitor | `47 6 * * *` | Every day at 06:47 | `security_monitor`, for every verified site |
+| site-scans | `37 * * * *` | Every hour at :37 | `site_scan_due` |
+| visibility | `30 9 * * 1` | Every Monday at 09:30 | `ai_visibility_run`, only for products with **Run every week** on |
+
+
+## All jobs
+
+Lease is the job's time limit in seconds before it is considered abandoned. Model task refers to the routing in Settings → General → AI (Claude defaults shown; on OpenAI, `score` and `ping` use GPT-6 Luna and the other tasks GPT-6.1 Sol); see [Settings](/reference/settings#model-for-each-task).
+
+| Queue | What it does | Started by | Max attempts | Lease | Model task (default model) |
+| --- | --- | --- | --- | --- | --- |
+| `ping` | Asks the AI for one sentence to prove the whole path works. | **Run test job** on the System page. | 3 | 120 s (2 min) | ping (Haiku 5.5) |
+| `intel_build` | Crawls the product website (up to 8 pages), researches the market with web search, then writes the brief, personas, competitors, keywords and communities. | **Build intel** / **Rebuild intel** on the Intel page; **Start building intel now** in the welcome wizard; **Build intel** / **Retry** on Today's Getting started checklist. | 1 | 1800 s (30 min) | research (Opus 5.5), then strategy (Opus 5.5) |
+| `listen_scan` | Searches Hacker News, Reddit (watched subreddits and keywords), Bluesky (keywords), Mastodon (watched hashtags), Discourse (watched forums: new topics and keyword searches) and, with an X API token, X (top 3 keywords, at most every 6 hours by default, within the daily read cap) for conversations from the last 26 hours, stores new ones, and queues scoring for each source as soon as it's done. A source that fails is skipped and its error recorded in the run's result (`errors`, per product). At most 60 new conversations per product and source per scan. Products without a brief are skipped. | The **listen** schedule (all products); **Scan now** in the Inbox or on Today's Getting started checklist (active product); **Watch N communities** on the checklist (that product). | 1 | 2400 s (40 min) | none |
+| `opportunity_score` | Scores conversations for relevance and intent (batches of up to 20). Archives ones older than 7 days and near-duplicates of conversations already triaged. Queues a draft for ones that meet the product's thresholds. | `listen_scan`; **Paste a link** → **Draft a reply** in the Inbox (skips the age, duplicate and threshold checks). | 2 | 600 s (10 min) | score (Haiku 5.5) |
+| `draft_generate` | Writes a reply draft for one conversation, optionally with your guidance. | `opportunity_score`; **Regenerate** and **Draft a reply anyway** on an Inbox card. | 1 | 300 s (5 min) | draft (Sonnet 5.5) |
+| `engagement_sync` | Reads current engagement (score, reply count, whether it was removed) for replies and Content Studio pieces you marked posted with a link in the last 14 days. Reddit, Hacker News, Bluesky, Mastodon and Discourse links can be read, and X links with an X API token (one paid read per check). | The **engagement** schedule. | 1 | 2400 s (40 min) | none |
+| `metrics_sync` | Pulls the last 30 days of metrics from each connection (GA4, Umami, Stripe, product database; Umami one local day at a time, about 3 requests a second; see [Umami](/credentials/umami#syncing)) and search data from Google Search Console and Bing Webmaster Tools (16 months on the first sync, then the last 5 days and anything newer; see [How syncing works](/seo/search#how-syncing-works)), and records each connection's status. | The **metrics** schedule (all connections); **Sync now** (active product); saving a connection (that connection). | 1 | 600 s (10 min) | none |
+| `roadmap_plan` | Plans or re-plans the growth roadmap: adds, updates or drops the AI's items; never touches your own items or done items. Products without a brief are skipped. | The **replan** schedule (all products); **Create the roadmap** / **Re-plan** on the Roadmap page. | 1 | 900 s (15 min) | strategy (Opus 5.5) |
+| `audit_run` | Runs one audit: Landing page, Onboarding, SEO (adds measured technical facts) or AI search (web research instead of crawling). Needs the product's website. | **Run** / **Run again** next to an audit: Landing page and Onboarding on the Roadmap page, SEO and AI search under **AI audits** on **SEO & GEO → Opportunities**. | 1 | 1200 s (20 min) | strategy (Opus 5.5); AI search also uses research (Opus 5.5) |
+| `voice_import` | Imports a Reddit or Hacker News user's public writing as voice samples, skipping ones already saved. | Adding a voice source with a Reddit or Hacker News username; **Import** on a source in Content Studio. | 1 | 600 s (10 min) | none |
+| `voice_profile_build` | Distills a style guide from a source's samples (up to 40,000 characters), or from all sources blended. | **Build voice** / **Build one voice from all sources** in Content Studio (needs at least 3 samples). | 1 | 600 s (10 min) | strategy (Opus 5.5) |
+| `content_generate` | Writes one piece for the chosen channel in the chosen voice. | **Write it** and **Rewrite** in Content Studio; **Write it in Content Studio** on **SEO & GEO → Opportunities**. | 1 | 300 s (5 min) | draft (Sonnet 5.5) |
+| `content_topics` | Suggests content ideas from the brief, personas and recent conversations. | **Suggest ideas** / **New ideas** in Content Studio. | 1 | 300 s (5 min) | draft (Sonnet 5.5) |
+| `ad_plan` | Plans an ad campaign from its brief: the test budget and days, success metric, bidding, and the ad groups with their targeting and ads. Replaces the campaign's groups and ads. Shown as "Planning an ad campaign" on the System page. | **Plan it** in **New campaign** and **Plan again** on a campaign in [Ads](/ads). | 1 | 900 s (15 min) | strategy (Opus 5.5) |
+| `ad_copy` | Rewrites one ad with your optional guidance, fixing the problems the checks flagged. Shown as "Rewriting an ad". | **Rewrite** on an ad in Ads; **Rewrite with AI** on a suggestion on a campaign's **Results** tab (with the suggestion's guidance). | 1 | 300 s (5 min) | draft (Sonnet 5.5) |
+| `ad_creative_ideas` | Suggests up to 3 [creatives](/ads/creatives) from the product, the campaign's goal and plan, and its ads: what the picture shows, the words, the template and the colors. Saves them as ideas, without pictures. Drops ideas whose picture names a competitor. | **Suggest ideas** on a campaign's **Creatives** tab (does nothing while one is waiting or running for the campaign). | 1 | 300 s (5 min) | draft (Sonnet 5.5) |
+| `ad_creative_image` | Draws one creative's picture at 2048×2048 with OpenAI's image model, keeps the prompt with the creative, adds the cost to it, then queues `ad_creative_render`. | **Draw and render** in **New creative** or **Edit creative**; **Draw it** on an idea; **Draw again**. | 1 | 300 s (5 min) | image (GPT Image 2.5 Flare; OpenAI only) |
+| `ad_creative_render` | Renders the creative's template in every size the platform takes, on your computer, as PNG, or JPEG when the PNG is over the platform's file limit. No AI. | `ad_creative_image`; saving a creative with an uploaded picture, the current one or none; **Render again**. | 2 | 300 s (5 min) | none |
+| `ai_prompts_suggest` | Writes up to 20 [AI visibility](/seo/ai-visibility) questions from the product's brief, personas, keywords and competitors, never naming the product. Drops duplicates of existing questions and any that name the product, and never goes over 100 questions. Shown as "Suggesting AI visibility questions". | **Suggest questions** on **SEO & GEO → AI visibility** (does nothing while one is waiting or running for the product). | 1 | 300 s (5 min) | draft (Sonnet 5.5) |
+| `ai_visibility_run` | Asks each active AI visibility question, oldest first, with web search (up to 3 searches each), then reads each answer for mentions, recommendations, position, competitors and the product's own pages, and stores the run's totals. Checks the run's cost cap before each question and stops before going over it. A missing key, an unknown model or the monthly budget ends the run as failed; any other error fails only that question. Stopping keeps the answers so far. When a run ends having answered at least one question, it queues `offsite_check`. Shown as "Asking AI assistants". With no run given (the schedule), it starts a run for each product with weekly runs on, active questions and no run going; it's skipped without an AI key. | **Run now** on **SEO & GEO → AI visibility**; the **visibility** schedule. | 1 | 3600 s (1 h) | answer (Sonnet 5.5), then score (Haiku 5.5) for each question |
+| `opportunity_draft` | Drafts the fix for one [opportunity](/seo/opportunities#drafts): titles and descriptions (with the pages' Google searches read live from Search Console when it's connected), JSON-LD, an `llms.txt` or an FAQ answer. Recomputes the opportunity first and fails if it's gone. Checks the draft and saves it with any problems found. Shown as "Drafting a fix". | **Draft title and description**, **Draft structured data**, **Draft llms.txt**, **Draft an FAQ answer** or **Draft again** on **SEO & GEO → Opportunities** ("Already drafting this one" while one is waiting or running for that opportunity). | 1 | 300 s (5 min) | draft (Sonnet 5.5) |
+| `site_scan` | Runs a full scan of one site: reads its sitemap (fresh each time), follows links up to the page cap, and checks each page with axe-core in Chromium (two at a time, at most one page load a second), and for [SEO & GEO](/seo) from the same page load. Records each page as it goes, so an interrupted scan continues where it stopped on the next launch. Then marks accessibility issues fixed or new, runs the SEO & GEO site checks (fetching `robots.txt` and `llms.txt`) and updates both scores. | **Scan now** on **Accessibility → Overview** or **SEO & GEO → Overview**. | 1 | 14400 s (4 h) | none |
+| `site_page_check` | Checks one page, or the pages of one issue, without a full scan, for accessibility and SEO & GEO. Then runs the SEO & GEO site checks again. Has its own queue, so it never waits behind `site_scan`. | **Check a page** on either Overview; **Recheck page** on a page report; **Recheck N pages** on an issue. | 1 | 3600 s (1 h) | none |
+| `agent_check` | Runs the [agent readiness](/seo/agents) checks for one site: plain GET requests (no browser) to its home page, its pricing and docs pages if the scan found them, the home page asked for as Markdown, and a few machine-readable files (`/.well-known/api-catalog`, `/openapi.json`, `/.well-known/ai-catalog.json` and others), only on the site's own origin, as `StarticaAgentCheck/0.1`. Combines them with the latest scan's results and stores the checks and the score. Nothing is requested for reserved names such as `.example`. | Every finished `site_scan` or `site_page_check` (including a stopped scan); **Check now** on **SEO & GEO → Agents**. Does nothing while one is waiting or running for the site. | 1 | 300 s (5 min) | none |
+| `offsite_check` | Reads the pages [AI visibility](/seo/ai-visibility) answers cited, for [Off-site presence](/seo/off-site): the 3 most-cited pages of each site in the last 4 runs (your own site left out), up to 30 pages, skipping pages read, blocked or failed in the last 7 days. Fetches each site's `robots.txt` and follows it for `StarticaOffsiteCheck`; requests pages one at a time, at least 1.5 s apart on the same site, as `StarticaOffsiteCheck/0.1`, only on public `http`/`https` addresses on ports 80 and 443 with no private or reserved names. Saves whether each page names the product and which competitors, or that it was blocked or failed. Shown as "Reading pages AI answers cite". | Every finished `ai_visibility_run` that answered at least one question (stopped and capped runs included); **Read the pages again** on **SEO & GEO → Off-site** (off in the demo). Does nothing while one is waiting or running for the product. | 1 | 900 s (15 min) | none |
+| `site_scan_due` | Queues a full scan for every site whose last full scan is older than its **Scan again automatically** interval, unless one is already queued or running. Only sites scanned at least once. See [Scheduled scans](/accessibility/scanning#scheduled-scans). | Every hour at :37. | 1 | 120 s (2 min) | none |
+| `site_content_check` | Checks one site's documents and external links: downloads the PDFs on the site's own origin that its pages link to (up to 200, each up to 30 MB) and reads them with pdf.js, then checks the links to other sites (up to 500; `HEAD`, then `GET`; one request a second to each site; results kept for a week). Nothing is requested for reserved names such as `.example`. See [Content and documents](/accessibility/content-and-documents). | Every finished full `site_scan`; **Check documents and links now** on **Accessibility → Content** or **Documents**. Does nothing while one is waiting or running for the site. | 1 | 3600 s (1 h) | none |
+| `a11y_fix_suggest` | Suggests a fix for one accessibility issue from its failing HTML (with your guidance, if any). See [Fix suggestions](/accessibility/ai-help#fix-suggestions). | **Suggest a fix** or **Suggest again** on an issue. | 1 | 300 s (5 min) | draft (Sonnet 5.5) |
+| `a11y_alt_review` | Reviews the alt text of up to 50 of a site's images not reviewed yet, downloading each one; skips SVGs and images over 4 MB. See [Alt text review](/accessibility/ai-help#alt-text-review). | **Review N images** on **Accessibility → Images**. | 1 | 1800 s (30 min) | vision (Sonnet 5.5) |
+| `a11y_review_assist` | Suggests Pass or Fail for one Needs review item, from its element and the page screenshot. | **Ask AI** on **Accessibility → Needs review**. | 1 | 300 s (5 min) | vision (Sonnet 5.5) |
+| `a11y_summary` | Writes a plain-language summary of a site's accessibility progress. | **Summarize** on the Accessibility Overview. | 1 | 300 s (5 min) | draft (Sonnet 5.5) |
+| `security_recheck` | Runs a verified site's [site checks](/security/checks#when-the-checks-run) again (TLS, the `http://` address, security.txt, exposed files, email DNS) and updates its findings and score. | **Recheck** on a site-wide finding under **Security → Findings** ("A recheck of this site is already under way" while one is waiting or running). | 1 | 300 s (5 min) | none |
+| `security_monitor` | Exposure monitoring for one verified site (or every one, from the schedule): certificate logs and DNS, look-alike domains, third-party script fingerprints, library advisories from OSV.dev with EPSS and KEV. Updates its findings and the score; a service that fails doesn't stop the others. See [Monitoring](/security/monitoring). | Daily at 06:47; after each full scan of a verified site; **Check now** on **Security → Monitoring**; **Recheck** on a monitoring finding. | 1 | 900 s (15 min) | none |
+| `security_explain` | Writes an explanation, fix steps and configuration for one [security finding](/security/findings), for the stack the site's responses show. Copy-only. Shown as "Working on it…" on the finding. | **Explain and fix** or **Explain again** on a finding ("Already working on this one" while one is waiting or running). | 1 | 300 s (5 min) | draft (Sonnet 5.5) |
+| `security_report_import` | Reads another security report's text and adds [its findings](/security/findings#findings-from-other-reports) to the site's list, updating ones imported before. Leaves out exploit details and credentials. | **Import a report** on **Security → Findings** ("A report is already being read for this site" while one is waiting or running). | 1 | 600 s (10 min) | draft (Sonnet 5.5) |
+| `security_intake_triage` | Triages a [reported problem](/security/disclosure#reported-problems): severity, whether it looks real, a finding it duplicates, what's missing and a reply to send. | **Add a report** (when an AI key is set), **Triage** or **Triage again** on **Security → Disclosure**. | 1 | 300 s (5 min) | draft (Sonnet 5.5) |
+| `tracker_sync` | Keeps the product's GitHub or GitLab repository in step with the accessibility results: opens issues for open problems at or above the tracker's impact that don't have one yet (at most 10 a run, most important first), and with **Close the issue when Startica sees it fixed** closes fixed ones with a comment and reopens ones that came back. Ignores everything else in the repository. | Every finished `site_scan` or `site_page_check` (including a stopped scan), for a product whose issue tracker opens or closes issues automatically. | 2 | 600 s (10 min) | none |
+
+AI visibility runs are slow because each question waits for an answer with web search: about 25 seconds a question, so 100 questions take about 40 minutes, within the 1-hour lease. See [AI visibility](/seo/ai-visibility#run-it).
+
+Accessibility and SEO & GEO scans have no schedule; they run when you click a button. `site_scan` can take a long time on a big site (roughly 2 to 5 seconds a page, so 250 pages is about 10 to 20 minutes), which is why its lease is 4 hours. It needs a browser: in the desktop app it uses hidden Electron windows, in browser development mode Playwright's Chromium. See [Scanning a site](/accessibility/scanning).
+
+Reddit only allows about one request a minute (Startica waits 62 seconds between Reddit requests), which is why scans, engagement syncs and Reddit voice imports take minutes. Discourse forums add up to about 1.7 minutes each (at most about 22 requests), because requests to a forum are spaced 4.5 seconds apart to stay under its limit for anonymous visitors; only the first 5 watched forums are read, so they add at most about 8 minutes. Keep the lists of watched subreddits and forums short. See [Finding conversations](/guides/finding-conversations).
+
+### What happens when a job fails
+
+| Failure | Result |
+| --- | --- |
+| No API key | The job fails with "No Anthropic API key: add one in Settings → General → AI (the _task_ task uses _model_)", or the same for OpenAI, depending on the task's model. |
+| Budget reached | The AI call is logged as `blocked` and the job fails. See [Costs](/concepts/costs). |
+| The model declines | Logged as `refused`; the job fails with "Claude declined the request" or "OpenAI declined the request". |
+| Output hit max tokens | The job fails with "Output hit max_tokens (_n_) for task _task_". Raise **Max output tokens** for that task in Settings → General → AI. |
+| A source fails during a scan | A forum that's down, a feed that errors: `listen_scan` skips that source, records its error in the run's result under `errors`, and carries on with the others. Scoring is queued for what every other source found. |
+| X API error during a scan | An X search that fails (no credits, a revoked token, a rate limit) doesn't fail `listen_scan`. X returns nothing that scan, the error shows on the **X API** card in **Settings → Channels** as "Last X request failed: …", and X is tried again at the next scan. See [Troubleshooting](/troubleshooting#x-search-fails). |
+| GitHub or GitLab error | `tracker_sync` fails and is tried once more. The error (for example "Opening the issue failed: the token is invalid or expired") shows in red on the **Issue tracker** card in **Settings → Products**. Issues opened before the error are recorded, so the retry doesn't open them twice. |
+| Anything else | The error is saved on the job run and, where relevant, on the item (for example a connection's error or an audit's error). |
+
+### The status indicator
+
+While anything is waiting or running in the background, a status indicator sits at the top right of every page. It names the task that has been running longest (for example "Finding conversations on Reddit…"), with **+2** when more are under way. Nothing shows when the app is idle, or in [demo mode](/guides/demo-mode), where jobs don't run.
+
+Hover over it (or click it, or tab to it and press Enter) to see every task:
+
+- **What it is**, and what it's for when the job names something: a product, a site or an ad campaign. Click the name to open the page where its results appear.
+- **Where it is:** "Running 4 min", "Waiting", or "Running 2 min · 12 of 40 pages" for jobs that report progress.
+- **Why it's running:** "Scheduled: runs every hour while Startica is open." for scheduled jobs, or what started it, for example "You asked for intel on the product…" or "A scan found new conversations; each is scored to see whether it's worth a reply."
+- **×** stops it (see below). Jobs that run in many small batches, such as scoring and drafting, are one line, and **×** stops them all.
+
+**Job history on the System page** at the bottom opens the full list of runs.
+
+### Stopping a job
+
+Any job that's waiting or running can be stopped from the status indicator or from **System → Running and waiting**; scans also have **Stop** on their own buttons.
+
+- A waiting job is removed from the queue.
+- A running job is told to stop. An AI call in progress is cut off right away; you pay only for what it used up to then. A conversation scan stops before its next source, and also while it's waiting for Reddit's rate limit. An accessibility scan stops after the pages it's checking at that moment. An AI visibility run stops before its next question, or cuts off the one being asked.
+- Whatever the job already finished is kept: conversations already found, pages already checked, questions already answered.
+- The run shows as `cancelled` in **Job runs** and is never retried.
+
+## The System page
+
+Sidebar → **System** ("Background jobs, AI calls and spend.") shows:
+
+| Section | Contents |
+| --- | --- |
+| Anthropic API key or OpenAI API key (the provider in use) | Configured or Missing. |
+| AI spend this month | Estimated spend against the monthly budget. |
+| Workspace | The workspace name. |
+| Running and waiting | Every job in progress or waiting, with how long, and **Stop**. See [Stopping a job](#stopping-a-job). |
+| Job runs | The latest 20 runs: Started, Queue, Status, Attempt, Result / error. Updates live. |
+| AI calls | The latest 20 AI requests, to either provider: Time, Task, Model, Status, Tokens in / out, Cost, Latency. |
+| Run test job | Queues a `ping` job. With a key set it should show `succeeded` within seconds. |
+
+Troubleshooting stuck or failing jobs: [Troubleshooting](/troubleshooting).

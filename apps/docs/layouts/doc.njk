@@ -1,0 +1,86 @@
+{% extends "base.njk" %}
+{% import "partials/icons.njk" as icon %}
+
+{# Flatten the sidebar to find this page's section and its previous/next pages #}
+{% set flat = [] %}
+{% for group in site.docsNav %}{% for item in group.items %}{% if flat.push({ title: item.title, url: item.url, section: group.title }) %}{% endif %}{% endfor %}{% endfor %}
+{% set found = [] %}
+{% for item in flat %}{% if item.url == page.url %}{% if found.push(loop.index0) %}{% endif %}{% endif %}{% endfor %}
+{% set idx = found[0] if found.length else -1 %}
+{% set current = flat[idx] if idx >= 0 else null %}
+{% set prev = flat[idx - 1] if idx > 0 else null %}
+{% set next = flat[idx + 1] if (idx >= 0 and idx + 1 < flat.length) else (flat[0] if idx == -1 and page.url == '/' else null) %}
+
+{% block body %}
+{% include "partials/header.njk" %}
+
+<div class="mx-auto flex max-w-[90rem] px-4 sm:px-6">
+  {# Sidebar: fixed column on desktop, slide-over on mobile #}
+  <div data-nav-backdrop hidden class="fixed inset-0 z-40 bg-ink/50 lg:hidden"></div>
+  <aside data-nav-panel class="fixed inset-y-0 left-0 z-50 w-72 -translate-x-full overflow-y-auto border-r border-line bg-bg px-6 pb-10 pt-6 transition-transform duration-200 lg:sticky lg:top-16 lg:z-auto lg:h-[calc(100vh-4rem)] lg:w-64 lg:shrink-0 lg:translate-x-0 lg:border-r-0 lg:px-0 lg:pr-6 lg:pt-8">
+    <div class="mb-6 flex items-center justify-between lg:hidden">
+      <a href="/" class="flex items-center gap-2" aria-label="Startica docs home"><span class="brand-logo h-[1.15rem]">{{ site.logo | safe }}</span><span class="font-display text-lg font-bold text-accent">Docs</span></a>
+      <button type="button" data-nav-close class="p-2 text-muted hover:text-fg" aria-label="Close navigation">✕</button>
+    </div>
+    {% include "partials/sidebar.njk" %}
+    <div class="mt-8 space-y-2 border-t border-line pt-6 text-sm text-muted md:hidden">
+      <a href="{{ site.homepage }}" class="block hover:text-fg">mystartica.com</a>
+      <a href="{{ site.repo }}" class="block hover:text-fg">GitHub</a>
+    </div>
+  </aside>
+
+  <main id="main" class="min-w-0 flex-1 py-10 lg:pl-10 xl:pl-14">
+    <div class="flex gap-12">
+      <article class="min-w-0 max-w-3xl flex-1" data-pagefind-body>
+        {% if current %}
+        <p class="eyebrow mb-3" data-pagefind-ignore>{{ current.section }}</p>
+        {% endif %}
+        <h1 class="font-display text-4xl font-bold tracking-tight sm:text-[2.6rem] sm:leading-[1.1]">{{ title }}</h1>
+        {% if description and page.url != '/' %}
+        <p class="mt-4 text-lg leading-relaxed text-muted">{{ description }}</p>
+        {% endif %}
+
+        <div class="content mt-8" data-content>
+          {{ content | safe }}
+        </div>
+
+        <div class="mt-16 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-6 text-sm text-muted" data-pagefind-ignore>
+          <a href="{{ site.editBase }}{{ page.path }}" class="flex items-center gap-2 hover:text-fg">{{ icon.pencil() }} Edit this page on GitHub</a>
+          <a href="{% if page.url == '/' %}/index.md{% else %}{{ page.url }}/index.md{% endif %}" class="hover:text-fg">View as Markdown</a>
+        </div>
+
+        {% if prev or next %}
+        <nav class="mt-8 grid gap-4 sm:grid-cols-2" aria-label="Previous and next pages" data-pagefind-ignore>
+          {% if prev %}
+          <a href="{{ prev.url }}" class="group border border-line p-4 transition-colors hover:border-signal">
+            <span class="flex items-center gap-1.5 text-xs text-muted">{{ icon.arrow(dir="left", cls="h-3.5 w-3.5") }} Previous</span>
+            <span class="mt-1 block font-semibold group-hover:text-accent">{{ prev.title }}</span>
+          </a>
+          {% else %}<span class="hidden sm:block"></span>{% endif %}
+          {% if next %}
+          <a href="{{ next.url }}" class="group border border-line p-4 text-right transition-colors hover:border-signal">
+            <span class="flex items-center justify-end gap-1.5 text-xs text-muted">Next {{ icon.arrow(cls="h-3.5 w-3.5") }}</span>
+            <span class="mt-1 block font-semibold group-hover:text-accent">{{ next.title }}</span>
+          </a>
+          {% endif %}
+        </nav>
+        {% endif %}
+      </article>
+
+      {# On this page: filled from the article's h2/h3 by docs.js #}
+      <aside class="hidden w-56 shrink-0 xl:block" data-pagefind-ignore>
+        <div class="sticky top-24" data-toc hidden>
+          <p class="mb-3 font-display text-xs font-bold uppercase tracking-[0.14em]">On this page</p>
+          <ul class="space-y-2 border-l border-line text-sm" data-toc-list></ul>
+        </div>
+      </aside>
+    </div>
+
+    <footer class="mt-20 border-t border-line pt-8 pb-4 text-sm text-muted">
+      <p>© {{ "now" | date("yyyy") }} Christopher Casper · Startica is open source under the <a href="{{ site.repo }}/blob/main/LICENSE" class="link">MIT License</a>.</p>
+    </footer>
+  </main>
+</div>
+
+{% include "partials/search.njk" %}
+{% endblock %}

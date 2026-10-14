@@ -1,0 +1,19 @@
+<nav id="docs-nav" aria-label="Documentation" class="text-sm">
+  <ul class="space-y-7">
+    {% for group in site.docsNav %}
+    <li>
+      <p class="mb-2 font-display text-xs font-bold uppercase tracking-[0.14em] text-fg">{{ group.title }}</p>
+      <ul class="space-y-px border-l border-line">
+        {% for item in group.items %}
+        {% set active = item.url == page.url %}
+        <li>
+          <a href="{{ item.url }}"
+             class="-ml-px block border-l-2 py-1.5 pl-4 pr-2 transition-colors {% if active %}border-signal font-semibold text-fg{% else %}border-transparent text-muted hover:border-fg/30 hover:text-fg{% endif %}"
+             {% if active %}aria-current="page"{% endif %}>{{ item.title }}</a>
+        </li>
+        {% endfor %}
+      </ul>
+    </li>
+    {% endfor %}
+  </ul>
+</nav>

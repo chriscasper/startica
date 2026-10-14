@@ -1,0 +1,153 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1791527880467,
+      "tag": "0000_initial",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791558520556,
+      "tag": "0001_roadmap_and_content",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791562550805,
+      "tag": "0002_dedupe_and_content_tracking",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791655297802,
+      "tag": "0003_accessibility",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791672178018,
+      "tag": "0004_issue_trackers",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1791674399315,
+      "tag": "0005_seo_site_health",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1791694606780,
+      "tag": "0006_ads",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1791828684423,
+      "tag": "0007_search_stats",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1791836667600,
+      "tag": "0008_no_supabase_signin",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1791842875130,
+      "tag": "0009_ai_visibility",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1791844916111,
+      "tag": "0010_seo_opportunities",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1791847050194,
+      "tag": "0011_security",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1791850091618,
+      "tag": "0012_security_ai",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1791857650406,
+      "tag": "0013_a11y_track",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1791859542390,
+      "tag": "0014_agent_readiness",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1791866806122,
+      "tag": "0015_a11y_ai",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1791868126552,
+      "tag": "0016_security_monitor",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1791870993550,
+      "tag": "0017_a11y_manual",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1791873192276,
+      "tag": "0018_a11y_content",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1791934624879,
+      "tag": "0019_offsite_presence",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1791952725321,
+      "tag": "0020_ads_creative_results",
+      "breakpoints": true
+    }
+  ]
+}

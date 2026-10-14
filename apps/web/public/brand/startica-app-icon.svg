@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a2a2e"/>
+      <stop offset="1" stop-color="#111113"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#f5f5f5"/>
+      <stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+  </defs>
+  <!-- macOS icon grid: 824px tile centered in 1024 with room for the shadow -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <!-- Four-point spark: the "start" -->
+  <path fill="url(#spark)" d="M512 232 C 540 420 604 484 792 512 C 604 540 540 604 512 792 C 484 604 420 540 232 512 C 420 484 484 420 512 232 Z"/>
+  <!-- Small companion spark, warm accent -->
+  <path fill="#f59e0b" d="M742 262 C 750 314 768 332 820 340 C 768 348 750 366 742 418 C 734 366 716 348 664 340 C 716 332 734 314 742 262 Z"/>
+</svg>

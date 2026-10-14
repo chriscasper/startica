@@ -12,9 +12,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@anthropic-ai/sdk@npm:^0.132.1":
-  version: 0.132.1
-  resolution: "@anthropic-ai/sdk@npm:0.132.1"
+"@anthropic-ai/sdk@npm:^0.133.0":
+  version: 0.133.0
+  resolution: "@anthropic-ai/sdk@npm:0.133.0"
   dependencies:
     json-schema-to-ts: "npm:^3.1.1"
     standardwebhooks: "npm:^1.0.0"
@@ -25,7 +25,7 @@ __metadata:
       optional: true
   bin:
     anthropic-ai-sdk: bin/cli
-  checksum: 10c0/d4e9bfd8373782b98b23449ffcee91f0cf21b66515ad9398c1cc82efdc4d6d33553193d8879e63a5321895bdd06b7d888dc6f5c69a3afd371e8feb0ee3eb7dc6
+  checksum: 10c0/87f93c3bed92732eb739d83a287db2662d239b468a4076ec54897773dd0087675bfee144b60ba8b15a6de017cf74d995537e4adf7b4529b42c58072699114dc9
   languageName: node
   linkType: hard
 
@@ -307,10 +307,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/runtime@npm:^7.18.3, @babel/runtime@npm:^7.29.7":
+"@babel/runtime@npm:^7.18.3":
   version: 7.29.10
   resolution: "@babel/runtime@npm:7.29.10"
   checksum: 10c0/32f975da8e9c2cae6b33e1a477f8fe8bbff6722c982b5ce35f99affaf3a7a1b612c8272b43afa0e51d3000928d6f3ba38f9296301115db5640264907c027b0cd
+  languageName: node
+  linkType: hard
+
+"@babel/runtime@npm:^7.29.7 || ^8.0.0":
+  version: 8.0.7
+  resolution: "@babel/runtime@npm:8.0.7"
+  checksum: 10c0/7ff1ca2d452a3359dc63bd36b25ff219ef04dfefbf7186900f1c296e55ade2ccc7f88dd2eb9d58ed253e3bde58fae97b9e40d80220ebfe510c99f7cf54837603
   languageName: node
   linkType: hard
 
@@ -350,15 +357,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@base-ui/react@npm:^1.8.0":
-  version: 1.8.0
-  resolution: "@base-ui/react@npm:1.8.0"
+"@base-ui/react@npm:^1.9.0":
+  version: 1.9.0
+  resolution: "@base-ui/react@npm:1.9.0"
   dependencies:
-    "@babel/runtime": "npm:^7.29.7"
-    "@base-ui/utils": "npm:0.4.0"
+    "@babel/runtime": "npm:^7.29.7 || ^8.0.0"
+    "@base-ui/utils": "npm:0.5.0"
     "@floating-ui/react-dom": "npm:^2.1.9"
     "@floating-ui/utils": "npm:^0.2.12"
-    use-sync-external-store: "npm:^1.6.0"
+    use-sync-external-store: "npm:^1.7.0"
   peerDependencies:
     "@date-fns/tz": ^1.2.0
     "@types/react": ^17 || ^18 || ^19
@@ -372,18 +379,18 @@ __metadata:
       optional: true
     date-fns:
       optional: true
-  checksum: 10c0/bf3faa8891fe6c9695a07b30caa3349f9ffc067f0efd381bb6ed12d68400a2d273ab0f764dd07c5cc6b25f5bc6df6a5688e0164d4e2500ad07efaec8bdd88896
+  checksum: 10c0/0495ec9026ad2f5f04580865a1b40c2899b2475d77472d3dcb8b688b1a2a949e14493cc50adb4dd7d33970caef7845ef4a0b93184a8299ed78bda7ff7c288847
   languageName: node
   linkType: hard
 
-"@base-ui/utils@npm:0.4.0":
-  version: 0.4.0
-  resolution: "@base-ui/utils@npm:0.4.0"
+"@base-ui/utils@npm:0.5.0":
+  version: 0.5.0
+  resolution: "@base-ui/utils@npm:0.5.0"
   dependencies:
-    "@babel/runtime": "npm:^7.29.7"
+    "@babel/runtime": "npm:^7.29.7 || ^8.0.0"
     "@floating-ui/utils": "npm:^0.2.12"
-    reselect: "npm:^5.2.0"
-    use-sync-external-store: "npm:^1.6.0"
+    reselect: "npm:^5.3.0"
+    use-sync-external-store: "npm:^1.7.0"
   peerDependencies:
     "@types/react": ^17 || ^18 || ^19
     react: ^17 || ^18 || ^19
@@ -391,7 +398,7 @@ __metadata:
   peerDependenciesMeta:
     "@types/react":
       optional: true
-  checksum: 10c0/dd32220d13d42ed2cf0d0ae18e02bf9ece5c54d6a26e49c9449514d66d38b1fee51c875f7d9d21484a326b7a8a2c33c95be620e8a5976b7b6f3bfa27572b6baf
+  checksum: 10c0/864b572ea60ea557bfdc63ff056026ed585cce4f35e4996c63e86503944befa3d9bc41e8f1da847e1273d8ac0b2f55210eecff936c3cfb1e0ea7ba9bfc5c5b5b
   languageName: node
   linkType: hard
 
@@ -3031,7 +3038,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@startica/core@workspace:packages/core"
   dependencies:
-    "@anthropic-ai/sdk": "npm:^0.132.1"
+    "@anthropic-ai/sdk": "npm:^0.133.0"
     "@google-analytics/data": "npm:^7.2.1"
     "@mozilla/readability": "npm:^0.6.0"
     "@startica/db": "workspace:*"
@@ -3051,7 +3058,7 @@ __metadata:
     typescript: "npm:^5"
     vite: "npm:^8.3.4"
     vitest: "npm:^5.0.3"
-    zod: "npm:^4.6.5"
+    zod: "npm:^4.6.6"
   languageName: unknown
   linkType: soft
 
@@ -3073,7 +3080,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@startica/desktop-web@workspace:apps/desktop-web"
   dependencies:
-    "@base-ui/react": "npm:^1.8.0"
+    "@base-ui/react": "npm:^1.9.0"
     "@startica/brand": "workspace:^"
     "@startica/core": "workspace:^"
     "@startica/db": "workspace:^"
@@ -3086,7 +3093,7 @@ __metadata:
     cn: "npm:^0.4.0"
     eslint: "npm:^9"
     eslint-config-next: "npm:16.4.0"
-    lucide-react: "npm:^1.53.0"
+    lucide-react: "npm:^1.55.0"
     next: "npm:16.4.0"
     next-themes: "npm:^0.4.6"
     playwright: "npm:^1.64.0"
@@ -3100,7 +3107,7 @@ __metadata:
     tailwindcss: "npm:^4"
     tw-animate-css: "npm:^1.4.0"
     typescript: "npm:^5"
-    zod: "npm:^4.6.5"
+    zod: "npm:^4.6.6"
   languageName: unknown
   linkType: soft
 
@@ -8914,16 +8921,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lucide-react@npm:^1.53.0":
-  version: 1.53.0
-  resolution: "lucide-react@npm:1.53.0"
+"lucide-react@npm:^1.55.0":
+  version: 1.55.0
+  resolution: "lucide-react@npm:1.55.0"
   peerDependencies:
     "@types/react": "*"
     react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
   peerDependenciesMeta:
     "@types/react":
       optional: true
-  checksum: 10c0/500461d57691e2ef8118c664968407572bad4dd313c3d933fc2908550de004bde716121749ab152b3dea97ff5acc4263225d0fc395fdcbe763a29699982e58dd
+  checksum: 10c0/0618af0eb06e0ea71a7c66b39b89158ff357093714fff5f4bfc1b4851af890ffc49092956b08daf89f38c7ff48f783bb14e7b52756aae4f6bed06da4cf297821
   languageName: node
   linkType: hard
 
@@ -10604,7 +10611,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"reselect@npm:^5.1.0, reselect@npm:^5.2.0":
+"reselect@npm:^5.1.0, reselect@npm:^5.3.0":
   version: 5.3.0
   resolution: "reselect@npm:5.3.0"
   checksum: 10c0/c79728e4f315152bfb2d82456d35075b705392d9e72c485d7d9b1061bd80af628416216d80f02a42f24dbb24d738aec7fec45806930aaa1d17c32e9875fa1bd6
@@ -12400,7 +12407,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"use-sync-external-store@npm:^1.2.2, use-sync-external-store@npm:^1.4.0, use-sync-external-store@npm:^1.6.0":
+"use-sync-external-store@npm:^1.2.2, use-sync-external-store@npm:^1.4.0, use-sync-external-store@npm:^1.7.0":
   version: 1.7.0
   resolution: "use-sync-external-store@npm:1.7.0"
   peerDependencies:
@@ -13048,10 +13055,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"zod@npm:^3.25 || ^4.0, zod@npm:^3.25.0 || ^4.0.0, zod@npm:^4.6.5":
+"zod@npm:^3.25 || ^4.0, zod@npm:^3.25.0 || ^4.0.0":
   version: 4.6.5
   resolution: "zod@npm:4.6.5"
   checksum: 10c0/32eb6c5e98becbe045675b2141c3611451c16ba567f9779231d79af41c4d651ca1c22f154aef7e6c6e77b929f23e43f1154ca05b82e119e922353725d6776af5
+  languageName: node
+  linkType: hard
+
+"zod@npm:^4.6.6":
+  version: 4.6.6
+  resolution: "zod@npm:4.6.6"
+  checksum: 10c0/447a3113bb743c54ab839213ff95e9e8c197cc1206f65270c18aac35aa70c47a5c8cab753be911b574df9a8a9801ea74ed6be776575232cae0084e51dab3e970
   languageName: node
   linkType: hard
 

@@ -96,6 +96,9 @@
       "executableName": "startica",
       "maintainer": "Startica <hello@mystartica.com>"
     },
+    "deb": {
+      "artifactName": "startica_${version}_${arch}.${ext}"
+    },
     "afterPack": "scripts/after-pack.cjs",
     "publish": [
       {

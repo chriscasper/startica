@@ -189,7 +189,7 @@ SmartScreen shows "Windows protected your PC". Users click **More info**, then *
 
 ### Linux
 
-Linux has no signing requirement. The AppImage runs after `chmod +x`; the `.deb` installs with `sudo apt install ./Startica-*.deb`.
+Linux has no signing requirement. The AppImage runs after `chmod +x`; the `.deb` installs with `sudo apt install ./startica_*.deb`.
 
 ## Local builds
 

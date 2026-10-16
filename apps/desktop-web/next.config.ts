@@ -1,5 +1,14 @@
+import { existsSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { NextConfig } from "next";
+
+// Next adds each build folder's types to the tsconfig it uses; test and desktop builds
+// (STARTICA_NEXT_DIST) get their own git-ignored file so tsconfig.json stays clean. Created
+// here so a fresh checkout (CI) has it; without it the build has no "@/" paths.
+const testTsconfig = path.join(__dirname, "tsconfig.test.json");
+if (process.env.STARTICA_NEXT_DIST && !existsSync(testTsconfig)) {
+  writeFileSync(testTsconfig, JSON.stringify({ extends: "./tsconfig.json", exclude: ["node_modules", ".next"] }, null, 2));
+}
 
 const nextConfig: NextConfig = {
   // Desktop builds bundle a minimal standalone server (apps/desktop/scripts/build.mjs).
@@ -24,8 +33,6 @@ const nextConfig: NextConfig = {
   images: { unoptimized: true },
   // Separate build folders let a test server run next to the app (two dev servers can't share one).
   distDir: process.env.STARTICA_NEXT_DIST ?? ".next",
-  // Next adds each build folder's types to the tsconfig it uses; test builds get
-  // their own (git-ignored) file so tsconfig.json stays clean.
   typescript: { tsconfigPath: process.env.STARTICA_NEXT_DIST ? "tsconfig.test.json" : "tsconfig.json" },
   cacheComponents: true,
   // Ad pictures and logos are uploaded through server actions (Ads AD2).

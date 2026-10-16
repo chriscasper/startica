@@ -24,7 +24,6 @@ function run(cmd, args, opts = {}) {
 }
 
 // 1. Standalone build. Its tsconfig skips .next/ so a running dev server can't break it.
-writeFileSync(join(webDir, "tsconfig.test.json"), JSON.stringify({ extends: "./tsconfig.json", exclude: ["node_modules", ".next"] }, null, 2));
 rmSync(join(webDir, distName), { recursive: true, force: true });
 run("yarn", ["build"], {
   cwd: webDir,

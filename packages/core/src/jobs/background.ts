@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@startica/db/client";
 import { adCampaigns, adCreatives, jobRuns, jobs, products, siteScans, sites } from "@startica/db/schema";
 import { runningJobs } from "./cancel.ts";
@@ -165,7 +165,8 @@ export async function backgroundTasks(workspaceId: string): Promise<BackgroundTa
     .select()
     .from(jobs)
     .where(and(eq(jobs.workspaceId, workspaceId), inArray(jobs.status, ["queued", "running"])))
-    .orderBy(desc(jobs.createdAt))
+    // rowid breaks ties: jobs queued in the same millisecond keep the order they were queued in.
+    .orderBy(desc(jobs.createdAt), desc(sql`${jobs}.rowid`))
     .limit(200);
   if (rows.length === 0) return [];
 

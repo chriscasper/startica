@@ -95,7 +95,6 @@ Both sites are built: the marketing site (`apps/web`) and 80 docs pages (`apps/d
 
 ## 5. Release and launch
 
-- **Secrets scan** (gitleaks) over the tree before the repository goes public.
 - **CI and site workflows green** (`ci.yml`, `sites.yml`), then deploy both sites and attach `docs.mystartica.com`.
 - **Make the repository public.** Auto-update reads its public releases, so it fails quietly until then.
 - **GitHub settings:** Discussions on (the docs link to it throughout), description, topics, website link, social preview image, branch protection on `main`.

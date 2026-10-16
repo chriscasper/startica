@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A second "exec" icon bouncing in the macOS Dock** while Startica runs. The local server now runs as a background helper with no Dock icon.
+
 ## [0.0.2] - 2026-10-16
 
 A download page, download links in the release notes, and a fix for the installed app failing to open its pages.

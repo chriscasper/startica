@@ -172,7 +172,7 @@ Notarization requires the hardened runtime (`hardenedRuntime: true`). Electron n
 | --- | --- |
 | `com.apple.security.cs.allow-jit` | V8, the JavaScript engine, compiles code at run time. |
 | `com.apple.security.cs.allow-unsigned-executable-memory` | V8 also writes executable memory that isn't signed. |
-| `com.apple.security.cs.disable-library-validation` | The local server runs the same Electron binary in Node mode (`ELECTRON_RUN_AS_NODE`) and loads the app's own modules, including native ones, that aren't signed by Apple. |
+| `com.apple.security.cs.disable-library-validation` | The local server runs the app's Electron helper binary in Node mode (`ELECTRON_RUN_AS_NODE`) and loads the app's own modules, including native ones, that aren't signed by Apple. |
 
 Don't add entitlements without a reason in the file's comment. The app isn't sandboxed (no `com.apple.security.app-sandbox`): it's distributed outside the Mac App Store.
 

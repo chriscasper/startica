@@ -33,7 +33,7 @@ Electron main process (apps/desktop/main.mjs)
  ├─ OS keychain (safeStorage): encrypts and decrypts secrets on request over IPC
  ├─ posting window (posting/window.mjs, on request over IPC): Startica bar + site view (persist:posting)
  ├─ accessibility scanner (scanner/scanner.mjs, on request over IPC): up to 2 hidden scan windows (in-memory "scan" session)
- └─ child process: the same Electron binary with ELECTRON_RUN_AS_NODE=1
+ └─ child process: the app's Electron binary (macOS: its Helper) with ELECTRON_RUN_AS_NODE=1
       └─ Startica server (apps/desktop-web/scripts/serve.mjs in dev, serve-prod.mjs when packaged)
            ├─ Next.js: pages, server actions, /api/events (SSE), /api/activity
            ├─ proxy.ts: rejects any request without the launch token (no exceptions)
@@ -45,7 +45,7 @@ Electron main process (apps/desktop/main.mjs)
 
 ### Why a child process
 
-Next.js's dev server starts helper processes using the current executable. Inside Electron's main process, the current executable is the Electron app, so every helper would start another copy of Startica. Instead, `main.mjs` forks the server with `ELECTRON_RUN_AS_NODE=1`, which makes the Electron binary behave as plain Node. The server and all of its helpers run as Node 24 (the version bundled with Electron), in development and in the installed app, so users don't need a separate Node install.
+Next.js's dev server starts helper processes using the current executable. Inside Electron's main process, the current executable is the Electron app, so every helper would start another copy of Startica. Instead, `main.mjs` forks the server with `ELECTRON_RUN_AS_NODE=1`, which makes the Electron binary behave as plain Node. On macOS it forks the helper binary (`Startica Helper`, or `Electron Helper` in dev) rather than the main one: the main binary would register with the Dock as a second, bouncing "exec" app, while the helper is marked a background element (`LSUIElement`). The server and all of its helpers run as Node 24 (the version bundled with Electron), in development and in the installed app, so users don't need a separate Node install.
 
 The child gets `STARTICA_ELECTRON=1`, `STARTICA_DATA_DIR` (Electron's `userData` folder unless you set it) and an IPC channel. When the server is listening, it sends `{ type: "ready", url, token }` to the parent. If the server exits unexpectedly, the app shows an error and quits.
 

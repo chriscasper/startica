@@ -228,7 +228,7 @@ Electron main process (apps/desktop/main.mjs)
  ├─ window (BrowserWindow, sandboxed) → http://127.0.0.1:58300  (session cookie = launch token)
  ├─ OS keychain (safeStorage): encrypts/decrypts secrets on request over IPC
  ├─ posting window (8.4) and the site scanner (9.3): IPC from the server child
- └─ child process: same Electron binary with ELECTRON_RUN_AS_NODE=1
+ └─ child process: the app's Electron binary (macOS: its "Helper", no Dock icon) with ELECTRON_RUN_AS_NODE=1
       └─ Startica server (apps/desktop-web/scripts/serve.mjs in dev, serve-prod.mjs packaged)
            ├─ Next.js (pages, server actions, /api/events SSE)
            ├─ instrumentation.ts → startup.ts: open + migrate SQLite, cipher, workspace, job runner

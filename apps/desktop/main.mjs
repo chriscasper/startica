@@ -1,10 +1,10 @@
 // Startica desktop app (Electron main process).
 // Owns the window and the OS keychain. The server (Next.js + SQLite + jobs) runs
-// as a child process using this same Electron binary in Node mode, so its own
+// as a child process using this app's Electron binary in Node mode (the helper on macOS), so its own
 // helper processes start as Node too. See ARCHITECTURE.md section 6.
 import { fork } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, dialog, Menu, nativeImage, safeStorage, session, shell, Tray } from "electron";
 import { createPosting } from "./posting/window.mjs";
@@ -165,11 +165,23 @@ function updateTrayMenu() {
 
 // --- Server child process -----------------------------------------------------------
 
+/**
+ * The binary the server runs on, in Node mode. On macOS it's the app's helper ("Startica Helper",
+ * or "Electron Helper" in dev): the main binary would register with the Dock as a second,
+ * bouncing "exec" app, while the helper's Info.plist marks it a background element (LSUIElement).
+ */
+function serverExecPath() {
+  if (process.platform !== "darwin") return process.execPath;
+  const name = basename(process.execPath);
+  const helper = join(dirname(process.execPath), "..", "Frameworks", `${name} Helper.app`, "Contents", "MacOS", `${name} Helper`);
+  return existsSync(helper) ? helper : process.execPath;
+}
+
 function startServer() {
   return new Promise((resolve, reject) => {
     server = fork(serverEntry, [], {
       cwd: webDir,
-      execPath: process.execPath,
+      execPath: serverExecPath(),
       env: {
         ...process.env,
         ELECTRON_RUN_AS_NODE: "1",

@@ -1,10 +1,10 @@
 ---
 title: Releases
-description: "For maintainers: how Startica is versioned, how a tag becomes a draft GitHub release with installers for every OS, and how to set up code signing and notarization."
+description: "For maintainers: how Startica is versioned, how a tag becomes a draft GitHub release with installers and download links for every OS, how the download page finds them, and how to set up code signing and notarization."
 layout: doc
 ---
 
-A release is a version tag on `main`. Pushing the tag starts a GitHub Actions workflow that builds the installers for macOS, Windows and Linux and uploads them to a **draft** GitHub release. You review the draft and publish it by hand; the installed app's auto-update only sees published releases. This page covers versioning, cutting a release, what the workflow builds, signing and notarization, local builds, and what isn't done yet.
+A release is a version tag on `main`. Pushing the tag starts a GitHub Actions workflow that builds the installers for macOS, Windows and Linux and uploads them to a **draft** GitHub release. You review the draft and publish it by hand; the installed app's auto-update only sees published releases. This page covers versioning, cutting a release, what the workflow builds, the release notes and the download page, signing and notarization, local builds, and what isn't done yet.
 
 ## Current state
 
@@ -48,8 +48,8 @@ A database migration is not a breaking change on its own, because migrations run
    git push origin main v0.0.2
    ```
 
-6. Watch **Actions → Release**. The three jobs (macOS, Windows, Linux) take a while; each uploads its files to the same draft release named after the version.
-7. Open the draft under **Releases**. Check that every file below is there, paste the changelog entry as the release notes, then click **Publish release**.
+6. Watch **Actions → Release**. The three build jobs (macOS, Windows, Linux) take a while; each uploads its files to the same draft release named after the version. A last job, **Release notes**, then writes the draft's notes (see [Release notes](#release-notes)).
+7. Open the draft under **Releases**. Check that every file below is there and the notes read well, then click **Publish release**. Publishing also rebuilds mystartica.com, so [the download page](#the-download-page) links to the new version once you approve the `production` deployment.
 
 If the tag and the version don't match, every job stops at **Check the tag matches the app version** with "Tag v0.0.2 doesn't match apps/desktop/package.json version 0.0.1". Delete the tag (`git push origin :refs/tags/v0.0.2` and `git tag -d v0.0.2`), fix the version, and tag again.
 
@@ -76,6 +76,31 @@ The workflow has two triggers:
 | --- | --- |
 | Pushing a `v*` tag | Builds, signs and notarizes when the secrets are set, and uploads everything to a draft release (`--publish always`, with the `publish` setting `github`, `chriscasper/startica`, `releaseType: draft`). The workflow's own `GITHUB_TOKEN` (with `contents: write`) does the upload; you don't add a token. |
 | **Run workflow** by hand | Builds without publishing (`--publish never`) and keeps the installers as workflow artifacts named `startica-macOS`, `startica-Windows` and `startica-Linux`. For testing. |
+
+## Release notes
+
+After the three build jobs, the **Release notes** job runs `apps/desktop/scripts/release-notes.mjs` and replaces the draft's notes with:
+
+- **Download:** a table with a link and size for each installer: macOS Apple Silicon and Intel `.dmg`, the Windows `Setup .exe`, the Linux `.AppImage` and `.deb`. The links use the real tag (`/releases/download/v0.0.2/…`), so they work once the draft is published (a draft's own file links use a temporary `untagged-…` address).
+- **Install notes** for unsigned builds, for each system whose certificate secret (`CSC_LINK`, `WIN_CSC_LINK`) isn't set: how to get past Gatekeeper or SmartScreen. A hidden `<!-- startica:unsigned=macos,windows -->` line records the same for the download page.
+- **Beta:** while the version is 0.x, the release is titled "Startica 0.x.y beta" and the notes open with a beta note; the download page shows the same. It's still a normal published release, not a GitHub pre-release, because auto-update and the download page skip pre-releases.
+- **What's new:** the version's entry from `CHANGELOG.md`. Without one, the job warns and the notes list only the downloads.
+
+The job fails if any of the five installers is missing from the draft, which usually means a build job failed. Which files count as installers is in `apps/desktop/scripts/installers.mjs`; if you change an `artifactName` in `apps/desktop/package.json`, update its patterns too.
+
+Edit the notes on the draft by hand if you like before publishing; rerunning the job overwrites them. To preview them locally against a draft:
+
+```bash
+node apps/desktop/scripts/release-notes.mjs v0.0.2
+```
+
+## The download page
+
+[mystartica.com/download](https://mystartica.com/download) is built from the latest **published** release (drafts and pre-releases are skipped, as auto-update skips them). `apps/web/scripts/release.mjs` reads it from the GitHub API during `yarn build` and writes `apps/web/content/download.md` (git-ignored), which `layouts/download.njk` turns into one card per system. The page marks the card for the visitor's system; on a Mac in Chrome or Edge, which report the chip, it puts the matching `.dmg` first. Safari doesn't, so Apple Silicon stays first there.
+
+- The `Sites` workflow runs on `release: published` as well as pushes to `main`, so publishing a release redeploys the site from `main`.
+- In CI, a failed request to GitHub fails the site build, so a deploy never swaps real links for "no release yet". Locally it only warns. `GH_TOKEN` or `GITHUB_TOKEN` raises the API's rate limit.
+- With nothing published, the page says the first release isn't out yet and links to building from source.
 
 ## Signing and notarization
 
@@ -251,6 +276,4 @@ These need a decision or money first. Discuss before starting on any of them.
 - **Windows signing:** an exportable code-signing certificate, or Azure Trusted Signing with a change to the workflow.
 - **Make the repository public**, so auto-update can read the releases.
 - **Run the workflow by hand once** and test the Windows and Linux installers.
-- **A download page** on mystartica.com that links to the latest release.
-
-Until signed releases are published, the website and docs keep pointing people to building from source.
+- **Point Get started at the download page** once a release is published: the home page, Get started and the install guide still lead with building from source.

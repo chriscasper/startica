@@ -23,6 +23,7 @@ export default {
     email: 'hello@mystartica.com',
     nav: [
       { title: 'Features', url: '/#features' },
+      { title: 'Download', url: '/download' },
       { title: 'Docs', url: 'https://docs.mystartica.com' },
       { title: 'Changelog', url: '/changelog' },
       { title: 'Community', url: '/community' },

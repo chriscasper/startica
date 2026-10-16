@@ -100,7 +100,7 @@ Both sites are built: the marketing site (`apps/web`) and 80 docs pages (`apps/d
 - **GitHub settings:** Discussions on (the docs link to it throughout), description, topics, website link, social preview image, branch protection on `main`.
 - **Final check:** links, a `grep` for personal data, a Lighthouse and accessibility pass on both sites.
 - **Signing:** buy an Apple Developer ID ($99/year) and a Windows code-signing certificate or Azure Trusted Signing (paid: ask first). Until then release builds are unsigned and the sites say "build from source".
-- Run the release workflow once by hand to test the Windows and Linux builds (installers, tray, launch at login), then add `/download` on the site, reading the latest release.
+- Run the release workflow once by hand to test the Windows and Linux builds (installers, tray, launch at login). Once a release is published, point the home page's FAQ, Get started and the docs' install guide at `/download` instead of building from source.
 
 ---
 

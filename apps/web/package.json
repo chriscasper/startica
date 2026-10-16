@@ -6,8 +6,8 @@
   "description": "Startica marketing site — mystartica.com",
   "type": "module",
   "scripts": {
-    "dev": "node scripts/changelog.mjs && simple dev",
-    "build": "node scripts/generate-assets.mjs && node scripts/changelog.mjs && simple build",
+    "dev": "node scripts/changelog.mjs && node scripts/release.mjs && simple dev",
+    "build": "node scripts/generate-assets.mjs && node scripts/changelog.mjs && node scripts/release.mjs && simple build",
     "dev:drafts": "simple dev --drafts",
     "assets": "node scripts/generate-assets.mjs",
     "deploy": "yarn build && wrangler deploy",

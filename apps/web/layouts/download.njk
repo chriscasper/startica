@@ -1,0 +1,90 @@
+{# /download: the latest published release's installers, from content/download.md (scripts/release.mjs).
+   site.js marks the card for the visitor's system; without JavaScript every card looks the same. #}
+{% extends "base.njk" %}
+{% import "partials/icons.njk" as icon %}
+
+{% set systems = [
+  { os: "macos", name: "macOS", hint: "Apple Silicon is any Mac with an M chip. Not sure? Apple menu → About This Mac." },
+  { os: "windows", name: "Windows", hint: "Windows 10 or 11, 64-bit." },
+  { os: "linux", name: "Linux", hint: "64-bit (x86). The AppImage runs on most distributions; the .deb is for Debian and Ubuntu." }
+] %}
+
+{% block body %}
+{% include "partials/header.njk" %}
+<main id="main">
+  <div class="border-b border-line bg-surface">
+    <div class="mx-auto max-w-5xl px-6 pb-12 pt-16 md:px-8 md:pt-20">
+      <p class="eyebrow">Download{% if release and release.beta %} · Beta{% endif %}</p>
+      <h1 class="mt-3 font-display text-4xl font-bold tracking-tight sm:text-5xl sm:leading-[1.05]">Download Startica</h1>
+      {% if release %}
+      <p class="mt-5 max-w-2xl text-lg leading-relaxed text-muted">Version {{ release.version }}, released {{ release.date }}. Free and open source. You add your own Claude or OpenAI key when it first opens.</p>
+      {% if release.beta %}
+      <p class="mt-4 max-w-2xl text-sm leading-relaxed text-muted"><strong class="text-fg">Startica is in beta.</strong> It's new and still changing, so expect rough edges. Please report what you find in <a class="link" href="{{ site.repo }}/discussions">GitHub Discussions</a>.</p>
+      {% endif %}
+      {% else %}
+      <p class="mt-5 max-w-2xl text-lg leading-relaxed text-muted">The first release isn't out yet. Until it is, you can build Startica from source in about ten minutes.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="mx-auto max-w-5xl px-6 py-14 md:px-8">
+    {% if release %}
+    <ul class="grid gap-5 md:grid-cols-3">
+      {% for system in systems %}
+      <li class="download-card flex flex-col border border-line bg-surface p-6" data-os="{{ system.os }}">
+        <div class="flex items-baseline justify-between gap-3">
+          <h2 class="font-display text-2xl font-bold">{{ system.name }}</h2>
+          <span class="download-yours hidden text-xs font-bold uppercase tracking-[0.14em] text-accent">Your system</span>
+        </div>
+        <p class="mt-2 text-sm leading-relaxed text-muted">{{ system.hint }}</p>
+        <div class="mt-6 flex flex-col gap-3">
+          {% for installer in release.installers[system.os] %}
+          <a href="{{ installer.url }}" class="btn {% if loop.first %}btn-primary{% else %}btn-ghost{% endif %} download-link" data-installer="{{ installer.id }}" aria-label="Download for {{ installer.label }}, {{ installer.size }}">
+            <span>{{ installer.short }}</span><span class="font-normal opacity-75">{{ installer.size }}</span>
+          </a>
+          {% endfor %}
+        </div>
+        {% if system.os in release.unsigned %}
+        <p class="mt-6 border-t border-line pt-4 text-sm leading-relaxed text-muted">
+          {% if system.os == "macos" %}
+          Not code-signed yet: the first time you open it, go to System Settings → <strong class="text-fg">Privacy &amp; Security</strong> and click <strong class="text-fg">Open Anyway</strong>. Updates come from this page until it's signed.
+          {% else %}
+          Not code-signed yet: if SmartScreen says "Windows protected your PC", click <strong class="text-fg">More info</strong>, then <strong class="text-fg">Run anyway</strong>.
+          {% endif %}
+          <a class="link" href="{{ site.docs }}/getting-started/install">Details</a>
+        </p>
+        {% elif system.os == "linux" %}
+        <p class="mt-6 border-t border-line pt-4 text-sm leading-relaxed text-muted">
+          Run <code class="font-mono text-[13px] text-fg">chmod +x</code> on the AppImage, or <code class="font-mono text-[13px] text-fg">sudo apt install ./startica_*.deb</code>.
+        </p>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="flex flex-wrap gap-4">
+      <a href="/get-started" class="btn btn-primary">Build from source {{ icon.arrow() }}</a>
+      <a href="{{ site.repo }}/releases" class="btn btn-ghost">{{ icon.github("h-4 w-4") }} Releases on GitHub</a>
+    </div>
+    {% endif %}
+
+    <div class="mt-14 grid gap-10 border-t border-line pt-10 md:grid-cols-2">
+      <div>
+        <h2 class="font-display text-xl font-bold">After you install</h2>
+        <p class="mt-3 leading-relaxed text-muted">Startica opens on a three-step setup: connect Claude or OpenAI with your own key and a monthly budget, add the product you're marketing, and pick a few extras. Or look around with a sample product first, no key needed.</p>
+        <a class="link mt-3 inline-block" href="{{ site.docs }}/getting-started/first-run">First run, step by step</a>
+      </div>
+      <div>
+        <h2 class="font-display text-xl font-bold">Other ways to get it</h2>
+        <ul class="mt-3 space-y-2 leading-relaxed text-muted">
+          {% if release %}<li><a class="link" href="{{ release.url }}">Release notes for {{ release.version }}</a>, with every file</li>{% endif %}
+          <li><a class="link" href="{{ site.repo }}/releases">All releases on GitHub</a></li>
+          <li><a class="link" href="/get-started">Build from source</a>, on any system Node.js 24 runs on</li>
+          <li><a class="link" href="/changelog">Changelog</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</main>
+{% include "partials/footer.njk" %}
+{% endblock %}

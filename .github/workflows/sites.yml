@@ -1,7 +1,8 @@
 name: Sites
 
 # Builds mystartica.com (apps/web) and docs.mystartica.com (apps/docs) on every PR that touches them,
-# and deploys both to Cloudflare Workers on pushes to main.
+# and deploys both to Cloudflare Workers on pushes to main and when a release is published
+# (mystartica.com/download is built from the latest published release: apps/web/scripts/release.mjs).
 # Deploying needs the repo secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.
 
 on:
@@ -11,6 +12,7 @@ on:
       - "apps/docs/**"
       - "packages/web-theme/**"
       - "CHANGELOG.md"
+      - "apps/desktop/scripts/installers.mjs"
       - ".github/workflows/sites.yml"
   push:
     branches: [main]
@@ -19,11 +21,14 @@ on:
       - "apps/docs/**"
       - "packages/web-theme/**"
       - "CHANGELOG.md"
+      - "apps/desktop/scripts/installers.mjs"
       - ".github/workflows/sites.yml"
+  release:
+    types: [published]
   workflow_dispatch:
 
 concurrency:
-  group: sites-${{ github.ref }}
+  group: sites-${{ github.event_name == 'release' && 'refs/heads/main' || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -34,6 +39,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # A release event checks out its tag; the sites are deployed from main.
+          ref: ${{ github.event_name == 'release' && 'main' || '' }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -44,6 +52,9 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - run: yarn workspace @startica/docs check
       - run: yarn build
+        env:
+          # Reads the latest release for /download
+          GH_TOKEN: ${{ github.token }}
       - run: yarn build:docs
       - uses: actions/upload-artifact@v4
         with:
@@ -54,12 +65,14 @@ jobs:
           retention-days: 7
 
   deploy:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'release' || (github.event_name != 'pull_request' && github.ref == 'refs/heads/main')
     needs: build
     runs-on: ubuntu-latest
     environment: production
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && 'main' || '' }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24

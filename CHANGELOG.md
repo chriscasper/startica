@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Download page** at mystartica.com/download with the latest release's installers for macOS (Apple Silicon and Intel), Windows and Linux, and your system's highlighted.
+- **Release notes with download links:** each GitHub release now lists its installers with links and sizes, install notes while builds are unsigned, and the changelog entry. 0.x releases are marked beta.
+
 ## [0.0.1] - 2026-10-14
 
 First public release. Installers are unsigned for now, so the documented way in is building from source.

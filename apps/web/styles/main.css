@@ -77,6 +77,12 @@
   }
 }
 
+/* /download: the card for the visitor's system (site.js) */
+.download-card[data-yours] {
+  border-color: var(--color-signal);
+  box-shadow: inset 0 3px 0 var(--color-signal);
+}
+
 /* Module accents, the same colors as the desktop app's [data-module] (desktop-web globals.css) */
 [data-module="marketing"] { --module: #c2441c; }
 [data-module="seo"] { --module: #0b7a5c; }

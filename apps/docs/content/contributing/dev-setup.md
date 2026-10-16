@@ -60,7 +60,7 @@ This starts only the server and prints a one-time login link:
 
 ```text
 Startica is running. Open:
-  http://127.0.0.1:58300/?token=…
+  http://127.0.0.1:58301/?token=…
 ```
 
 Open it once; the browser keeps a session cookie until the server restarts. Use this mode for UI work with your browser's dev tools. Secrets are encrypted with a key file in the data folder (`dev-secret.key`) instead of the keychain, so keys saved in the desktop app can't be read here, and the other way round. Re-enter them in Settings if you need them.
@@ -68,11 +68,11 @@ Open it once; the browser keeps a session cookie until the server restarts. Use 
 > [!NOTE]
 > Don't run `next dev` directly in `apps/desktop-web`. The server must be started by `scripts/serve.mjs`, which sets the launch token; without it every request gets a 503.
 
-Both modes use port **58300**. Only one Startica server can use it at a time, so quit the installed app (from the tray menu, not by closing the window) before you start a dev copy.
+Both dev modes use port **58301** and the **Startica Dev** data folder (`~/Library/Application Support/Startica Dev` on macOS), with their own keychain entry. An installed Startica uses port 58300 and its own `Startica` folder, so you can keep using it while you develop: the two never share data or keys. Only one dev server can run at a time.
 
 ## Use an isolated data folder
 
-By default, the dev server uses the same data folder as the installed app, and it applies new migrations to that database on startup. If you use Startica for real, keep development data separate with `STARTICA_DATA_DIR`.
+Dev runs already keep their data apart from the installed app, in the Startica Dev folder. To try something on a throwaway database (a fresh first run, a migration), point `STARTICA_DATA_DIR` at another folder:
 
 ### macOS and Linux
 
@@ -87,13 +87,13 @@ $env:STARTICA_DATA_DIR = "$env:USERPROFILE\startica-dev-data"
 yarn dev:desktop-web
 ```
 
-The folder is created if it doesn't exist. Delete it to start fresh. `STARTICA_DATA_DIR` works with `yarn dev:desktop` too, but the desktop window shares Electron's single-instance lock with any other Startica that's running, so quit that one first.
+The folder is created if it doesn't exist. Delete it to start fresh. `STARTICA_DATA_DIR` works with `yarn dev:desktop` too. The dev window's single-instance lock belongs to Startica Dev, so an installed Startica can keep running, but a second dev copy can't.
 
 Other overrides that help during development:
 
 | Variable | Effect |
 |---|---|
-| `PORT` | Server port (default 58300). |
+| `PORT` | Server port (default 58301 for dev runs). |
 | `STARTICA_DISABLE_JOBS=1` | Don't start the job runner. Handy when you want to look at queued jobs without running them. |
 | `STARTICA_NEXT_DIST` | Next.js build folder (default `.next`). Lets a second server run next to your dev server. |
 

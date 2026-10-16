@@ -13,7 +13,13 @@ import { createRenderer } from "./renderer/render.mjs";
 import { createScanner } from "./scanner/scanner.mjs";
 import { createUpdater } from "./updater.mjs";
 
-app.setName("Startica");
+// Dev runs (`yarn dev:desktop`) are "Startica Dev": their own data folder, keychain entry
+// ("Startica Dev Safe Storage"), single-instance lock and port, so they never touch an installed
+// Startica and both can run at once. Set before anything reads userData.
+const APP_NAME = app.isPackaged ? "Startica" : "Startica Dev";
+const PORT = process.env.PORT ?? (app.isPackaged ? "58300" : "58301");
+app.setName(APP_NAME);
+app.setPath("userData", join(app.getPath("appData"), APP_NAME));
 const here = dirname(fileURLToPath(import.meta.url));
 // Dev: the web app's source (Next dev server). Packaged: the standalone server
 // assembled by scripts/build.mjs into resources/server.
@@ -123,7 +129,7 @@ function createTray() {
       : nativeImage.createFromPath(join(assetsDir, "tray.png"));
   if (process.platform === "darwin") icon.setTemplateImage(true);
   tray = new Tray(icon);
-  tray.setToolTip("Startica");
+  tray.setToolTip(APP_NAME);
   // Windows/Linux convention: clicking the tray icon opens the app.
   if (process.platform !== "darwin") tray.on("click", () => void showWindow());
   updateTrayMenu();
@@ -134,7 +140,7 @@ function updateTrayMenu() {
   const go = (path) => () => void showWindow(path);
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: "Open Startica", click: go() },
+      { label: `Open ${APP_NAME}`, click: go() },
       { type: "separator" },
       { label: "Dashboard", click: go("/dashboard") },
       { label: "Today", click: go("/today") },
@@ -152,7 +158,7 @@ function updateTrayMenu() {
       { type: "separator" },
       ...(updater ? updater.menuItems() : []),
       { type: "separator" },
-      { label: "Quit Startica", role: "quit" },
+      { label: `Quit ${APP_NAME}`, role: "quit" },
     ]),
   );
 }
@@ -168,6 +174,7 @@ function startServer() {
         ...process.env,
         ELECTRON_RUN_AS_NODE: "1",
         STARTICA_ELECTRON: "1",
+        PORT,
         STARTICA_DATA_DIR: demoMode() ? join(baseDataDir(), "demo") : baseDataDir(),
         ...(demoMode() ? { STARTICA_DEMO: "1" } : {}),
         ...(app.isPackaged ? { STARTICA_PACKAGED: "1" } : {}),

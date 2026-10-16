@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Running from source is a separate app, "Startica Dev":** its own data folder, keychain entry, posting sign-ins and port (58301), so development never touches an installed Startica's data or keys, and both can run at once.
+
+### Fixed
+
+- **The installed app opening on "This page couldn't load"** when its data folder had keys saved in browser dev mode. The app now moves those keys into the OS keychain when it starts, and an unreadable key no longer breaks the pages that check for one.
+
 ### Added
 
 - **Download page** at mystartica.com/download with the latest release's installers for macOS (Apple Silicon and Intel), Windows and Linux, and your system's highlighted.

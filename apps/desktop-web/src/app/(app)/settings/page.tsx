@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { asc, count, eq } from "drizzle-orm";
-import { activeProvider, aiApiKey, monthlyBudgetUsd } from "@startica/core/ai/client";
+import { activeProvider, hasAiApiKey, monthlyBudgetUsd } from "@startica/core/ai/client";
 import { modelLabel, PROVIDERS } from "@startica/core/ai/models";
 import { X_COST_PER_READ, X_TOKEN_SECRET, xLastError, xSettings, xUsage } from "@startica/core/channels/x";
 import { getSetting } from "@startica/db/bootstrap";
@@ -94,7 +94,7 @@ async function SettingsContent({ searchParams }: { searchParams: PageProps<"/set
   );
 }
 
-function keyStatus(key: string | null, required: boolean) {
+function keyStatus(key: boolean, required: boolean) {
   if (key) return "saved";
   return required ? <span className="text-destructive">not set</span> : "not set";
 }
@@ -107,8 +107,8 @@ async function General() {
   const [models, provider, anthropicKey, openaiKey, budget, launchAtLogin] = await Promise.all([
     d.select().from(schema.aiModels).where(eq(schema.aiModels.workspaceId, workspace.id)).orderBy(asc(schema.aiModels.task)),
     activeProvider(),
-    aiApiKey("anthropic"),
-    aiApiKey("openai"),
+    hasAiApiKey("anthropic"),
+    hasAiApiKey("openai"),
     monthlyBudgetUsd(),
     askDesktop<boolean>("launch-at-login"),
   ]);
@@ -126,7 +126,7 @@ async function General() {
           </CardDescription>
           <CardAction className="flex gap-2">
             {(provider === "anthropic" ? openaiKey : anthropicKey) && <RemoveAiKeyButton provider={provider === "anthropic" ? "openai" : "anthropic"} />}
-            <AiSettingsButton provider={provider} keys={{ anthropic: Boolean(anthropicKey), openai: Boolean(openaiKey) }} budget={budget} />
+            <AiSettingsButton provider={provider} keys={{ anthropic: anthropicKey, openai: openaiKey }} budget={budget} />
           </CardAction>
         </CardHeader>
         <CardContent>

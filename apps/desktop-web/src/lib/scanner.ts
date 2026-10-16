@@ -74,5 +74,5 @@ export async function startScanner(): Promise<void> {
   setRenderer(electron ? electronRenderer() : await playwrightRenderer());
   if (process.env.STARTICA_DEMO === "1") return setScanner(null);
   if (process.env.STARTICA_ELECTRON === "1" && typeof process.send === "function") return setScanner(electronScanner());
-  setScanner(await playwrightScanner(Number(process.env.PORT ?? 58300)));
+  setScanner(await playwrightScanner(Number(process.env.PORT ?? 58301)));
 }

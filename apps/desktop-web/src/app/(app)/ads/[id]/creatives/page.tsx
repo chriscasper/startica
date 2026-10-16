@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { DownloadIcon, Loader2Icon, TriangleAlertIcon } from "lucide-react";
-import { aiApiKey, taskModel } from "@startica/core/ai/client";
+import { hasAiApiKey, taskModel } from "@startica/core/ai/client";
 import { providerOf } from "@startica/core/ai/models";
 import { loadCampaign } from "@startica/core/ads/campaigns";
 import { CREATIVE_SPECS, imageEstimate, listCreatives, logoPath, picturePath, type AdCreative } from "@startica/core/ads/creatives";
@@ -52,10 +52,10 @@ async function Creatives({ params }: { params: PageProps<"/ads/[id]/creatives">[
     listCreatives(campaign.id),
     imageEstimate(ctx),
     taskModel(ctx, "image"),
-    aiApiKey("openai"),
+    hasAiApiKey("openai"),
     jobByPayload(workspace.id, ["ad_creative_ideas"], "campaignId", campaign.id),
   ]);
-  const canDraw = Boolean(openaiKey) && providerOf(imageModel.model) === "openai";
+  const canDraw = openaiKey && providerOf(imageModel.model) === "openai";
   const estimateText = `about $${estimate.usd.toFixed(2)} at ${estimate.quality} quality`;
   const spec = CREATIVE_SPECS[campaign.platform];
   const logoUrl = logoPath(campaign.productId) ? `/ads/logo/${campaign.productId}` : null;

@@ -3,7 +3,7 @@ import type { z } from "zod";
 import { getSetting, setSetting } from "@startica/db/bootstrap";
 import { getDb } from "@startica/db/client";
 import { aiModels, aiRuns } from "@startica/db/schema";
-import { readSecretByName } from "@startica/db/secrets";
+import { hasSecretNamed, readSecretByName } from "@startica/db/secrets";
 import { anthropicAnswer, anthropicResearch, anthropicStructured } from "./anthropic.ts";
 import { AiError, type AiMessage, type Answer, type CallRequest, type CallResult, type ResearchOptions } from "./errors.ts";
 import { DEFAULT_MODELS, isProvider, PROVIDERS, providerOf, type AiProvider, type AiTask, type ModelConfig } from "./models.ts";
@@ -43,6 +43,11 @@ export async function aiApiKey(provider: AiProvider): Promise<string | null> {
   return readSecretByName(PROVIDERS[provider].secret);
 }
 
+/** Whether a key is saved for a provider, without decrypting it (for pages and checks). */
+export async function hasAiApiKey(provider: AiProvider): Promise<boolean> {
+  return hasSecretNamed(PROVIDERS[provider].secret);
+}
+
 /**
  * The provider picked at setup or in Settings → General → AI. Before one is picked, the one
  * with a saved key (Claude first), else Claude.
@@ -50,14 +55,18 @@ export async function aiApiKey(provider: AiProvider): Promise<string | null> {
 export async function activeProvider(): Promise<AiProvider> {
   const saved = await getSetting<string>(PROVIDER_SETTING);
   if (isProvider(saved)) return saved;
-  if (await aiApiKey("anthropic")) return "anthropic";
-  if (await aiApiKey("openai")) return "openai";
+  if (await hasAiApiKey("anthropic")) return "anthropic";
+  if (await hasAiApiKey("openai")) return "openai";
   return "anthropic";
 }
 
-/** Whether the active provider has a key, i.e. AI features can run. */
+/**
+ * Whether the active provider has a key, i.e. AI features can run. Checks that one is saved
+ * without decrypting it, so pages still render when a key can't be read (the AI call then
+ * says to save it again).
+ */
 export async function hasAiKey(): Promise<boolean> {
-  return Boolean(await aiApiKey(await activeProvider()));
+  return hasAiApiKey(await activeProvider());
 }
 
 /**

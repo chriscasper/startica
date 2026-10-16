@@ -12,7 +12,8 @@ const webDir = dirname(fileURLToPath(import.meta.url));
 // Startica sends no telemetry; keep Next.js's own usage reporting off too (dev, smoke and the installed app).
 process.env.NEXT_TELEMETRY_DISABLED ??= "1";
 
-export const DEFAULT_PORT = 58300;
+// Dev and browser mode: 58301, next to an installed Startica on 58300 (serve-prod.mjs).
+export const DEFAULT_PORT = 58301;
 
 /**
  * @param {{ dev?: boolean; port?: number; dataDir?: string; electron?: boolean; jobs?: boolean }} [opts]
@@ -23,8 +24,9 @@ export async function startServer(opts = {}) {
   const hostname = "127.0.0.1"; // loopback only: never reachable from the network
   const token = randomBytes(32).toString("base64url");
 
-  // Read by proxy.ts and instrumentation (startup.ts).
+  // Read by proxy.ts and instrumentation (startup.ts; the scanner blocks requests to this port).
   process.env.STARTICA_SESSION_TOKEN = token;
+  process.env.PORT = String(port);
   process.env.STARTICA_MIGRATIONS_DIR ??= join(webDir, "../../packages/db/migrations");
   if (opts.dataDir) process.env.STARTICA_DATA_DIR = opts.dataDir;
   if (opts.electron) process.env.STARTICA_ELECTRON = "1";

@@ -146,7 +146,7 @@ yarn smoke:desktop
 
 This runs `apps/desktop-web/scripts/smoke.mjs`, which needs Playwright's Chromium (`yarn workspace @startica/desktop-web playwright install chromium`, once). It:
 
-1. Creates a temporary data folder and starts the server on port **58399** with its own Next.js build folder, `.next-smoke`, so it can run next to your dev server on 58300.
+1. Creates a temporary data folder and starts the server on port **58399** with its own Next.js build folder, `.next-smoke`, so it can run next to your dev server on 58301.
 2. Checks that a request without the launch token gets a 401.
 3. Opens the one-time token link and waits for `/welcome`: a fresh data folder opens the welcome wizard.
 4. Walks the wizard: on **Connect AI** it picks **OpenAI** and checks that the step asks for an **OpenAI API key**, then clicks **Skip for now**. It enters a product with the website `example.com`, unticks **Start building intel now** so no real research runs, sets a Mastodon server in **A few extras**, clicks **Finish** and checks that Today shows the **Getting started** checklist with the new product.
@@ -218,7 +218,7 @@ It launches the unpacked app from `apps/desktop/dist` (`mac/Startica.app`, `win-
 
 ## Isolated ports and cleanup
 
-Tests use ports 58395 to 58399: 58395 the accessibility stand-in site, 58396 the desktop smoke test's posting stand-ins, 58397 its demo-mode launch, 58398 the desktop smoke test, 58399 the browser smoke test. They never use 58300, which belongs to the app you may be running. If a run is interrupted and leaves a server behind, stop it by port; Next.js renames its process to `next-server`, so killing by name doesn't work:
+Tests use ports 58395 to 58399: 58395 the accessibility stand-in site, 58396 the desktop smoke test's posting stand-ins, 58397 its demo-mode launch, 58398 the desktop smoke test, 58399 the browser smoke test. They never use 58300 or 58301, which belong to the installed app and your dev server. If a run is interrupted and leaves a server behind, stop it by port; Next.js renames its process to `next-server`, so killing by name doesn't work:
 
 ```bash
 lsof -tiTCP:58399 | xargs kill

@@ -22,7 +22,7 @@ Safe to set when running from source, including for the desktop app started from
 | Variable | Purpose | Default |
 | --- | --- | --- |
 | `STARTICA_DATA_DIR` | Folder for the database and other data. Use it to keep a test setup apart from your real data. The posting window's sign-ins stay in Electron's default folder either way (see [Posting sign-ins](/reference/data-folder#posting-sign-ins)). In [demo mode](/guides/demo-mode) the desktop app uses its `demo` subfolder. | The per-OS folder in [Data folder](/reference/data-folder) |
-| `PORT` | Port the local server listens on (always `127.0.0.1` only). | `58300` |
+| `PORT` | Port the local server listens on (always `127.0.0.1` only). | `58300` installed, `58301` running from source |
 | `STARTICA_DISABLE_JOBS` | `1` starts the app without the job runner or schedules. Jobs can still be queued; nothing runs them. Any other value is ignored. | (unset: jobs run) |
 
 > [!NOTE]
@@ -74,6 +74,6 @@ Set by Startica itself or by Next.js, Electron or the OS. Don't set these yourse
 | Search Console service account key, Bing API key | Settings → Products → Connections → Google Search Console or Bing Webmaster Tools only |
 | X API token | Settings → Channels → X API (optional, paid) only |
 | Data folder | `STARTICA_DATA_DIR`, then the per-OS default |
-| Port | `PORT`, then 58300 |
+| Port | `PORT`, then 58300 (installed) or 58301 (from source) |
 
 Related: [Settings](/reference/settings), [Development setup](/contributing/dev-setup).

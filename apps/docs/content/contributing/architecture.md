@@ -63,7 +63,7 @@ Startica has no login. Instead:
 
 This keeps other programs and websites on the same machine out of the server. Without `STARTICA_SESSION_TOKEN` the proxy answers 503, which is why you always start the server through `scripts/serve.mjs` and never with `next dev` directly.
 
-In browser mode (`yarn dev:desktop-web`) there's no Electron to set the cookie, so the server prints a one-time `http://127.0.0.1:58300/?token=…` link instead.
+In browser mode (`yarn dev:desktop-web`) there's no Electron to set the cookie, so the server prints a one-time `http://127.0.0.1:58301/?token=…` link instead.
 
 ## No sign-ins
 
@@ -78,7 +78,7 @@ Secrets (the Anthropic and OpenAI keys, the X API token, issue tracker tokens, c
 - **In the desktop app** (`STARTICA_ELECTRON=1`): `ipcCipher()` sends each encrypt or decrypt request to the Electron main process, which uses `safeStorage` (macOS Keychain, Windows DPAPI, Linux libsecret). Ciphertexts start with `ss1.`.
 - **Outside Electron** (browser mode, tests, scripts): `fileKeyCipher()` uses AES-256-GCM with a random key in `dev-secret.key` in the data folder.
 
-The two can't read each other's secrets. A key saved in the desktop app can't be decrypted in browser mode, and the other way round.
+A key saved in the desktop app can't be decrypted in browser mode. The other way round, the desktop app moves browser-mode secrets into the keychain on startup (`adoptFileKeySecrets`, when `dev-secret.key` is in the data folder), so a data folder used in development keeps working in the installed app. Pages check whether a key is saved with `hasSecretNamed`, without decrypting it, so an unreadable secret fails only the feature that uses it, not the page.
 
 ## SQLite: one connection per process
 
@@ -285,12 +285,14 @@ Auto-update is `apps/desktop/updater.mjs`, which uses `electron-updater` against
 
 ## Data folder
 
-The server's data folder comes from `dataDir()` in `packages/db/src/paths.ts`. It matches Electron's `userData` for an app named Startica, so the desktop app, `yarn dev:desktop` and `yarn dev:desktop-web` all share one database by default:
+Dev runs are a separate app, **Startica Dev**. When Electron isn't packaged, `main.mjs` sets the app name and `userData` to "Startica Dev", so `yarn dev:desktop` gets its own data folder, keychain entry ("Startica Dev Safe Storage"), single-instance lock, posting sign-ins and port (58301). An installed Startica (port 58300) never sees dev data or keys, and you can run both at once.
 
-| OS | Default |
-|---|---|
-| macOS | `~/Library/Application Support/Startica` |
-| Windows | `%APPDATA%\Startica` |
-| Linux | `$XDG_CONFIG_HOME/Startica` (usually `~/.config/Startica`) |
+The server's data folder is `STARTICA_DATA_DIR`, which the desktop app always sets to its `userData`. Without it (browser mode, scripts), `dataDir()` in `packages/db/src/paths.ts` uses the dev folder, or the installed app's when `STARTICA_PACKAGED=1`:
+
+| OS | Dev runs | Installed app |
+|---|---|---|
+| macOS | `~/Library/Application Support/Startica Dev` | `~/Library/Application Support/Startica` |
+| Windows | `%APPDATA%\Startica Dev` | `%APPDATA%\Startica` |
+| Linux | `$XDG_CONFIG_HOME/Startica Dev` (usually `~/.config/Startica Dev`) | `$XDG_CONFIG_HOME/Startica` |
 
 `STARTICA_DATA_DIR` overrides it. See [Data folder](/reference/data-folder).

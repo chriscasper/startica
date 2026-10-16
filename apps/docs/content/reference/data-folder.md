@@ -14,7 +14,7 @@ Everything Startica knows lives in one folder on your computer: products, intel,
 | Windows | `%APPDATA%\Startica` (usually `C:\Users\<you>\AppData\Roaming\Startica`) |
 | Linux | `$XDG_CONFIG_HOME/Startica`, or `~/.config/Startica` when `XDG_CONFIG_HOME` is unset |
 
-This is the same folder Electron uses for an app named "Startica", so the desktop app and the development servers (`yarn dev:desktop`, `yarn dev:desktop-web`) share one database by default.
+Running from source (`yarn dev:desktop`, `yarn dev:desktop-web`, `yarn seed:demo` and other scripts) uses a separate **Startica Dev** folder next to it, for example `~/Library/Application Support/Startica Dev`, with its own keychain entry. Development never touches the installed app's data or keys, and the two can run at the same time.
 
 ### Overriding it
 
@@ -70,13 +70,13 @@ Secrets are the AI API keys (Anthropic and OpenAI), the X API token, GitHub and 
 > On Linux without a keyring (no libsecret service running), Electron falls back to a basic text backend and Startica logs "No system keyring found; secrets are only lightly protected on this computer."
 
 > [!NOTE]
-> The two modes can't read each other's secrets, even with the same data folder. A secret saved in browser dev mode fails in the desktop app with "This secret was saved outside the desktop app; save it again in Settings.", and a secret saved by the desktop app fails in browser dev mode with "Unreadable secret". Re-enter it in the mode you use, or give the two modes separate folders with `STARTICA_DATA_DIR`.
+> `yarn dev:desktop` and `yarn dev:desktop-web` share the Startica Dev folder but encrypt differently. When the desktop app starts, it moves secrets saved in browser mode into the keychain; browser mode can't read keychain secrets ("Unreadable secret"), so re-enter them there if you need them, or give browser mode its own folder with `STARTICA_DATA_DIR`.
 
 ## Posting sign-ins
 
 When you sign in to a site in the [posting window](/guides/assisted-posting) (X, Hacker News, Reddit, LinkedIn, Bluesky, your Mastodon server or a Discourse forum), the site's cookies are kept in a separate browser profile, Electron's persistent partition `persist:posting`. It's separate from your normal browser and from the app's main window, and it holds only what the sites themselves store (cookies, local storage, cache). Startica never stores your passwords.
 
-The partition is always in Electron's own profile folder, which is the default data folder above, even if you set `STARTICA_DATA_DIR`:
+The partition is always in Electron's own profile folder, which is the default data folder above (`Startica Dev` when running from source), even if you set `STARTICA_DATA_DIR`:
 
 | OS | Posting sign-ins |
 | --- | --- |
@@ -84,7 +84,7 @@ The partition is always in Electron's own profile folder, which is the default d
 | Windows | `%APPDATA%\Startica\Partitions\posting` |
 | Linux | `~/.config/Startica/Partitions/posting` (or under `$XDG_CONFIG_HOME`) |
 
-The installed app and `yarn dev:desktop` use this same partition. The desktop smoke test doesn't: it runs the posting window in a throwaway in-memory session, so it never touches your sign-ins.
+`yarn dev:desktop` has its own partition in the Startica Dev folder, so sign-ins in the installed app and in dev are separate. The desktop smoke test doesn't: it runs the posting window in a throwaway in-memory session, so it never touches your sign-ins.
 
 ### Sign out of a site
 

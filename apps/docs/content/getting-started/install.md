@@ -85,12 +85,12 @@ You can run Startica's server without the desktop window and use it in your brow
 yarn dev:desktop-web
 ```
 
-The terminal prints a one-time link like `http://127.0.0.1:58300/?token=…`. Open it once in your browser. It sets a cookie for this run, and you can then use the app normally. Each start prints a new token.
+The terminal prints a one-time link like `http://127.0.0.1:58301/?token=…`. Open it once in your browser. It sets a cookie for this run, and you can then use the app normally. Each start prints a new token.
 
 Browser mode differs from the desktop app in a few ways:
 
 - It encrypts secrets with a key file in the data folder, not the OS keychain. Secrets saved in one mode can't be read in the other. See [Troubleshooting](/troubleshooting).
-- It uses the same port (58300) as the desktop app, so you can't run both at once.
+- Like `yarn dev:desktop`, it uses port 58301 and the **Startica Dev** data folder, so it can't run at the same time as `yarn dev:desktop`. An installed Startica (port 58300, its own `Startica` folder) is unaffected.
 - There's no tray icon. Background jobs run while the terminal process runs.
 - The welcome wizard has no **Look around with a sample product first** link and no launch-at-login option. To see the sample product, load it into its own data folder with `yarn seed:demo` (see [Try the demo](/guides/demo-mode#in-a-browser-run)).
 

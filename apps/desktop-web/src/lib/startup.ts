@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { ensureWorkspace } from "@startica/db/bootstrap";
 import { migrateDatabase, openDatabase } from "@startica/db/client";
 import { databasePath, dataDir } from "@startica/db/paths";
-import { fileKeyCipher, ipcCipher, setCipher } from "@startica/db/secrets";
+import { adoptFileKeySecrets, fileKeyCipher, ipcCipher, setCipher } from "@startica/db/secrets";
 import { startRunner, type Runner } from "@startica/core/jobs/runner";
 import { productCount, seedDemo } from "@startica/core/demo/seed";
 import { setSetupFlags } from "@startica/core/setup/status";
@@ -25,6 +25,11 @@ export function start(): Promise<Runner | null> {
     await migrateDatabase(process.env.STARTICA_MIGRATIONS_DIR ?? join(process.cwd(), "../../packages/db/migrations"));
     // In the desktop app the OS keychain (via the Electron process) encrypts secrets.
     setCipher(process.env.STARTICA_ELECTRON ? ipcCipher() : fileKeyCipher(join(dataDir(), "dev-secret.key")));
+    if (process.env.STARTICA_ELECTRON) {
+      // Secrets saved in browser dev mode (the key file) move to the keychain, so the same data folder works in the app.
+      const moved = await adoptFileKeySecrets(join(dataDir(), "dev-secret.key"));
+      if (moved) console.log(`[startica] moved ${moved} secret(s) from the dev key file to the OS keychain`);
+    }
     const workspace = await ensureWorkspace();
     if (process.env.STARTICA_ELECTRON) listenForPostingResults();
     await startScanner();

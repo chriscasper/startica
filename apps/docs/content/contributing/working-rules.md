@@ -90,7 +90,7 @@ Charts use Recharts and follow these rules:
 ## Checks and hygiene
 
 - **Run `yarn typecheck && yarn lint && yarn test && yarn smoke:desktop`** before you open a pull request. For changes to `apps/desktop`, also run `yarn workspace @startica/desktop smoke`, and add `--packaged` after a build.
-- **Test processes use isolated ports and data.** Ports 58397–58399, a temporary `STARTICA_DATA_DIR`, and a separate `STARTICA_NEXT_DIST`. Never start a test server on 58300.
+- **Test processes use isolated ports and data.** Ports 58397–58399, a temporary `STARTICA_DATA_DIR`, and a separate `STARTICA_NEXT_DIST`. Never start a test server on 58300 (the installed app) or 58301 (dev).
 - Next.js renames its process to `next-server`, so stop leftover test servers by port (`lsof -tiTCP:58399`), not by name. A stale Startica instance blocks new launches through the single-instance lock: check with `pgrep -fl Startica`.
 - **Never commit** API keys, `.env` files, `secrets/`, service-account JSON, `apps/desktop/build` or `apps/desktop/dist`, or `.next*` build folders.
 - **Keep docs current.** If you change a decision, update `ARCHITECTURE.md` at the repo root in the same pull request; when you build something listed in `PLAN.md`, describe it in ARCHITECTURE.md and remove it from PLAN.md. If you change behavior a user or contributor sees, update these docs.

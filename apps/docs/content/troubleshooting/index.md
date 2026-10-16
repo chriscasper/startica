@@ -65,9 +65,9 @@ If you see the wizard while expecting your data, check that Startica is using th
 
 ## Port 58300 in use
 
-**Symptom.** A dialog says "Startica couldn't start" or "The Startica server stopped while starting". In dev mode, the terminal shows "Port 58300 is already in use. Is Startica already running?"
+**Symptom.** A dialog says "Startica couldn't start" or "The Startica server stopped while starting". Running from source, the terminal shows "Port 58301 is already in use. Is Startica already running?"
 
-**Cause.** Startica's local server uses port 58300 unless you set `PORT`. Something else is already listening there. Usually that's `yarn dev:desktop-web` in another terminal, or a leftover Startica process.
+**Cause.** The installed app's local server uses port 58300, and running from source uses 58301, unless you set `PORT`. Something else is already listening there. From source, that's usually `yarn dev:desktop-web` or `yarn dev:desktop` in another terminal, or a leftover process. Use 58301 in the commands below for a dev run.
 
 **Fix.** Find what's using the port and stop it.
 
@@ -173,11 +173,11 @@ Every message and its fix: [Google Search Console](/credentials/search-console#t
 
 ## Secrets after switching modes
 
-**Symptom.** After switching between the desktop app and browser mode (`yarn dev:desktop-web`), Settings or System shows an error instead of loading, or an AI job fails with "Unreadable secret" or "This secret was saved outside the desktop app; save it again in Settings."
+**Symptom.** After using the desktop app, browser mode (`yarn dev:desktop-web`) can't read your keys: an AI job or a connection fails with "Unreadable secret".
 
-**Cause.** The two modes encrypt secrets differently. The desktop app uses the OS keychain. Browser mode uses a key file in the data folder. Both use the same database, but neither can decrypt the other's secrets.
+**Cause.** The two modes encrypt secrets differently. The desktop app uses the OS keychain. Browser mode uses a key file in the data folder. Both use the same database. The desktop app moves secrets saved in browser mode into the keychain when it starts, but browser mode can't read the keychain.
 
-**Fix.** Go back to the mode you saved the secrets in. To use browser mode for testing without this clash, give it its own data folder:
+**Fix.** Save the keys again in browser mode, or go back to the desktop app. The installed app isn't involved: running from source uses its own Startica Dev folder and keychain entry. To use browser mode for testing without this clash, give it its own data folder:
 
 ```bash
 STARTICA_DATA_DIR=/tmp/startica-browser yarn dev:desktop-web

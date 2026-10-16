@@ -83,6 +83,38 @@ export async function readSecretByName(name: string): Promise<string | null> {
   return row ? await cipher().decrypt(row.ciphertext) : null;
 }
 
+/** Whether a secret called `name` is saved, without decrypting it (pages only need to know it's there). */
+export async function hasSecretNamed(name: string): Promise<boolean> {
+  const [row] = await getDb().select({ id: secrets.id }).from(secrets).where(eq(secrets.name, name));
+  return Boolean(row);
+}
+
+/**
+ * Re-encrypts, with the current cipher, the secrets that browser dev mode saved with the key
+ * file (`v1.` ciphertexts), so a data folder used in development keeps working in the desktop
+ * app. Secrets the key can't read are left alone; they fail where they're used, which asks
+ * the user to save them again. Returns how many were moved.
+ */
+export async function adoptFileKeySecrets(keyPath: string): Promise<number> {
+  if (!existsSync(keyPath)) return 0;
+  const db = getDb();
+  const rows = (await db.select({ id: secrets.id, ciphertext: secrets.ciphertext }).from(secrets)).filter((r) => r.ciphertext.startsWith("v1."));
+  if (!rows.length) return 0;
+  const fileKey = fileKeyCipher(keyPath);
+  let moved = 0;
+  for (const row of rows) {
+    let plain: string;
+    try {
+      plain = await fileKey.decrypt(row.ciphertext);
+    } catch {
+      continue;
+    }
+    await db.update(secrets).set({ ciphertext: await cipher().encrypt(plain) }).where(eq(secrets.id, row.id));
+    moved++;
+  }
+  return moved;
+}
+
 export async function deleteSecret(id: string): Promise<void> {
   await getDb().delete(secrets).where(eq(secrets.id, id));
 }

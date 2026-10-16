@@ -3,7 +3,7 @@
 import { and, eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { z } from "zod";
-import { aiApiKey, BUDGET_SETTING, setActiveProvider } from "@startica/core/ai/client";
+import { hasAiApiKey, BUDGET_SETTING, setActiveProvider } from "@startica/core/ai/client";
 import { isProvider as isAiProvider, keyLooksValid, MODELS, modelsFor, PROVIDERS, providerOf, type AiProvider } from "@startica/core/ai/models";
 import { generateSetupSql, METRICS_VIEW, randomPassword, readerUrlFrom, savedReaderPassword, setupSpec } from "@startica/core/integrations/product-db-setup";
 import { checkReaderConnection } from "@startica/core/metrics/product-db";
@@ -68,7 +68,7 @@ export async function saveAiModel(modelId: string, formData: FormData): Promise<
     const [row] = await (await db()).select({ task: aiModels.task }).from(aiModels).where(and(eq(aiModels.id, id.parse(modelId)), eq(aiModels.workspaceId, workspace.id)));
     if (row && !modelsFor(row.task).some((x) => x.id === m.model)) throw new Error(row.task === "image" ? "Pick an image model for this task" : "Image models only draw pictures: pick a text model");
     const provider = providerOf(m.model)!;
-    if (!(await aiApiKey(provider))) throw new Error(`Add an ${PROVIDERS[provider].keyLabel} first (Change keys or budget)`);
+    if (!(await hasAiApiKey(provider))) throw new Error(`Add an ${PROVIDERS[provider].keyLabel} first (Change keys or budget)`);
     await (await db())
       .update(aiModels)
       .set({ model: m.model, effort: m.effort, maxTokens: m.max_tokens })
@@ -98,7 +98,7 @@ export async function saveAiSettings(formData: FormData): Promise<ActionResult> 
       })
       .parse(formFields(formData));
     const keys = { anthropic: input.anthropic_key, openai: input.openai_key };
-    if (!keys[input.provider] && !(await aiApiKey(input.provider))) throw new Error(`Paste your ${PROVIDERS[input.provider].keyLabel}`);
+    if (!keys[input.provider] && !(await hasAiApiKey(input.provider))) throw new Error(`Paste your ${PROVIDERS[input.provider].keyLabel}`);
     for (const provider of ["anthropic", "openai"] as const) if (keys[provider]) await putSecret(PROVIDERS[provider].secret, keys[provider]);
     await setSetting(BUDGET_SETTING, input.budget);
     await setActiveProvider((await getWorkspace()).id, input.provider);

@@ -8,7 +8,7 @@ import { closeDatabase, getDb, migrateDatabase, openDatabase, transaction } from
 import { onChange, writtenTable } from "./events.ts";
 import { claim, complete, enqueue, fail } from "./queue.ts";
 import { aiModels, jobs, products } from "./schema.ts";
-import { deleteSecret, fileKeyCipher, putSecret, readSecret, setCipher } from "./secrets.ts";
+import { adoptFileKeySecrets, type Cipher, deleteSecret, fileKeyCipher, hasSecretNamed, putSecret, readSecret, setCipher } from "./secrets.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "startica-db-"));
 let workspaceId = "";
@@ -111,6 +111,34 @@ describe("secrets", () => {
     expect(JSON.stringify(rows)).not.toContain("sk-ant-test-123");
     await deleteSecret(id);
     expect(await readSecret(id)).toBeNull();
+  });
+
+  it("tells whether a secret is saved without decrypting it", async () => {
+    const id = await putSecret("example-token", "secret-value");
+    setCipher({ name: "broken", encrypt: (p) => p, decrypt: () => { throw new Error("can't decrypt"); } });
+    try {
+      expect(await hasSecretNamed("example-token")).toBe(true);
+      expect(await hasSecretNamed("missing-token")).toBe(false);
+    } finally {
+      setCipher(fileKeyCipher(join(dir, "key")));
+      await deleteSecret(id);
+    }
+  });
+
+  it("moves secrets saved with the dev key file to the current cipher", async () => {
+    const id = await putSecret("dev-saved", "sk-dev-456"); // saved with the key file, as browser mode does
+    // Stands in for the keychain cipher, with its own prefix like safeStorage's ss1.
+    const keychain: Cipher = { name: "stand-in", encrypt: (p) => `ss1.${p}`, decrypt: (c) => c.replace(/^ss1\./, "") };
+    setCipher(keychain);
+    try {
+      expect(await adoptFileKeySecrets(join(dir, "missing-key"))).toBe(0);
+      expect(await adoptFileKeySecrets(join(dir, "key"))).toBe(1);
+      expect(await readSecret(id)).toBe("sk-dev-456");
+      expect(await adoptFileKeySecrets(join(dir, "key"))).toBe(0); // nothing left to move
+    } finally {
+      await deleteSecret(id);
+      setCipher(fileKeyCipher(join(dir, "key")));
+    }
   });
 });
 

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { desc, eq } from "drizzle-orm";
-import { activeProvider, aiApiKey, hasAiKey, monthlyBudgetUsd, monthToDateSpendUsd } from "@startica/core/ai/client";
+import { activeProvider, hasAiApiKey, hasAiKey, monthlyBudgetUsd, monthToDateSpendUsd } from "@startica/core/ai/client";
 import { PROVIDERS } from "@startica/core/ai/models";
 import { ExternalLinkIcon } from "lucide-react";
 import * as schema from "@startica/db/schema";
@@ -73,8 +73,8 @@ async function SystemContent() {
     monthlyBudgetUsd(),
     hasAiKey(),
     activeProvider(),
-    aiApiKey("anthropic"),
-    aiApiKey("openai"),
+    hasAiApiKey("anthropic"),
+    hasAiApiKey("openai"),
   ]);
   const active = await loadActive(workspace.id);
   const consoles = (["anthropic", "openai"] as const).filter((p) => (p === "anthropic" ? anthropicKey : openaiKey));

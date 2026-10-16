@@ -21,6 +21,9 @@ process.env.STARTICA_GOOGLE_API_BASE = googleApi.url;
 const securityApi = await startSecurityStandin(0);
 process.env.STARTICA_SECURITY_API_BASE = securityApi.url;
 const { startServer } = await import("../server.mjs");
+// Requests to a route the dev server hasn't compiled yet wait for the compile, which
+// takes over 30 s (Playwright's default) on slow CI runners.
+const FIRST_REQUEST = { timeout: 120_000 };
 
 let failed = false;
 const check = (ok, label) => {
@@ -38,6 +41,7 @@ try {
   check(blocked.status === 401, `request without the session token is refused (${blocked.status})`);
 
   const page = await browser.newPage();
+  page.setDefaultNavigationTimeout(FIRST_REQUEST.timeout); // page.goto to an uncompiled route waits the same way
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
 
@@ -134,7 +138,7 @@ try {
     await page.goto(`${server.url}/ads/${campaignId}`);
     await page.getByText("40 characters: the limit is 30.").waitFor({ timeout: 15_000 });
     const blocked = (await page.getByText(/Fix 1 problem marked in red first/).count()) > 0;
-    const res = await page.request.get(`${server.url}/ads/${campaignId}/export/google`);
+    const res = await page.request.get(`${server.url}/ads/${campaignId}/export/google`, FIRST_REQUEST);
     const text = new TextDecoder("utf-16le").decode((await res.body()).subarray(2));
     check(
       blocked && res.ok() && /\tPaused\t/.test(text) && text.includes(`utm_content=${adId}`) && text.includes("notes app\tPhrase"),
@@ -153,7 +157,7 @@ try {
     await page.getByText("Ready", { exact: true }).waitFor({ timeout: 60_000 });
     const downloads = await page.locator('a[download][href*="/ads/creatives/"]').count();
     const href = await page.locator('a[download][href*="/1.91x1."]').getAttribute("href");
-    const png = Buffer.from(await (await page.request.get(`${server.url}${href}`)).body());
+    const png = Buffer.from(await (await page.request.get(`${server.url}${href}`, FIRST_REQUEST)).body());
     const size = png[0] === 0x89 ? `${png.readUInt32BE(16)}x${png.readUInt32BE(20)}` : "not a PNG";
     check(downloads === 4 && size === "1200x628", `Ads AD2: an uploaded picture renders in Google's four sizes (${downloads}; 1.91:1 is ${size})`);
 
@@ -304,7 +308,7 @@ try {
     // A2: the page report shows where each issue is; an issue can be ignored with a reason; the criterion view and CSV export work.
     await page.getByText("Where they are", { exact: true }).waitFor({ timeout: 15_000 });
     const shotSrc = await page.locator('img[alt^="Screenshot of /signup.html"]').getAttribute("src");
-    const shotRes = await page.request.get(`${server.url}${shotSrc}`);
+    const shotRes = await page.request.get(`${server.url}${shotSrc}`, FIRST_REQUEST);
     const shot = shotRes.ok() && shotRes.headers()["content-type"] === "image/jpeg" ? true : `${shotRes.status()} ${shotSrc}`;
     await page.goto(`${server.url}/accessibility/issues`);
     await page.getByRole("link", { name: /Elements must meet minimum color contrast/ }).click();

@@ -4,6 +4,8 @@ layout: module
 module: security
 eyebrow: Security
 docs: /security
+screenshot: /images/app/security.png
+screenshotAlt: "Startica's Security overview for fieldnote.example: security score 66 out of 100, 9 open findings, a trusted certificate, SPF and DMARC set, a score trend chart against a target of 90, and a Fix these first table starting with a library with known vulnerabilities"
 lede: Once you prove a site is yours, Startica checks what anyone on the internet can see about it, from weak HTTPS and missing headers to exposed files and email that's easy to forge. Then it keeps watching for new subdomains, expiring certificates, look-alike domains and vulnerable libraries.
 description: Startica's Security module verifies you own a site, then checks its HTTPS, headers, cookies, exposed files and email setup on every scan, monitors subdomains, certificates, look-alike domains and vulnerable libraries, and gives you a disclosure kit. Defensive checks only.
 features:

@@ -87,7 +87,7 @@ Built and tested against stand-ins; still to try for real. Each needs the owner'
 
 Both sites are built: the marketing site (`apps/web`) and 80 docs pages (`apps/docs`), rewritten on 2026-10-14 for the four-module app. Left to do:
 
-- **Screenshots** of each module in light and dark, taken from the desktop smoke run on the Fieldnote demo so they can be regenerated after UI changes.
+- **Dark screenshots**: `yarn screenshots` takes light ones only, because the app has dark styles (`.dark` in `globals.css`) but nothing turns them on yet. Once it follows the system theme, add a dark pass.
 - **Diagrams** (main loop, architecture) as inline SVG, and a **demo video or GIF** (30–60 s) for the home page and README.
 - **simple-engine additions**, then simplify `apps/docs`: numeric `sortBy` (string sorting puts 10 before 2, so the sidebar lives in `site.docsNav`), markdown-it plugins from config (callouts), a heading list in page data (build-time TOC instead of `public/docs.js`), a post-build hook (instead of `scripts/postbuild.mjs`), and plain heading ids (the anchor plugin percent-encodes ":" and "?", so the docs avoid linking to such headings).
 

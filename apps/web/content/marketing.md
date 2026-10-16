@@ -4,6 +4,8 @@ layout: module
 module: marketing
 eyebrow: Marketing
 docs: /guides/finding-conversations
+screenshot: /images/app/marketing.png
+screenshotAlt: "Startica's Today page for the demo product Fieldnote: a ranked list of moves such as reviewing 3 drafted replies, fixing missing alternative text on 6 pages and stopping an ad that costs too much per result, with replies posted, AI spend and the latest plan beside it"
 lede: Startica learns your product and its market, finds the conversations where people describe the problem you solve, drafts replies, posts and ads in your voice, and shows you what actually brought visits, signups and revenue. You post and launch everything yourself.
 description: Startica's Marketing module finds conversations about the problem your product solves, drafts replies, content and ads in your voice, and measures what worked. Open source, on your desktop, and nothing posts without you.
 features:

@@ -141,6 +141,7 @@ OPENAI_API_KEY=sk-… yarn eval score --model gpt-6-luna
 
 | Command | What it does |
 | --- | --- |
+| `yarn screenshots` | Retakes the app screenshots used on the website and in these docs: the Dashboard, Today, and the Accessibility, SEO & GEO and Security overviews. Seeds Fieldnote into a temporary folder with a placeholder AI key and background jobs off, starts its own server on port 58397 (build folder `.next-screenshots`), and saves 2× PNGs to `apps/web/public/images/app/` and `apps/docs/public/images/app/`. Never touches your own data. |
 | `STARTICA_DATA_DIR=<folder> yarn seed:demo [--force]` | Loads the fictional demo product, Fieldnote, into the given data folder, with no AI calls. `STARTICA_DATA_DIR` is required (use an absolute path). Refuses if the database already has a product; `--force` first deletes every product and its data, keeping settings, secrets and AI model routing. Open the result with `STARTICA_DATA_DIR=<folder> yarn dev:desktop-web`. See [Data folder](/reference/data-folder#demo-data). |
 
 ### Database (`@startica/db`)

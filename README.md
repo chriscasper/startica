@@ -76,6 +76,7 @@ The desktop app's architecture and decisions are in [ARCHITECTURE.md](ARCHITECTU
 | `yarn build:desktop [--mac\|--win\|--linux]` | Build desktop installers into `apps/desktop/dist` |
 | `yarn smoke:desktop` | Browser end-to-end test of the desktop server (isolated data) |
 | `yarn seed:demo [--force]` | Load the Fieldnote demo product into `STARTICA_DATA_DIR` (absolute path) |
+| `yarn screenshots` | Retake the app screenshots the website and docs use (Fieldnote demo, isolated server) |
 | `yarn db:generate` | Generate a SQL migration after editing `packages/db/src/schema.ts` |
 | `yarn eval score [--model <id>]` | Run the opportunity scorer's eval set (key from your shell: `ANTHROPIC_API_KEY=… yarn eval score`, or `OPENAI_API_KEY=…` with an OpenAI `--model`) |
 | `yarn eval:export score` | Add your Inbox decisions to the scorer's eval set |

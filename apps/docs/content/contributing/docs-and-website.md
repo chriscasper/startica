@@ -158,4 +158,4 @@ Each site's `wrangler.jsonc` sets the Worker name and custom domain. The website
 
 ## Website pages
 
-The website's pages are in `apps/web/content/` and its templates in `apps/web/layouts/`. The same voice and neutrality rules apply. Screenshots should come from the demo product, in both light and dark, so they can be regenerated when the UI changes.
+The website's pages are in `apps/web/content/` and its templates in `apps/web/layouts/`. The same voice and neutrality rules apply. Screenshots come from the demo product so they can be regenerated when the UI changes: `yarn screenshots` retakes the app pages in `public/images/app/` on both sites. Rerun it after changing one of those pages, and add a page to its list in `apps/desktop-web/scripts/screenshots.mjs` rather than taking one by hand.

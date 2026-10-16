@@ -8,9 +8,11 @@ The **Dashboard** is the page Startica opens on (on a fresh install, the [welcom
 
 Opening the Dashboard only reads what Startica already has. It doesn't start scans, AI calls or anything else that costs money, and it updates by itself as background work finishes.
 
+![The Dashboard for the demo product Fieldnote: a collapsed Needs you line with 3 to fix and 1 waiting, then Marketing, Accessibility, SEO & GEO and Security cards with each module's numbers, and a System card](/images/app/dashboard.png)
+
 ## Needs you
 
-The first card lists what needs you right now, broken or risky things first, then work that's waiting. Each line links to the page where you deal with it. A red dot means something is broken or risky now; an amber dot means it's worth doing soon.
+The first card is one line that counts what needs you right now: how many things are broken or risky (**to fix**, red dot) and how much work is **waiting** (amber dot). It starts closed so the module cards are in view; click it (**Show**) to open the list, broken or risky things first, then work that's waiting. Each line links to the page where you deal with it. When nothing needs you, the line says so.
 
 | What | When it shows | Opens |
 | --- | --- | --- |

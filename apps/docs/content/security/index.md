@@ -6,6 +6,8 @@ layout: doc
 
 **Security** checks your product's sites for the security problems anyone on the internet can see: weak HTTPS, missing security headers, cookies without protection, files that should never be public, email that's easy to forge, and no way for people to report a problem to you. It runs on the same scan as [Accessibility](/accessibility) and [SEO & GEO](/seo), lists what it finds with how to fix it, and marks each problem fixed when it's gone.
 
+![The Security overview for the demo site fieldnote.example: security score 66 out of 100, 9 open findings, a trusted certificate, SPF and DMARC set, a score trend chart against a target of 90, and a Fix these first table](/images/app/security.png)
+
 This page explains how to turn it on and what it does and doesn't do. [Checks](/security/checks) lists every check, and [Findings and report](/security/findings) explains the findings, the score and the report.
 
 > [!WARNING]

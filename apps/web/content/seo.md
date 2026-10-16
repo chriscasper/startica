@@ -4,6 +4,8 @@ layout: module
 module: seo
 eyebrow: SEO & GEO
 docs: /seo
+screenshot: /images/app/seo.png
+screenshotAlt: "Startica's SEO & GEO overview for fieldnote.example: site health 96 out of 100, 5 problems to fix, open to AI search, 1,006 clicks from Google in 28 days, 50% AI visibility, and a Fix these first table of problems like a missing meta description"
 lede: People find products through search engines, through AI assistants that recommend them, and more and more through AI agents that browse for them. Startica checks what each of them needs from your site, measures how you actually do with the engines' own data, and ranks what to fix first.
 description: Startica's SEO & GEO module checks your site for search engines, AI crawlers and AI agents, reads your Search Console and Bing data, asks AI assistants your customers' questions, and ranks what to do next. Open source and on your desktop.
 features:

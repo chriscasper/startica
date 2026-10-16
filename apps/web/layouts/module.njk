@@ -1,5 +1,6 @@
 {# One page per module: /marketing, /seo, /accessibility, /security. Frontmatter: module (accent key),
-   eyebrow (module name), title (the job), lede, features [{ title, body, doc }], docs (path of the module's docs).
+   eyebrow (module name), title (the job), lede, features [{ title, body, doc }], docs (path of the module's docs),
+   screenshot and screenshotAlt (a page of the app with the Fieldnote demo, from `yarn screenshots`).
    The Markdown body holds "how it works", limits and costs. #}
 {% extends "base.njk" %}
 {% import "partials/icons.njk" as icon %}
@@ -33,6 +34,14 @@
   </section>
 
   <main id="main">
+    {% if screenshot %}
+    <section class="border-b border-line bg-bg">
+      <figure class="mx-auto max-w-6xl px-6 py-12 md:px-8 md:py-16">
+        <img src="{{ screenshot }}" width="2880" height="1800" loading="lazy" decoding="async" class="w-full border border-line shadow-xl shadow-ink/10" alt="{{ screenshotAlt }}">
+        <figcaption class="mt-3 text-sm text-muted">With the fictional demo product Fieldnote.</figcaption>
+      </figure>
+    </section>
+    {% endif %}
     <section class="border-b border-line bg-surface">
       <div class="mx-auto max-w-6xl px-6 py-16 md:px-8 md:py-24">
         <p class="eyebrow">What it does</p>

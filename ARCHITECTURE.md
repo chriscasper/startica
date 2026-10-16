@@ -256,6 +256,7 @@ Electron main process (apps/desktop/main.mjs)
 | `yarn dev:desktop` | Opens the desktop app in dev mode (clears `ELECTRON_RUN_AS_NODE`, which some editors set) |
 | `yarn dev:desktop-web` | Same server for a browser; prints a one-time login link |
 | `yarn seed:demo [--force]` | Loads the Fieldnote demo into `STARTICA_DATA_DIR` (required, absolute). Refuses if a product exists; `--force` deletes existing products first. No AI calls. |
+| `yarn screenshots` | Seeds the Fieldnote demo into a temp folder (plus a placeholder AI key, jobs off), runs its own server (port 58397, `.next-screenshots`) and saves the Dashboard, Today, Accessibility, SEO & GEO and Security pages at 1440×900, 2×, light, to `apps/web/public/images/app/` and `apps/docs/public/images/app/`. Rerun after UI changes; the website's home and module pages and the docs' Dashboard, Today and module overview pages use them. |
 | `yarn db:generate` | After editing `packages/db/src/schema.ts`: writes a new SQL migration (applied on next start) |
 | `yarn test` | Vitest across packages (DB tests use real temporary SQLite files) |
 | `yarn eval score [--model <id>] [--product <name>]` / `yarn eval:export score` | The scorer's eval set (section 5), with the key from your shell; export your Inbox decisions into it |
@@ -556,7 +557,7 @@ Every module sits inside one app shell: a left sidebar with Dashboard at the top
 | Screen | Route | Purpose |
 |---|---|---|
 | **Welcome** | `/welcome` | First-run wizard; "Look around with a sample product", "Skip setup" |
-| **Dashboard** | `/dashboard` (`/` redirects here; the app opens on it) | Every module for the active product: Needs you (broken or risky first, then waiting work), Marketing, Accessibility, SEO & GEO and Security cards (per site rows), System. `dashboardSummary()` in `core/dashboard/summary.ts`: reads only, never builds Today's moves or starts work |
+| **Dashboard** | `/dashboard` (`/` redirects here; the app opens on it) | Every module for the active product: Needs you (one line, closed by default, counting what's to fix and what's waiting; opens to the list, broken or risky first), Marketing, Accessibility, SEO & GEO and Security cards (per site rows), System. `dashboardSummary()` in `core/dashboard/summary.ts`: reads only, never builds Today's moves or starts work |
 | **Today** | `/today` | Getting started checklist, then up to 7 ranked moves across modules |
 | **Inbox** | `/inbox` | Opportunities with drafts: edit, regenerate, **Post…**, copy and open, mark posted, dismiss |
 | **Content Studio** | `/content` | Create, Library (edit, rewrite, Post…, mark posted, track), Voices |

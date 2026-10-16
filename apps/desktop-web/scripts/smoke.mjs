@@ -479,7 +479,8 @@ try {
     const items = await needs.locator("li a").count();
     check(/Stand-in site/.test(a11y) && /\d+ \/ 100/.test(a11y) && /Open issues/.test(a11y), `the Dashboard shows the scanned site's accessibility score and issues (${a11y.replace(/\s+/g, " ").slice(0, 120)})`);
     check(/Stand-in site/.test(security) && /Open findings/.test(security), `the Dashboard shows the verified site's security (${security.replace(/\s+/g, " ").slice(0, 120)})`);
-    check(items > 0 && (await page.locator('[data-slot="sidebar"] a[href="/dashboard"]').count()) > 0, `the Dashboard lists what needs the owner (${items}) and is in the sidebar`);
+    const startsClosed = await needs.locator("details").evaluate((d) => !d.open);
+    check(items > 0 && startsClosed && (await page.locator('[data-slot="sidebar"] a[href="/dashboard"]').count()) > 0, `the Dashboard lists what needs the owner (${items}, starts collapsed ${startsClosed}) and is in the sidebar`);
     await page.screenshot({ path: join(tmpdir(), "startica-smoke-dashboard.png"), fullPage: true });
   }
 

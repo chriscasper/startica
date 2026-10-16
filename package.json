@@ -24,6 +24,7 @@
     "eval": "yarn workspace @startica/core eval",
     "eval:export": "yarn workspace @startica/core eval:export",
     "seed:demo": "yarn workspace @startica/core seed:demo",
+    "screenshots": "yarn workspace @startica/desktop-web screenshots",
     "lint": "yarn workspaces foreach -A --exclude startica run lint",
     "typecheck": "yarn workspaces foreach -A --exclude startica run typecheck",
     "test": "yarn workspaces foreach -A --exclude startica run test",

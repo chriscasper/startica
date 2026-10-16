@@ -8,6 +8,8 @@ The **Accessibility** module checks your product's websites for accessibility is
 
 Scans run on your computer and use no AI, so they cost nothing. The same scan also checks each page for search and AI basics, shown under [SEO & GEO](/seo).
 
+![The Accessibility overview for the demo site fieldnote.example: score 68 out of 100, 5 open issues, 7 pages checked, and a Fix these first table ranking issues by priority, impact, WCAG criterion, pages and visits](/images/app/accessibility.png)
+
 This page covers what the module does, how to find it, and how to add a site. [Scanning a site](/accessibility/scanning) explains how a scan works. [Reading the results](/accessibility/results) explains the screens, the score and what to do with them. [Issues in GitHub or GitLab](/accessibility/issue-trackers) explains sending issues to your repository.
 
 > [!WARNING]

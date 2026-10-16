@@ -4,6 +4,8 @@ layout: module
 module: accessibility
 eyebrow: Accessibility
 docs: /accessibility
+screenshot: /images/app/accessibility.png
+screenshotAlt: "Startica's Accessibility overview for fieldnote.example: score 68 out of 100, 5 open issues, 7 pages checked, and a Fix these first table ranking issues like missing alternative text and unlabeled form fields by priority, impact, WCAG criterion, pages and visits"
 lede: Startica crawls your site in a real browser, checks every page against WCAG 2.2 with axe-core, groups the same problem across pages so you fix it once, and puts the worst first. Then it helps you fix it, rechecks, and keeps watching.
 description: Startica's Accessibility module scans your site against WCAG 2.2 with axe-core, ranks issues by impact, helps fix them, tracks what needs a person to review, and drafts reports. Free, local and open source.
 features:

@@ -11,6 +11,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "echo \"(no tests yet)\"",
     "smoke": "node scripts/smoke.mjs",
+    "screenshots": "node scripts/screenshots.mjs",
     "a11y-standin": "node ../../packages/core/src/a11y/standin/server.mjs"
   },
   "dependencies": {

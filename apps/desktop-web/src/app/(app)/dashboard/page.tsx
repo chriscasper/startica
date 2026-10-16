@@ -73,20 +73,48 @@ function Accent({ module, children, className }: { module: DashboardModule; chil
   );
 }
 
+/** Starts closed so the module cards show first; the summary line says whether anything is waiting. */
 function NeedsYou({ items }: { items: Attention[] }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Needs you</CardTitle>
-        <CardDescription>{items.length ? "Broken or risky things first, then work that's waiting." : "Nothing needs you right now."}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {items.length === 0 ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+  const toFix = items.filter((a) => a.tone === "bad").length;
+  const waiting = items.length - toFix;
+  if (items.length === 0) {
+    return (
+      <Card size="sm">
+        <CardContent className="flex items-center gap-2">
+          <CardTitle>Needs you</CardTitle>
+          <span className="flex items-center gap-1.5 text-muted-foreground">
             <CheckCircle2Icon className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
-            Everything is running. New problems and waiting work show up here.
-          </p>
-        ) : (
+            Nothing right now
+          </span>
+        </CardContent>
+      </Card>
+    );
+  }
+  return (
+    <Card size="sm">
+      <details className="group/needs">
+        <summary className="flex cursor-pointer list-none items-center gap-3 px-(--card-spacing) [&::-webkit-details-marker]:hidden">
+          <CardTitle>Needs you</CardTitle>
+          <span className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
+            {toFix > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-destructive" aria-hidden />
+                {toFix} to fix
+              </span>
+            )}
+            {waiting > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-amber-500" aria-hidden />
+                {waiting} waiting
+              </span>
+            )}
+          </span>
+          <span className="text-xs text-muted-foreground group-open/needs:hidden">Show</span>
+          <span className="hidden text-xs text-muted-foreground group-open/needs:inline">Hide</span>
+          <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-open/needs:rotate-90" aria-hidden />
+        </summary>
+        <div className="px-(--card-spacing) pt-2">
+          <CardDescription className="mb-1">Broken or risky things first, then work that&apos;s waiting.</CardDescription>
           <ul className="-mx-2 divide-y">
             {items.map((a) => (
               <li key={`${a.module}:${a.title}`}>
@@ -111,8 +139,8 @@ function NeedsYou({ items }: { items: Attention[] }) {
               </li>
             ))}
           </ul>
-        )}
-      </CardContent>
+        </div>
+      </details>
     </Card>
   );
 }

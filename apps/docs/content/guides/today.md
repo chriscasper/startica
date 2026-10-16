@@ -6,6 +6,8 @@ layout: doc
 
 **Today** shows a short, ranked list of things to do today for the active product, and links straight to each one.
 
+![Today for the demo product Fieldnote: a ranked list of moves such as reviewing 3 drafted replies, fixing missing alternative text on 6 pages and stopping an ad that costs too much per result, with replies posted this week, AI spend and the latest plan beside it](/images/app/marketing.png)
+
 The list is built by fixed rules, not by AI. Building it is instant and costs nothing. The only AI involved is upstream: the weekly roadmap plan writes the roadmap steps that show up here.
 
 ## What's on the page

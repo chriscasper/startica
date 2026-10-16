@@ -48,7 +48,7 @@ A database migration is not a breaking change on its own, because migrations run
    git push origin main v0.0.2
    ```
 
-6. Watch **Actions → Release**. The three build jobs (macOS, Windows, Linux) take a while; each uploads its files to the same draft release named after the version. A last job, **Release notes**, then writes the draft's notes (see [Release notes](#release-notes)).
+6. Watch **Actions → Release**. A first job creates the draft release, so the builds all upload to the same one. The three build jobs (macOS, Windows, Linux) take a while; each uploads its files to the same draft release named after the version. A last job, **Release notes**, then writes the draft's notes (see [Release notes](#release-notes)).
 7. Open the draft under **Releases**. Check that every file below is there and the notes read well, then click **Publish release**. Publishing also rebuilds mystartica.com, so [the download page](#the-download-page) links to the new version once you approve the `production` deployment.
 
 If the tag and the version don't match, every job stops at **Check the tag matches the app version** with "Tag v0.0.2 doesn't match apps/desktop/package.json version 0.0.1". Delete the tag (`git push origin :refs/tags/v0.0.2` and `git tag -d v0.0.2`), fix the version, and tag again.

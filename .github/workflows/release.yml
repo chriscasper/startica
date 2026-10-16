@@ -24,8 +24,26 @@ permissions:
   contents: write
 
 jobs:
+  # One draft for all three builds. Without it, the build jobs each create their own draft
+  # when they upload at the same time, and the files end up split across three releases.
+  draft:
+    name: Draft release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create the draft unless it exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then echo "The draft exists."; exit 0; fi
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "${GITHUB_REF_NAME#v}" --notes "Building…"
+
   build:
     name: Build (${{ matrix.os }})
+    needs: draft
+    # A manual run skips the draft job; build anyway.
+    if: ${{ !failure() && !cancelled() }}
     strategy:
       fail-fast: false
       matrix:

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-10-16
+
+A download page, download links in the release notes, and a fix for the installed app failing to open its pages.
+
+### Added
+
+- **Download page** at mystartica.com/download with the latest release's installers for macOS (Apple Silicon and Intel), Windows and Linux, and your system's highlighted.
+- **Release notes with download links:** each GitHub release now lists its installers with links and sizes, install notes while builds are unsigned, and the changelog entry. 0.x releases are marked beta.
+
 ### Changed
 
 - **Running from source is a separate app, "Startica Dev":** its own data folder, keychain entry, posting sign-ins and port (58301), so development never touches an installed Startica's data or keys, and both can run at once.
@@ -14,11 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **The installed app opening on "This page couldn't load"** when its data folder had keys saved in browser dev mode. The app now moves those keys into the OS keychain when it starts, and an unreadable key no longer breaks the pages that check for one.
-
-### Added
-
-- **Download page** at mystartica.com/download with the latest release's installers for macOS (Apple Silicon and Intel), Windows and Linux, and your system's highlighted.
-- **Release notes with download links:** each GitHub release now lists its installers with links and sizes, install notes while builds are unsigned, and the changelog entry. 0.x releases are marked beta.
 
 ## [0.0.1] - 2026-10-14
 
@@ -46,5 +50,6 @@ First public release. Installers are unsigned for now, so the documented way in 
 - **Releases and updates:** a GitHub Actions workflow builds macOS, Windows and Linux installers into a draft release (signed and notarized once certificates are set up), and the installed app updates itself from GitHub Releases.
 - **Developer tooling:** `yarn seed:demo`, eval sets for the scorer, Accessibility and Security, browser and desktop smoke tests, and CI on macOS and Linux.
 
-[Unreleased]: https://github.com/chriscasper/startica/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/chriscasper/startica/compare/v0.0.2...HEAD
+[0.0.2]: https://github.com/chriscasper/startica/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/chriscasper/startica/releases/tag/v0.0.1

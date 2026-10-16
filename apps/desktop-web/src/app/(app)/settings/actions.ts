@@ -390,7 +390,7 @@ export async function openDataFolder(): Promise<ActionResult> {
     const folder = dataDir();
     const [command, args] = process.platform === "darwin" ? ["open", [folder]] : process.platform === "win32" ? ["explorer", [folder]] : ["xdg-open", [folder]];
     await new Promise<void>((resolve, reject) => {
-      const child = spawn(command, args, { stdio: "ignore", detached: true });
+      const child = spawn(/*turbopackIgnore: true*/ command, args, { stdio: "ignore", detached: true });
       child.once("error", () => reject(new Error(`Couldn't open the folder. It's at ${folder}`)));
       child.once("spawn", () => {
         child.unref();

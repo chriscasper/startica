@@ -79,8 +79,9 @@ jobs:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
-          # Without a certificate, build unsigned instead of searching the keychain.
-          if [ -z "$CSC_LINK" ]; then export CSC_IDENTITY_AUTO_DISCOVERY=false; fi
+          # Without a certificate, build unsigned instead of searching the keychain. A missing secret
+          # arrives as an empty string, which electron-builder would read as a certificate path.
+          if [ -z "$CSC_LINK" ]; then unset CSC_LINK CSC_KEY_PASSWORD; export CSC_IDENTITY_AUTO_DISCOVERY=false; fi
           publish=never
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then publish=always; fi
           yarn workspace @startica/desktop build ${{ matrix.args }} --publish "$publish" ${NOTARIZE:-}

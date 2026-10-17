@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-10-17
+
+The first macOS release signed with a Developer ID and notarized by Apple.
+
+### Changed
+
+- **macOS builds are signed and notarized.** Startica opens without Gatekeeper warnings, and from this version on it updates itself on macOS. Copies of 0.0.1–0.0.3 can't install updates, so download 0.0.4 once by hand.
+
 ## [0.0.3] - 2026-10-16
 
 A fix for a second icon in the macOS Dock.
@@ -58,7 +66,8 @@ First public release. Installers are unsigned for now, so the documented way in 
 - **Releases and updates:** a GitHub Actions workflow builds macOS, Windows and Linux installers into a draft release (signed and notarized once certificates are set up), and the installed app updates itself from GitHub Releases.
 - **Developer tooling:** `yarn seed:demo`, eval sets for the scorer, Accessibility and Security, browser and desktop smoke tests, and CI on macOS and Linux.
 
-[Unreleased]: https://github.com/chriscasper/startica/compare/v0.0.3...HEAD
+[Unreleased]: https://github.com/chriscasper/startica/compare/v0.0.4...HEAD
+[0.0.4]: https://github.com/chriscasper/startica/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/chriscasper/startica/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/chriscasper/startica/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/chriscasper/startica/releases/tag/v0.0.1

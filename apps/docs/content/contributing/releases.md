@@ -116,7 +116,7 @@ Every secret is optional. Without them the workflow still builds, unsigned. With
 | `WIN_CSC_LINK` | The Windows code-signing certificate as a `.pfx` file, base64-encoded |
 | `WIN_CSC_KEY_PASSWORD` | The `.pfx` password |
 
-When `CSC_LINK` is empty for a job, the workflow sets `CSC_IDENTITY_AUTO_DISCOVERY=false`, so electron-builder builds unsigned instead of looking for a certificate on the runner. When `APPLE_API_KEY` is set, the macOS job writes it to `~/private_keys/AuthKey.p8` and adds `-c.mac.notarize=true`; `notarize` is `false` in `apps/desktop/package.json` so local builds don't try to notarize.
+On macOS, the workflow imports the certificate into a keychain it creates (step **macOS signing keychain**) and electron-builder finds the Developer ID identity there. It doesn't pass `CSC_LINK` to electron-builder, because electron-builder 26 fails setting up its own keychain ("SecKeychainUnlock: The user name or passphrase you entered is not correct"). The step fails early if the certificate isn't a Developer ID Application one. When `CSC_LINK` is empty for a job, the workflow sets `CSC_IDENTITY_AUTO_DISCOVERY=false`, so electron-builder builds unsigned instead of looking for a certificate on the runner. When `APPLE_API_KEY` is set, the macOS job writes it to `~/private_keys/AuthKey.p8` and adds `-c.mac.notarize=true`; `notarize` is `false` in `apps/desktop/package.json` so local builds don't try to notarize.
 
 ### macOS signing certificate
 

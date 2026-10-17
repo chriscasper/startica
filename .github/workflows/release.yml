@@ -55,7 +55,8 @@ jobs:
           - os: ubuntu-latest
             args: --linux
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    # Notarizing waits for Apple, which can take an hour for a new team's first submissions.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
 

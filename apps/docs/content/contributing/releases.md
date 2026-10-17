@@ -164,6 +164,10 @@ xcrun stapler validate /Applications/Startica.app
 
 The first should say `accepted` and `source=Notarized Developer ID`. If it says `Unnotarized Developer ID`, the build was signed but not notarized: look for the notarization step in the macOS job's log.
 
+### What gets signed
+
+`mac.signIgnore` in `apps/desktop/package.json` skips `Contents/Resources/server/`. The server folder holds a few thousand files and no Mach-O binaries, so nothing in it needs its own signature; the app's signature still seals every file. Without it, `@electron/osx-sign` signs each file it can't tell from a binary (images, fonts, pdf.js character maps), each with a request to Apple's timestamp server, which took from 7 minutes to over half an hour. If the server ever gains a native module (`.node`), narrow the pattern so that file is signed.
+
 ### Why the hardened runtime entitlements
 
 Notarization requires the hardened runtime (`hardenedRuntime: true`). Electron needs three exceptions to it, in `apps/desktop/resources/entitlements.mac.plist`, used for the app and every helper:

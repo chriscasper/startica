@@ -15,6 +15,10 @@ The first macOS release signed with a Developer ID and notarized by Apple.
 
 - **macOS builds are signed and notarized.** Startica opens without Gatekeeper warnings, and from this version on it updates itself on macOS. Copies of 0.0.1–0.0.3 can't install updates, so download 0.0.4 once by hand.
 
+### Fixed
+
+- **Accessibility scans, the spelling check and PDF checks in the installed app.** The packages they load at run time were linked to folders on the machine that built the release, so they were missing in installed copies of 0.0.1–0.0.3.
+
 ## [0.0.3] - 2026-10-16
 
 A fix for a second icon in the macOS Dock.

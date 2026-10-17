@@ -5,9 +5,10 @@
 //  3. packages with electron-builder (installers in dist/)
 // Usage: yarn workspace @startica/desktop build [--no-package] [electron-builder args, e.g. --mac --win --linux]
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { checkLinks } from "./links.cjs";
 
 const desktopDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 const webDir = join(desktopDir, "..", "desktop-web");
@@ -34,7 +35,10 @@ run("yarn", ["build"], {
 const standalone = join(webDir, distName, "standalone");
 const appDir = join(out, "apps", "desktop-web");
 rmSync(out, { recursive: true, force: true });
-cpSync(standalone, out, { recursive: true, verbatimSymlinks: false, dereference: true });
+// verbatimSymlinks: Next links the packages it loads at run time (.next-desktop/node_modules/
+// axe-core-<hash> and so on) with relative paths, which cpSync would otherwise make absolute,
+// pointing at this machine's folders: broken in the installed app, and rejected by code signing.
+cpSync(standalone, out, { recursive: true, verbatimSymlinks: true });
 // Next ships sharp for image optimization, which the app turns off (images.unoptimized). Its native
 // files match the build machine only, so one Mac would put its own architecture's copy in both Mac apps.
 for (const dir of ["sharp", "@img"]) rmSync(join(out, "node_modules", dir), { recursive: true, force: true });
@@ -42,6 +46,7 @@ cpSync(join(webDir, distName, "static"), join(appDir, distName, "static"), { rec
 if (existsSync(join(webDir, "public"))) cpSync(join(webDir, "public"), join(appDir, "public"), { recursive: true });
 cpSync(join(webDir, "scripts", "serve-prod.mjs"), join(appDir, "serve-prod.mjs"));
 cpSync(join(repoDir, "packages", "db", "migrations"), join(appDir, "migrations"), { recursive: true });
+checkLinks(out);
 console.log(`Server assembled in ${out}`);
 
 // 3. Package.

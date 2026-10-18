@@ -7,10 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-10-18
+
+The first macOS release notarized by Apple: Startica opens without the Gatekeeper prompt.
+
 ### Added
 
 - **An animated splash screen** while Startica starts, in place of the plain "Starting Startica…" page.
 - **Recheck and Details when verifying a site for Security.** After the first try the Verify button reads Recheck, and Details shows exactly what each check saw: the TXT records on each name and the DNS servers asked, the verification file's HTTP status and contents, and the Search Console property. A failed check now says so in a message too.
+
+### Changed
+
+- **macOS builds are notarized.** Startica opens on first launch without a trip to System Settings → Privacy & Security.
 
 ## [0.0.4] - 2026-10-18
 
@@ -75,7 +83,8 @@ First public release. Installers are unsigned for now, so the documented way in 
 - **Releases and updates:** a GitHub Actions workflow builds macOS, Windows and Linux installers into a draft release (signed and notarized once certificates are set up), and the installed app updates itself from GitHub Releases.
 - **Developer tooling:** `yarn seed:demo`, eval sets for the scorer, Accessibility and Security, browser and desktop smoke tests, and CI on macOS and Linux.
 
-[Unreleased]: https://github.com/chriscasper/startica/compare/v0.0.4...HEAD
+[Unreleased]: https://github.com/chriscasper/startica/compare/v0.0.5...HEAD
+[0.0.5]: https://github.com/chriscasper/startica/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/chriscasper/startica/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/chriscasper/startica/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/chriscasper/startica/compare/v0.0.1...v0.0.2

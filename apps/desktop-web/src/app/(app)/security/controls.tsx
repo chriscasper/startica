@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
-import { CheckIcon, CopyIcon, Loader2Icon, MapIcon, PlusIcon, RefreshCwIcon, ShieldCheckIcon, SparklesIcon, UploadIcon } from "lucide-react";
+import { BugIcon, CheckIcon, CopyIcon, Loader2Icon, MapIcon, PlusIcon, RefreshCwIcon, ShieldCheckIcon, SparklesIcon, UploadIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { FormDialog } from "@/components/app/form-dialog";
 import { refreshScanActivity } from "@/components/app/scan-activity";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   addSecurityReport,
   addToRoadmap,
@@ -26,30 +27,36 @@ import {
   verifyOwnership,
 } from "./actions";
 
-type Attempt = { method: string; ok: boolean; note: string };
+type Attempt = { method: string; ok: boolean; note: string; details: { label: string; value: string }[] };
 
 const METHOD: Record<string, string> = { search_console: "Search Console", dns: "DNS record", file: "File", local: "This computer or network", demo: "Demo" };
 
-/** Verify: tries every method and shows what each one found. */
+/** Verify, then Recheck: tries every method and shows what each one found; Details shows the raw values each check saw. */
 export function VerifyButton({ siteId, disabled }: { siteId: string; disabled: boolean }) {
   const [pending, start] = useTransition();
   const [attempts, setAttempts] = useState<Attempt[] | null>(null);
+  const [checkedAt, setCheckedAt] = useState<Date | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const check = (openDetails = false) =>
+    start(async () => {
+      const result = await verifyOwnership(siteId);
+      if (result.error) return void toast.error(result.error);
+      setAttempts(result.attempts ?? null);
+      setCheckedAt(new Date());
+      if (openDetails) setDetailsOpen(true);
+      if (result.verified) toast.success("Verified. The next scan checks the site for security problems too.");
+      else toast.error("Not verified yet. See below for what each check found.");
+    });
   return (
     <div className="flex flex-col gap-3">
-      <div>
-        <Button
-          disabled={disabled || pending}
-          onClick={() =>
-            start(async () => {
-              const result = await verifyOwnership(siteId);
-              if (result.error) return void toast.error(result.error);
-              setAttempts(result.attempts ?? null);
-              if (result.verified) toast.success("Verified. The next scan checks the site for security problems too.");
-            })
-          }
-        >
-          {pending ? <Loader2Icon className="animate-spin" /> : <ShieldCheckIcon />}
-          Verify
+      <div className="flex flex-wrap gap-2">
+        <Button disabled={disabled || pending} onClick={() => check()}>
+          {pending ? <Loader2Icon className="animate-spin" /> : attempts ? <RefreshCwIcon /> : <ShieldCheckIcon />}
+          {attempts ? "Recheck" : "Verify"}
+        </Button>
+        <Button variant="outline" disabled={disabled || pending} onClick={() => (attempts ? setDetailsOpen(true) : check(true))}>
+          <BugIcon />
+          Details
         </Button>
       </div>
       {attempts && (
@@ -62,6 +69,46 @@ export function VerifyButton({ siteId, disabled }: { siteId: string; disabled: b
           ))}
         </ul>
       )}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>What the checks saw</DialogTitle>
+            <DialogDescription>
+              The values each method expected and got back{checkedAt ? `, checked at ${checkedAt.toLocaleTimeString()}` : ""}. The first one that matches
+              verifies the site.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto pr-1">
+            {attempts?.map((a) => (
+              <section key={a.method} className="flex flex-col gap-2 rounded-md border p-3 text-sm">
+                <h3 className="font-medium">
+                  {METHOD[a.method] ?? a.method}: <span className={a.ok ? "text-foreground" : "text-muted-foreground"}>{a.ok ? "✓ matched" : "no match"}</span>
+                </h3>
+                <p className="text-muted-foreground">{a.note}</p>
+                <dl className="grid grid-cols-1 gap-x-3 gap-y-1.5 sm:grid-cols-[max-content_1fr]">
+                  {a.details.map((d, i) => (
+                    <div key={i} className="contents">
+                      <dt className="text-xs text-muted-foreground">{d.label}</dt>
+                      <dd className="min-w-0">
+                        <pre className="whitespace-pre-wrap break-all rounded bg-muted px-2 py-1 font-mono text-xs">{d.value}</pre>
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailsOpen(false)}>
+              Close
+            </Button>
+            <Button disabled={disabled || pending} onClick={() => check()}>
+              {pending ? <Loader2Icon className="animate-spin" /> : <RefreshCwIcon />}
+              Recheck
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

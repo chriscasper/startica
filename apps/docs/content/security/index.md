@@ -31,7 +31,7 @@ Security checks request a few addresses that ordinary page loads don't (for exam
 | **DNS record** | Add a TXT record on the site's domain (or its exact host name) with the value shown, for example `startica-verification=3f9c…`. DNS changes can take up to an hour to show up. |
 | **File** | Publish a text file at `/.well-known/startica-verification.txt` on the site containing the code shown. |
 
-**Verify** tries them in that order and says what each one found. Sites on your own computer or network (`localhost`, private addresses) are verified as soon as you press it.
+**Verify** tries them in that order and says what each one found; after that the button reads **Recheck**, so you can try again once a DNS record shows up. **Details** shows exactly what each check saw: the TXT records on each name and the DNS servers asked, the file's HTTP status and contents, and the Search Console property. Sites on your own computer or network (`localhost`, private addresses) are verified as soon as you press it.
 
 If you change a site's address to a different host name, it needs verifying again. Changing only the path doesn't.
 

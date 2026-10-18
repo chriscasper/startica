@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **An animated splash screen** while Startica starts, in place of the plain "Starting Startica…" page.
+- **Recheck and Details when verifying a site for Security.** After the first try the Verify button reads Recheck, and Details shows exactly what each check saw: the TXT records on each name and the DNS servers asked, the verification file's HTTP status and contents, and the Search Console property. A failed check now says so in a message too.
+
 ## [0.0.4] - 2026-10-18
 
 The first macOS release signed with a Developer ID, so Startica now updates itself on macOS.

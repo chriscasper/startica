@@ -3,13 +3,13 @@
 // Usage: node apps/desktop/scripts/release-notes.mjs v0.0.2 > notes.md
 //        node apps/desktop/scripts/release-notes.mjs v0.0.2 --title   (prints the release title)
 //   Reads the release's files with `gh release view` (works on drafts).
-//   MAC_SIGNED / WIN_SIGNED=true when those builds were signed.
+//   MAC_SIGNED / WIN_SIGNED=true when those builds were signed; MAC_NOTARIZED=true when Apple notarized the Mac ones.
 //   GITHUB_REPOSITORY (owner/repo) defaults to chriscasper/startica.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { downloadUrl, findInstallers, formatSize, isBeta, unsignedMarker } from "./installers.mjs";
+import { downloadUrl, findInstallers, formatSize, isBeta, unnotarizedMarker, unsignedMarker } from "./installers.mjs";
 
 const tag = process.argv[2];
 if (!/^v\d+\.\d+\.\d+/.test(tag ?? "")) {
@@ -48,7 +48,10 @@ const unsigned = [];
 if (process.env.MAC_SIGNED !== "true") unsigned.push("macos");
 if (process.env.WIN_SIGNED !== "true") unsigned.push("windows");
 
-const lines = [unsignedMarker(unsigned)];
+// Signed but not notarized: Gatekeeper still asks once, but the app updates itself.
+const unnotarized = !unsigned.includes("macos") && process.env.MAC_NOTARIZED !== "true" ? ["macos"] : [];
+
+const lines = [unsignedMarker(unsigned), unnotarizedMarker(unnotarized)].filter(Boolean);
 if (isBeta(version)) {
   lines.push(
     "> [!IMPORTANT]",
@@ -70,6 +73,13 @@ if (unsigned.includes("macos")) {
   lines.push(
     "> [!NOTE]",
     "> The macOS app isn't code-signed yet. The first time you open it, macOS blocks it: go to System Settings → **Privacy & Security** and click **Open Anyway**. If it says the app \"is damaged\", run `xattr -dr com.apple.quarantine /Applications/Startica.app` in Terminal. It can't install its own updates on macOS until it's signed, so download new versions from here.",
+    "",
+  );
+}
+if (unnotarized.length) {
+  lines.push(
+    "> [!NOTE]",
+    "> The macOS app is signed with our Developer ID but not yet notarized by Apple. The first time you open it, macOS asks you to confirm: go to System Settings → **Privacy & Security** and click **Open Anyway**. You only do this once: from this version on, Startica installs its own updates.",
     "",
   );
 }

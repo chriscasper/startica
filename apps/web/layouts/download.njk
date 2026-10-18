@@ -53,6 +53,11 @@
           {% endif %}
           <a class="link" href="{{ site.docs }}/getting-started/install">Details</a>
         </p>
+        {% elif system.os in release.unnotarized %}
+        <p class="mt-6 border-t border-line pt-4 text-sm leading-relaxed text-muted">
+          Signed, with Apple's notarization still pending: the first time you open it, go to System Settings → <strong class="text-fg">Privacy &amp; Security</strong> and click <strong class="text-fg">Open Anyway</strong>. After that, Startica updates itself.
+          <a class="link" href="{{ site.docs }}/getting-started/install">Details</a>
+        </p>
         {% elif system.os == "linux" %}
         <p class="mt-6 border-t border-line pt-4 text-sm leading-relaxed text-muted">
           Run <code class="font-mono text-[13px] text-fg">chmod +x</code> on the AppImage, or <code class="font-mono text-[13px] text-fg">sudo apt install ./startica_*.deb</code>.

@@ -6,7 +6,7 @@
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { downloadUrl, findInstallers, formatSize, isBeta, readUnsigned } from '../../desktop/scripts/installers.mjs';
+import { downloadUrl, findInstallers, formatSize, isBeta, readUnnotarized, readUnsigned } from '../../desktop/scripts/installers.mjs';
 
 const repo = 'chriscasper/startica';
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -44,6 +44,7 @@ try {
       url: latest.html_url,
       // Releases from before the notes recorded signing are treated as unsigned.
       unsigned: readUnsigned(latest.body) ?? ['macos', 'windows'],
+      unnotarized: readUnnotarized(latest.body),
       // Grouped by system for the page's three cards: { macos: [...], windows: [...], linux: [...] }
       installers: Object.groupBy(installers, (i) => i.os),
     };

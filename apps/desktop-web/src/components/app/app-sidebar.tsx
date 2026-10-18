@@ -108,7 +108,12 @@ export function AppSidebar() {
                 <StarticaMark title={null} className="size-5!" />
               </div>
               {/* "!" beats the menu button's [&_svg]:size-4, which would squash the wordmark to 16 × 16. */}
-              <StarticaLogo className="h-4! w-auto!" />
+              <div className="flex flex-col gap-1">
+                <StarticaLogo className="h-4! w-auto!" />
+                <span className="text-[10px] leading-none text-sidebar-foreground/60 tabular-nums">
+                  v{process.env.NEXT_PUBLIC_STARTICA_VERSION}
+                </span>
+              </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

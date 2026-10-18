@@ -7,13 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.0.4] - 2026-10-17
+## [0.0.4] - 2026-10-18
 
-The first macOS release signed with a Developer ID and notarized by Apple.
+The first macOS release signed with a Developer ID, so Startica now updates itself on macOS.
 
 ### Changed
 
-- **macOS builds are signed and notarized.** Startica opens without Gatekeeper warnings, and from this version on it updates itself on macOS. Copies of 0.0.1–0.0.3 can't install updates, so download 0.0.4 once by hand.
+- **macOS builds are signed with a Developer ID.** From this version on, Startica installs its own updates on macOS. Copies of 0.0.1–0.0.3 can't, so download 0.0.4 once by hand. Apple's notarization is still pending, so macOS asks once on first open (System Settings → Privacy & Security → Open Anyway).
 
 ### Fixed
 

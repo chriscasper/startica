@@ -34,6 +34,17 @@ export function unsignedMarker(systems) {
   return `<!-- startica:unsigned=${systems.join(",")} -->`;
 }
 
+/** Signed macOS builds that Apple hasn't notarized: <!-- startica:unnotarized=macos --> */
+export function unnotarizedMarker(systems) {
+  return systems.length ? `<!-- startica:unnotarized=${systems.join(",")} -->` : "";
+}
+
+/** The systems a release's notes mark signed but not notarized. */
+export function readUnnotarized(body) {
+  const match = /<!-- startica:unnotarized=([a-z,]*) -->/.exec(body ?? "");
+  return match ? match[1].split(",").filter(Boolean) : [];
+}
+
 /** The systems a release's notes mark unsigned; null when the notes carry no marker. */
 export function readUnsigned(body) {
   const match = /<!-- startica:unsigned=([a-z,]*) -->/.exec(body ?? "");

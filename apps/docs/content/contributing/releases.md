@@ -168,6 +168,10 @@ The first should say `accepted` and `source=Notarized Developer ID`. If it says 
 
 `mac.signIgnore` in `apps/desktop/package.json` skips `Contents/Resources/server/`. The server folder holds a few thousand files and no Mach-O binaries, so nothing in it needs its own signature; the app's signature still seals every file. Without it, `@electron/osx-sign` signs each file it can't tell from a binary (images, fonts, pdf.js character maps), each with a request to Apple's timestamp server, which took from 7 minutes to over half an hour. If the server ever gains a native module (`.node`), narrow the pattern so that file is signed.
 
+### Releasing without notarization
+
+Set the repository variable `MAC_NOTARIZE` to `false` (`gh variable set MAC_NOTARIZE --body false`) to skip notarizing, for example while Apple holds a new team's first submissions. The Mac builds are still signed, so they install their own updates (macOS only checks that an update is signed by the same Developer ID). Gatekeeper asks once on first open, and the release notes and download page say so (`<!-- startica:unnotarized=macos -->`). Delete the variable to notarize again.
+
 ### Why the hardened runtime entitlements
 
 Notarization requires the hardened runtime (`hardenedRuntime: true`). Electron needs three exceptions to it, in `apps/desktop/resources/entitlements.mac.plist`, used for the app and every helper:

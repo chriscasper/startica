@@ -1,4 +1,4 @@
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { NextConfig } from "next";
 
@@ -10,7 +10,11 @@ if (process.env.STARTICA_NEXT_DIST && !existsSync(testTsconfig)) {
   writeFileSync(testTsconfig, JSON.stringify({ extends: "./tsconfig.json", exclude: ["node_modules", ".next"] }, null, 2));
 }
 
+// Shown under the logo in the sidebar. Releases bump this package's version with the app's.
+const { version } = JSON.parse(readFileSync(path.join(__dirname, "package.json"), "utf8")) as { version: string };
+
 const nextConfig: NextConfig = {
+  env: { NEXT_PUBLIC_STARTICA_VERSION: version },
   // Desktop builds bundle a minimal standalone server (apps/desktop/scripts/build.mjs).
   ...(process.env.STARTICA_STANDALONE
     ? {

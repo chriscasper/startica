@@ -100,8 +100,11 @@ jobs:
           security find-identity -v -p codesigning "$keychain" | grep -q "Developer ID Application" || { echo "::error::The certificate in CSC_LINK isn't a Developer ID Application certificate."; exit 1; }
           echo "MAC_KEYCHAIN_READY=1" >> "$GITHUB_ENV"
 
+      # Set the repository variable MAC_NOTARIZE to "false" to ship signed but un-notarized Mac
+      # builds (for example while Apple holds a new team's first submissions). They still update
+      # themselves; Gatekeeper asks once on first open.
       - name: macOS notarizing key
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && vars.MAC_NOTARIZE != 'false'
         env:
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
@@ -164,6 +167,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MAC_SIGNED: ${{ secrets.CSC_LINK != '' }}
+          MAC_NOTARIZED: ${{ secrets.CSC_LINK != '' && secrets.APPLE_API_KEY != '' && vars.MAC_NOTARIZE != 'false' }}
           WIN_SIGNED: ${{ secrets.WIN_CSC_LINK != '' }}
         run: |
           node apps/desktop/scripts/release-notes.mjs "$GITHUB_REF_NAME" > notes.md

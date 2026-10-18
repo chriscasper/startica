@@ -11,12 +11,14 @@
     "dev": "node scripts/dev.mjs",
     "typecheck": "echo \"(plain JS)\"",
     "lint": "echo \"(no lint config yet)\"",
-    "test": "node --test \"posting/*.test.mjs\"",
+    "test": "node --test \"posting/*.test.mjs\" \"loading/*.test.mjs\"",
     "smoke": "node scripts/smoke.mjs",
     "icons": "node scripts/icons.mjs",
-    "build": "node scripts/build.mjs"
+    "build": "node scripts/build.mjs",
+    "splash": "node scripts/splash.mjs"
   },
   "devDependencies": {
+    "@startica/brand": "workspace:^",
     "electron": "44.7.0",
     "electron-builder": "26.15.3"
   },
@@ -34,6 +36,7 @@
       "posting/*",
       "scanner/*",
       "renderer/*",
+      "loading/splash.html",
       "package.json",
       "assets/*.png"
     ],

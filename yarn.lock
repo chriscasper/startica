@@ -2954,6 +2954,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@startica/desktop@workspace:apps/desktop"
   dependencies:
+    "@startica/brand": "workspace:^"
     electron: "npm:44.7.0"
     electron-builder: "npm:26.15.3"
     electron-updater: "npm:6.8.9"

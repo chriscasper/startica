@@ -273,9 +273,8 @@ function renderCreative({ requestId, request }) {
 
 // --- Window -----------------------------------------------------------------------
 
-const LOADING_HTML = `data:text/html;charset=utf-8,${encodeURIComponent(
-  `<!doctype html><title>Startica</title><body style="margin:0;height:100vh;display:grid;place-items:center;font-family:system-ui;background:#fafafa;color:#555">Starting Startica…</body>`,
-)}`;
+// Shown while the server starts: the logo animating and a few light-hearted status lines.
+const LOADING_FILE = join(here, "loading", "splash.html");
 
 function isAppUrl(url) {
   return serverInfo && url.startsWith(serverInfo.url);
@@ -338,7 +337,7 @@ app.whenReady().then(async () => {
   if (hidden && process.platform === "darwin") app.dock?.hide();
   if (!hidden) {
     createWindow();
-    await mainWindow.loadURL(LOADING_HTML);
+    await mainWindow.loadFile(LOADING_FILE);
   }
   if (process.platform === "linux" && safeStorage.getSelectedStorageBackend?.() === "basic_text") {
     console.warn("[startica] No system keyring found; secrets are only lightly protected on this computer.");

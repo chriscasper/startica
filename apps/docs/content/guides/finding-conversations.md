@@ -163,14 +163,28 @@ The **Self-promotion rules** field matters later. The drafting step reads it to 
 
 | Trigger | What it scans |
 | --- | --- |
-| Hourly, at 7 minutes past the hour | Every product that has a brief |
-| **Scan now** in the Inbox | The active product only |
+| Hourly, at 7 minutes past the hour | Every product that has a brief, unless its search is [paused](#pausing-the-search) |
+| **Scan now** in the Inbox | The active product only, even while its hourly search is paused |
 
 The schedule uses your computer's local time and only runs while Startica is open. Missed runs are not made up later. Keep the app running in the tray to keep scans going; see [Running in the background](/guides/background).
 
 While a scan runs, the [status indicator](/reference/jobs#the-status-indicator) at the top right of every page says so ("Finding conversations on Reddit…"). Hover over it to see how long the scan has been running and why (scheduled, or started by you). **Scan now** shows **Scanning…** and can't be clicked again until the scan finishes; **Stop scan** next to it (or the **×** in the indicator) ends it early, keeping what it already found. After the scan, the indicator lists the conversations still waiting to be scored and the replies being drafted.
 
 Each scan looks back 26 hours. Scans overlap on purpose, and a conversation that was already found is not added again. X is the exception: it runs at most every few hours and continues from where it left off.
+
+### Pausing the search
+
+When you're not working on replies for a while, pause the search so Startica stops reading Reddit and the other sources. In the Inbox, click **Searching hourly** next to **Scan now**:
+
+| Option | What it does |
+| --- | --- |
+| **Pause for a day**, **For a week** | Stops the hourly search for this product, then turns it back on by itself. |
+| **Until I resume** | Stops the hourly search until you click **Resume**. |
+| **Search on** checkboxes | Turn single sources off, for example Reddit, while the others keep searching. A source you turn off is skipped by every scan, **Scan now** included, until you tick it again. |
+
+While the search is paused, the button reads **Search paused**, the Inbox says until when, and the Dashboard's Marketing card shows "Search paused". **Scan now** still searches once (without the sources you turned off). If every source is off, **Scan now** asks you to turn one back on first.
+
+Pausing applies to one product; each product has its own setting. It doesn't stop anything else: pasted links are still read and drafted, conversations already found are still scored and drafted, and the [reply checks](/guides/analytics#posted-by-startica) on what you posted keep running every 6 hours.
 
 ## Limits per scan
 

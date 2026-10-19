@@ -37,7 +37,7 @@ When nothing applies, the card says "Nothing needs you right now."
 
 Each module has a card in its color. Click the card's title, **Open**, or any number to go to where it comes from.
 
-**Marketing**: intel status and running ad campaigns, then:
+**Marketing**: intel status, "Search paused" when the [hourly search](/guides/finding-conversations#pausing-the-search) is paused, and running ad campaigns, then:
 
 - **Today**: moves done out of today's list. Today's list is built when you first open Today each day, so until then this shows "Open Today to plan".
 - **Inbox**: replies to review, and conversations being scored or drafted.

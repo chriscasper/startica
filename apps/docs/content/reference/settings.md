@@ -137,7 +137,7 @@ Each product also has two scoring thresholds (stored in the `products` table). A
 | `relevance_threshold` | `0.7` | Minimum relevance score (0 to 1). |
 | `intent_threshold` | `0.5` | Minimum intent score (0 to 1). |
 
-Change them with **Scoring** in the Inbox toolbar; see [Finding conversations](/guides/finding-conversations#thresholds). Other per-product settings (your notes, keywords, watched communities, voice profiles) live on their own pages: see [Finding conversations](/guides/finding-conversations) and [Voice profiles](/guides/voice-profiles).
+Change them with **Scoring** in the Inbox toolbar; see [Finding conversations](/guides/finding-conversations#thresholds). Next to it, **Searching** pauses the hourly search or turns single sources off for the product, stored as `listening:<product id>`; see [Pausing the search](/guides/finding-conversations#pausing-the-search). Other per-product settings (your notes, keywords, watched communities, voice profiles) live on their own pages: see [Finding conversations](/guides/finding-conversations) and [Voice profiles](/guides/voice-profiles).
 
 ### Connections
 

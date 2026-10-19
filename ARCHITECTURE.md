@@ -309,6 +309,8 @@ Environment overrides (no env file): `STARTICA_DATA_DIR`, `PORT`, `STARTICA_NEXT
 
 Every channel implements the `ChannelAdapter` interface in `packages/core/src/channels/types.ts` (`discover`, `fetchThread`, optional `publish` and `fetchEngagement`).
 
+**Pausing the search (2026-10-19):** `distribution/listening.ts`, per product in the setting `listening:<product>`: `paused` with an optional `until` (a day or a week; a pause that has run out reads as resumed) stops the hourly `listen_scan` for the product, while **Scan now** still searches once; `channels` lists sources skipped in every scan. Set from the Inbox's **Searching** control; the Dashboard's Marketing card shows "Search paused". Scoring, drafting, pasted links and `engagement_sync` aren't affected.
+
 **Self-promotion:** replies must be genuinely helpful and mention the product only when it fits, with a plain disclosure. The drafter sees each community's rules (or treats "unknown" as strict) and the recent promo rate there.
 
 ### 8.2 Product connectors (measuring results)

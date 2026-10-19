@@ -11,6 +11,7 @@ import type { RawConversation } from "../channels/types.ts";
 import { x, X_TOKEN_SECRET, xLastError } from "../channels/x.ts";
 import { replyRequest } from "../posting/requests.ts";
 import { matchCommunity, runListenScan } from "./jobs.ts";
+import { listeningState, setChannelPaused, setListeningPaused } from "./listening.ts";
 
 let workspaceId = "";
 
@@ -59,6 +60,41 @@ describe("listen_scan", () => {
     const queued = await getDb().select().from(jobs);
     expect(queued.map((j) => j.queue)).toEqual(["opportunity_score"]);
     expect((queued[0]!.payload as { opportunityIds: string[] }).opportunityIds).toHaveLength(2);
+  });
+
+  it("skips paused sources in every scan, and a paused product in the hourly one", async () => {
+    await getDb().delete(jobs);
+    const [p] = await getDb()
+      .insert(products)
+      .values({ workspaceId, name: "Paused", brief: { summary: "s", category: "", audience: "", problem: "", value_props: [], differentiators: [], positioning: "", pricing_notes: "", open_questions: [] } })
+      .returning();
+    for (const adapter of Object.values(adapters)) vi.spyOn(adapter, "discover").mockResolvedValue([]);
+    const reddit = vi.spyOn(adapters.reddit!, "discover").mockResolvedValue([]);
+    const hnFind = vi.spyOn(adapters.hackernews!, "discover").mockResolvedValue([hn("p1")]);
+
+    await setChannelPaused(p!.id, "reddit", true);
+    expect(await runListenScan({ workspaceId }, { workspaceId, productId: p!.id })).toMatchObject({ [p!.id]: { found: 1, skipped: ["reddit"] } });
+    expect(reddit).not.toHaveBeenCalled();
+
+    // Paused for a day: the hourly run passes it over, Scan now still searches (without Reddit).
+    const now = new Date();
+    await setListeningPaused(p!.id, "day", now);
+    hnFind.mockClear();
+    const hourly = await runListenScan({ workspaceId }, { workspaceId });
+    expect(hourly[p!.id]).toMatchObject({ paused: true, found: 0 });
+    // (The hourly run searched the other test product; count from here.)
+    hnFind.mockClear();
+    reddit.mockClear();
+    await runListenScan({ workspaceId }, { workspaceId, productId: p!.id });
+    expect(hnFind).toHaveBeenCalledTimes(1);
+    expect(reddit).not.toHaveBeenCalled();
+
+    // A timed pause runs out on its own; resuming keeps the paused sources.
+    expect((await listeningState(p!.id, new Date(now.getTime() + 2 * 86400_000))).paused).toBe(false);
+    await setListeningPaused(p!.id, "forever");
+    expect(await listeningState(p!.id, new Date(now.getTime() + 365 * 86400_000))).toEqual({ paused: true, until: null, channels: ["reddit"] });
+    expect(await setListeningPaused(p!.id, "resume")).toEqual({ paused: false, until: null, channels: ["reddit"] });
+    await expect(setChannelPaused(p!.id, "linkedin", true)).rejects.toThrow(/doesn't search/);
   });
 
   it("an X API error is recorded for Settings instead of failing the scan", async () => {

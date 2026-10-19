@@ -101,8 +101,7 @@ describe("seedDemo", () => {
     }
     const [voice] = await db.select().from(s.voiceProfiles);
     expect(voice?.status).toBe("ready");
-    // 90 days of demo metrics: seeding takes a few seconds when the whole suite runs at once.
-  }, 30_000);
+  }, 30_000); // 90 days of demo metrics: seeding takes a few seconds when the whole suite runs at once
 
   it("keeps the scorer eval set's product snapshot in sync with the demo product", async () => {
     const [product] = await getDb().select({ id: s.products.id }).from(s.products);
@@ -116,5 +115,5 @@ describe("seedDemo", () => {
     expect(await getDb().select().from(s.opportunities)).toHaveLength(0);
     await seedDemo();
     expect(await productCount()).toBe(1);
-  });
+  }, 30_000);
 });

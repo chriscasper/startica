@@ -7,9 +7,10 @@ import { FormDialog } from "@/components/app/form-dialog";
 import { refreshScanActivity, StopButton, useScanActivity } from "@/components/app/scan-activity";
 import { Button } from "@/components/ui/button";
 import { importLink, scanNow } from "./actions";
+import { ListeningControl, type ListeningView } from "./listening-control";
 import { ScoringDialog, type ScoringSettings } from "./scoring-dialog";
 
-export function InboxToolbar({ productId, scoring }: { productId: string; scoring: ScoringSettings }) {
+export function InboxToolbar({ productId, scoring, listening }: { productId: string; scoring: ScoringSettings; listening: ListeningView }) {
   const [pending, startTransition] = useTransition();
   const { scan } = useScanActivity(productId);
   const scanning = pending || Boolean(scan);
@@ -32,6 +33,7 @@ export function InboxToolbar({ productId, scoring }: { productId: string; scorin
         {scan && !scan.running ? "Scan queued" : scanning ? "Scanning…" : "Scan now"}
       </Button>
       {scan && <StopButton target={{ job: scan.jobId }} label="Stop scan" />}
+      <ListeningControl productId={productId} state={listening} />
       <ScoringDialog key={`${scoring.relevance}-${scoring.intent}`} productId={productId} settings={scoring} />
       <FormDialog
         trigger={

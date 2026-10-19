@@ -4,13 +4,14 @@ import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { adapters, channelFromUrl, redditCommunity } from "@startica/core/channels/index";
 import { storeConversation } from "@startica/core/distribution/jobs";
+import { LISTEN_CHANNELS, listeningState, pauseFor, setChannelPaused, setListeningPaused } from "@startica/core/distribution/listening";
 import { scanActivity } from "@startica/core/jobs/activity";
 import { setThresholds } from "@startica/core/distribution/thresholds";
 import { transaction } from "@startica/db/client";
 import { recordReplyPosted } from "@startica/core/posting/record";
 import { replyRequest } from "@startica/core/posting/requests";
 import { enqueue } from "@startica/db/queue";
-import { conversations, dismissReasons, drafts, opportunities } from "@startica/db/schema";
+import { channels, conversations, dismissReasons, drafts, opportunities } from "@startica/db/schema";
 import type { ActionResult } from "@/components/app/form-dialog";
 import { fail, formFields, id, mutate, productScope } from "@/lib/actions";
 import { db, getWorkspace } from "@/lib/dal";
@@ -32,6 +33,8 @@ export async function scanNow(productId: string): Promise<ActionResult> {
   try {
     const scope = await productScope(productId);
     if ((await scanActivity(scope.workspaceId, scope.productId)).scan) return { error: "A scan is already under way; follow it at the top of the window." };
+    const listening = await listeningState(scope.productId);
+    if (LISTEN_CHANNELS.every((c) => listening.channels.includes(c))) return { error: "Every source is paused. Turn one back on under Searching first." };
     await enqueue(scope.workspaceId, "listen_scan", { productId: scope.productId });
     return { error: null };
   } catch (error) {
@@ -208,4 +211,20 @@ export async function saveThresholds(
     queued = await setThresholds(scope.workspaceId, scope.productId, input);
   });
   return { ...result, queued };
+}
+
+/** Pauses or resumes the hourly search for this product (Scan now still works). */
+export async function pauseListening(productId: string, mode: string): Promise<ActionResult> {
+  return mutate(async () => {
+    const scope = await productScope(productId);
+    await setListeningPaused(scope.productId, pauseFor.parse(mode));
+  });
+}
+
+/** Turns one source off or back on in every scan for this product. */
+export async function pauseChannel(productId: string, channel: string, paused: boolean): Promise<ActionResult> {
+  return mutate(async () => {
+    const scope = await productScope(productId);
+    await setChannelPaused(scope.productId, z.enum(channels).parse(channel), paused);
+  });
 }

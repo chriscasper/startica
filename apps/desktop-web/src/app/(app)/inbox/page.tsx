@@ -8,11 +8,15 @@ import { cn } from "@/lib/utils";
 import { getActiveProduct } from "@/lib/dal";
 import { assistedPostingAvailable, postingContext } from "@/lib/posting";
 import { and, count, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { xEnabled } from "@startica/core/channels/x";
+import { LISTEN_CHANNELS, listeningState } from "@startica/core/distribution/listening";
 import { MAX_REDRAFTS, recentArchivedScores } from "@startica/core/distribution/thresholds";
 import { replyRequest } from "@startica/core/posting/requests";
 import * as schema from "@startica/db/schema";
 import { db } from "@/lib/dal";
+import { channelLabel } from "@/lib/channels";
 import { InboxToolbar } from "./inbox-toolbar";
+import type { ListeningView } from "./listening-control";
 import { OpportunityCard, type OpportunityView } from "./opportunity-card";
 
 export const metadata: Metadata = { title: "Inbox" };
@@ -149,6 +153,22 @@ async function loadInbox(productId: string, tab: TabKey) {
       maxRedrafts: MAX_REDRAFTS,
     },
     watchedSubreddits: watched?.n ?? 0,
+    listening: await listeningView(productId),
+  };
+}
+
+/** The Searching control's state (reads the clock: a timed pause may have run out). */
+async function listeningView(productId: string): Promise<ListeningView> {
+  const [state, x] = await Promise.all([listeningState(productId), xEnabled()]);
+  return {
+    paused: state.paused,
+    until: state.until,
+    sources: LISTEN_CHANNELS.map((channel) => ({
+      channel,
+      label: channelLabel(channel),
+      paused: state.channels.includes(channel),
+      note: channel === "x" && !x ? "needs an X API token" : channel === "reddit" ? "watched subreddits" : channel === "mastodon" ? "watched hashtags" : channel === "discourse" ? "watched forums" : "by keyword",
+    })),
   };
 }
 
@@ -163,7 +183,7 @@ async function InboxContent({ searchParams }: { searchParams: PageProps<"/inbox"
   }
   const params = await searchParams;
   const tab: TabKey = typeof params.tab === "string" && params.tab in TABS ? (params.tab as TabKey) : "review";
-  const { views, counts, hasBrief, watchedSubreddits, scoring } = await loadInbox(product.id, tab);
+  const { views, counts, hasBrief, watchedSubreddits, scoring, listening } = await loadInbox(product.id, tab);
 
   return (
     <>
@@ -183,8 +203,18 @@ async function InboxContent({ searchParams }: { searchParams: PageProps<"/inbox"
             </Link>
           ))}
         </nav>
-        <InboxToolbar productId={product.id} scoring={scoring} />
+        <InboxToolbar productId={product.id} scoring={scoring} listening={listening} />
       </div>
+
+      {listening.paused && (
+        <p className="rounded-lg border p-4 text-sm">
+          The hourly search for {product.name} is paused{" "}
+          {listening.until
+            ? `until ${new Date(listening.until).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+            : "until you resume it"}
+          . Scan now still searches once; resume it under Search paused.
+        </p>
+      )}
 
       {!hasBrief && (
         <p className="rounded-lg border p-4 text-sm">

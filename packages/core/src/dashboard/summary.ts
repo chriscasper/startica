@@ -19,6 +19,7 @@ import {
 } from "@startica/db/schema";
 import { hasAiKey, monthlyBudgetUsd, monthToDateSpendUsd } from "../ai/client.ts";
 import { topAdSuggestions } from "../ads/results.ts";
+import { listeningState } from "../distribution/listening.ts";
 import { localDay } from "../growth/moves.ts";
 import { QUEUE_LABELS } from "../jobs/background.ts";
 import { daysAgo, isoDay } from "../metrics/types.ts";
@@ -60,6 +61,8 @@ export type DashboardSummary = {
     content: { drafts: number; writing: number; posted30: number };
     ads: { running: number; total: number };
     roadmap: { todo: number; doing: number };
+    /** The hourly search for conversations is paused (Inbox → Searching). */
+    searchPaused: boolean;
     /** Web analytics, last 30 days against the 30 before; null when no web source has data. */
     web: { source: "ga4" | "umami"; sessions: number; previous: number | null; keyEvents: number } | null;
     mrr: number | null;
@@ -265,6 +268,7 @@ export async function dashboardSummary(workspaceId: string, productId: string, o
       content: { drafts: pieces.get("draft") ?? 0, writing: pieces.get("drafting") ?? 0, posted30: Number(piecesPosted30[0]?.n ?? 0) },
       ads: { running: campaigns.get("running") ?? 0, total: [...campaigns.values()].reduce((a, b) => a + b, 0) },
       roadmap: { todo: roadmap.get("todo") ?? 0, doing: roadmap.get("doing") ?? 0 },
+      searchPaused: (await listeningState(productId)).paused,
       web: web && sessions !== null ? { source: web, sessions, previous: sessionsBefore, keyEvents: keyEvents ?? 0 } : null,
       mrr,
       signups30,

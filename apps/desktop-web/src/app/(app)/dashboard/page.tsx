@@ -260,7 +260,7 @@ const INTEL_STATUS: Record<string, string> = {
 
 function Marketing({ s }: { s: DashboardSummary }) {
   const m = s.marketing;
-  const status = [INTEL_STATUS[s.product.intel] ?? s.product.intel, m.ads.running ? plural(m.ads.running, "campaign") + " running" : null].filter(Boolean).join(" · ");
+  const status = [INTEL_STATUS[s.product.intel] ?? s.product.intel, m.searchPaused ? "Search paused" : null, m.ads.running ? plural(m.ads.running, "campaign") + " running" : null].filter(Boolean).join(" · ");
   return (
     <ModuleCard module="marketing" icon={MegaphoneIcon} title="Marketing" href="/today" status={status}>
       <div className="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3">

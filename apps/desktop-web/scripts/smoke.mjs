@@ -242,7 +242,8 @@ try {
     db.prepare("insert into job_runs (id, workspace_id, job_id, queue, attempt, status, payload, result, started_at, created_at, updated_at) values (?, ?, ?, 'listen_scan', 1, 'running', ?, ?, ?, ?, ?)").run(runId, workspace_id, jobId, payload, JSON.stringify({ progress: { channel: "reddit" } }), now - 4.5 * 60_000, now, now);
     await page.goto(`${server.url}/inbox`);
     // The header's status indicator: a pill while anything runs; hovering lists each task, why it runs, and Stop.
-    const pill = page.locator('[data-slot="popover-trigger"]');
+    // (The Inbox's own Searching control is a popover too.)
+    const pill = page.locator('[data-slot="popover-trigger"]').filter({ hasNotText: /Search|All sources off/ });
     await pill.waitFor({ timeout: 15_000 }).catch(() => {});
     const scanButton = page.getByRole("button", { name: "Scanning…" });
     check((await pill.count()) === 1 && (await scanButton.isDisabled()), "a running scan shows the status indicator and disables Scan now");
@@ -279,6 +280,30 @@ try {
     const saved = db.prepare("select count(*) n from products where relevance_threshold = 0.5").get();
     db.close();
     check(saved.n === 1, "Inbox → Scoring saves the relevance threshold");
+  }
+
+  // Inbox → Searching: pause the hourly search, turn Reddit off, resume.
+  {
+    await page.goto(`${server.url}/inbox`);
+    await page.getByRole("button", { name: "Searching hourly" }).click();
+    await page.getByRole("button", { name: "Until I resume" }).click();
+    await page.getByText(/The hourly search for .* is paused until you resume it/).waitFor({ timeout: 15_000 });
+    // The popover stays open after pausing; open it again only if it closed.
+    await page.getByRole("button", { name: "Search paused" }).waitFor({ timeout: 15_000 });
+    if (!(await page.getByRole("checkbox", { name: /^Reddit/ }).isVisible())) await page.getByRole("button", { name: "Search paused" }).click();
+    await page.getByRole("checkbox", { name: /^Reddit/ }).uncheck();
+    await page.getByText("Reddit is off").waitFor({ timeout: 15_000 });
+    await page.getByRole("button", { name: "Resume" }).click();
+    await page.getByRole("button", { name: "Searching, 1 off" }).waitFor({ timeout: 15_000 });
+    const { DatabaseSync } = await import("node:sqlite");
+    const db = new DatabaseSync(join(dataDir, "startica.db"), { readOnly: true });
+    const saved = JSON.parse(db.prepare("select value from settings where key like 'listening:%'").get()?.value ?? "{}");
+    db.close();
+    check(saved.paused === false && saved.channels?.join() === "reddit", `Inbox → Searching pauses and resumes the hourly search and turns single sources off (${JSON.stringify(saved)})`);
+    // Back on, for the rest of the run.
+    await page.getByRole("checkbox", { name: /^Reddit/ }).check();
+    await page.getByText("Reddit is searched again").waitFor({ timeout: 15_000 });
+    await page.keyboard.press("Escape");
   }
 
   // Accessibility: add the stand-in site, scan it through the UI (Playwright backend in

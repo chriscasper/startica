@@ -21,6 +21,7 @@ import { adapters, channelFromUrl } from "../channels/index.ts";
 import type { RawConversation } from "../channels/types.ts";
 import { loadProductContext, type ProductContext } from "./context.ts";
 import { findNearDuplicate, fingerprint } from "./fingerprint.ts";
+import { listeningState } from "./listening.ts";
 import { forumBase } from "../channels/discourse.ts";
 import { parseTagCommunity } from "../channels/mastodon.ts";
 import { DRAFT_PROMPT_VERSION, draftOutput, draftSystem, SCORE_PROMPT_VERSION, scoreOutput, scoreSystem } from "./prompts.ts";
@@ -112,9 +113,16 @@ export async function runListenScan(ctx: AiContext, payload: z.infer<typeof list
       ),
     );
   const since = new Date(Date.now() - LOOKBACK_HOURS * 3600_000);
-  const summary: Record<string, { found: number; new: number; errors: Record<string, string> }> = {};
+  const summary: Record<string, { found: number; new: number; errors: Record<string, string>; paused?: boolean; skipped?: string[] }> = {};
 
+  // The hourly run (no product) skips products whose search is paused; Scan now searches anyway.
+  const scheduled = !payload.productId;
   for (const product of scope) {
+    const listening = await listeningState(product.id);
+    if (scheduled && listening.paused) {
+      summary[product.id] = { found: 0, new: 0, errors: {}, paused: true };
+      continue;
+    }
     const words = await db
       .select({ keyword: keywords.keyword })
       .from(keywords)
@@ -129,6 +137,8 @@ export async function runListenScan(ctx: AiContext, payload: z.infer<typeof list
     let fresh = 0;
     const errors: Record<string, string> = {};
     for (const adapter of Object.values(adapters)) {
+      // Sources the owner paused are skipped in every scan.
+      if (listening.channels.includes(adapter.channel)) continue;
       // Stopped by the user: what earlier sources found is already stored and queued.
       ctx.signal?.throwIfAborted();
       // One source failing (a forum down, X out of credits) doesn't stop the others,
@@ -162,7 +172,7 @@ export async function runListenScan(ctx: AiContext, payload: z.infer<typeof list
         errors[adapter.channel] = error instanceof Error ? error.message : String(error);
       }
     }
-    summary[product.id] = { found, new: fresh, errors };
+    summary[product.id] = { found, new: fresh, errors, ...(listening.channels.length ? { skipped: listening.channels } : {}) };
   }
   return summary;
 }

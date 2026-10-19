@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.6] - 2026-10-19
+
+A much fuller Analytics page with a weekly AI read-out, Refine chats for suggestions, and a way to pause the search for conversations.
+
+### Added
+
+- **Analytics in five tabs:** Overview, Traffic, Conversions, Revenue and What Startica did, for 7, 30 or 90 days (up to 16 months), each number compared with the period before. New: engagement, channel groups, landing pages, countries, devices and browsers from GA4 or Umami; trials, MRR gained and lost, and revenue paid from Stripe; a visit-to-customer funnel; "What changed" highlights; results per community you posted in, and ad spend.
+- **A weekly AI read-out of your analytics** every Monday (or on Write it now): what worked, what to watch and what to try next. Its first suggestion shows on Today.
+- **Analytics history:** 90 days by default, or up to 16 months (Settings → Products).
+- **Refine:** chat with the AI about Security's "Help for your stack" or an accessibility "Suggested fix", and apply the revision it proposes. Earlier versions can be restored.
+- **Pause the search for conversations** from the Inbox: for a day, a week or until you resume, or turn single sources such as Reddit off.
+- **Startica's own About window** with Check for Updates, and a Beta label next to the version.
+
+### Changed
+
+- **Stripe history is rebuilt from your subscriptions,** so MRR and subscription charts are filled from the first sync. Revenue paid needs read access to invoices on the Stripe key.
+- **The weekly roadmap re-plan** reads MRR, subscriptions and active users as their latest value instead of a 30-day sum, and reads the analytics read-out.
+- **New positioning:** "The open-source startup harness."
+
 ## [0.0.5] - 2026-10-18
 
 The first macOS release notarized by Apple: Startica opens without the Gatekeeper prompt.
@@ -83,7 +102,8 @@ First public release. Installers are unsigned for now, so the documented way in 
 - **Releases and updates:** a GitHub Actions workflow builds macOS, Windows and Linux installers into a draft release (signed and notarized once certificates are set up), and the installed app updates itself from GitHub Releases.
 - **Developer tooling:** `yarn seed:demo`, eval sets for the scorer, Accessibility and Security, browser and desktop smoke tests, and CI on macOS and Linux.
 
-[Unreleased]: https://github.com/chriscasper/startica/compare/v0.0.5...HEAD
+[Unreleased]: https://github.com/chriscasper/startica/compare/v0.0.6...HEAD
+[0.0.6]: https://github.com/chriscasper/startica/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/chriscasper/startica/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/chriscasper/startica/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/chriscasper/startica/compare/v0.0.2...v0.0.3

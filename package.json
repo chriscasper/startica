@@ -2,7 +2,7 @@
   "name": "startica",
   "private": true,
   "license": "MIT",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Startica monorepo — get your business organized and online",
   "workspaces": [
     "apps/*",

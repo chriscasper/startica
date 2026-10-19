@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: { default: "Startica", template: "%s · Startica" },
-  description: "Your AI co-founder for everything after you ship.",
+  description: "Your AI, harnessed for everything after you ship.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,10 +1,10 @@
 ---
 title: Startica documentation
-description: Install, set up and use Startica, the open-source AI co-founder for everything after you ship. Marketing, SEO & GEO, accessibility and security for your product, on your own computer.
+description: Install, set up and use Startica, the open-source startup harness. Marketing, SEO & GEO, accessibility and security for your product, on your own computer.
 layout: doc
 ---
 
-Startica is an open-source (MIT) desktop app that looks after a product once it's shipped. It has four modules: **Marketing** finds conversations worth joining and drafts replies, posts and ads in your voice; **SEO & GEO** helps the product get found in search, in AI answers and by AI agents; **Accessibility** checks your sites against WCAG; and **Security** checks what anyone on the internet can see about your sites, and keeps watching. A **Dashboard** and a short daily list pull it together.
+Startica is the open-source startup harness: an MIT-licensed desktop app that puts your own AI model to work on a product once it's shipped. It has four modules: **Marketing** finds conversations worth joining and drafts replies, posts and ads in your voice; **SEO & GEO** helps the product get found in search, in AI answers and by AI agents; **Accessibility** checks your sites against WCAG; and **Security** checks what anyone on the internet can see about your sites, and keeps watching. A **Dashboard** and a short daily list pull it together.
 
 It runs on your computer, keeps its data in a local SQLite file, and calls the Claude or OpenAI API with your own key. Nothing is posted, launched or changed without you.
 

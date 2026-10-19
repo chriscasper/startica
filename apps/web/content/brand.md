@@ -50,7 +50,8 @@ Headings are set in [Schibsted Grotesk](https://fonts.google.com/specimen/Schibs
 ## Writing about Startica
 
 - **Startica**, with a capital S and the rest lowercase. Not "StartIca" or "STARTICA".
-- In one line: "Startica is an open-source AI co-founder for everything after you ship."
+- In one line: "Startica is the open-source startup harness."
+- The headline: "Your AI, harnessed for everything after you ship." A harness puts your own AI model to work while you hold the reins: Startica does the legwork, and you approve every move. Don't call it an "AI co-founder" or say it works on its own.
 - The modules are **Marketing**, **SEO & GEO**, **Accessibility** and **Security**.
 - Startica is free and open source under the MIT license. It's a desktop app for macOS, Windows and Linux, with no account and no Startica server.
 - Please don't say Startica makes a site "compliant", "certified" or "secure". It finds problems with automated checks, and the people who fix them do the rest.

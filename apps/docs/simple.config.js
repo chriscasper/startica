@@ -154,7 +154,7 @@ export default {
     title: 'Startica Docs',
     url: 'https://docs.mystartica.com',
     description:
-      'Documentation for Startica, the open-source AI co-founder for everything after you ship: marketing, SEO & GEO, accessibility and security for your product, on your desktop. Install, guides, credentials, reference and contributing.',
+      'Documentation for Startica, the open-source startup harness: marketing, SEO & GEO, accessibility and security for your product, on your desktop. Install, guides, credentials, reference and contributing.',
     author: 'Christopher Casper',
     language: 'en',
     repo: 'https://github.com/chriscasper/startica',

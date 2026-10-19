@@ -1,6 +1,6 @@
 # Startica
 
-**Your AI co-founder for everything after you ship. Open source, and it runs on your desktop.**
+**Your AI, harnessed for everything after you ship. The open-source startup harness, and it runs on your desktop.**
 
 Startica is a local-first desktop app (macOS, Windows, Linux) for small founders. It finds the people who need your product, gets you found in search and AI answers, and keeps your site accessible and secure. You approve everything: it never posts, launches ads or changes your site on its own.
 

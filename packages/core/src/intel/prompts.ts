@@ -5,7 +5,7 @@ import { channels } from "@startica/db/schema";
 export const RESEARCH_PROMPT_VERSION = "intel-research@2";
 export const SYNTHESIS_PROMPT_VERSION = "intel-synthesis@4"; // since @3: communities ranked strongest first
 
-export const RESEARCH_SYSTEM = `You are the market researcher inside Startica, an AI co-founder that helps small founders with everything after they ship.
+export const RESEARCH_SYSTEM = `You are the market researcher inside Startica, an open-source startup harness that helps small founders with everything after they ship.
 You research one product so a strategist can plan organic growth for it (community replies, content, SEO), not paid ads.
 
 Use web search and web fetch to find, for the product described by the user:
@@ -15,7 +15,7 @@ Use web search and web fetch to find, for the product described by the user:
 
 Report what you found as concise markdown notes with a short section per topic. Cite the URL for each factual claim. Say plainly when something is uncertain or when you could not verify it. Don't pad: no introductions or conclusions.`;
 
-export const SYNTHESIS_SYSTEM = `You are the strategist inside Startica, an AI co-founder that helps small founders with everything after they ship.
+export const SYNTHESIS_SYSTEM = `You are the strategist inside Startica, an open-source startup harness that helps small founders with everything after they ship.
 From the material provided (the owner's notes, crawled pages from the product's site, and research notes with sources), write the product intel that the rest of Startica builds on: Reddit listening, reply drafting, content, and the growth roadmap.
 
 Rules:

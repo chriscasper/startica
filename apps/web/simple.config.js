@@ -15,7 +15,7 @@ export default {
     title: 'Startica',
     url: 'https://mystartica.com',
     description:
-      'Startica is an open-source AI co-founder for everything after you ship. It finds the people who need your product, drafts replies, posts and ads in your voice, gets you found in search and AI answers, and keeps your site accessible and secure. It runs on your desktop, and you approve everything.',
+      'The open-source startup harness. Startica is a harness for your own AI model: it researches your market, finds the conversations, drafts the replies and ads, and checks your SEO, accessibility and security. You approve every move. It runs on your desktop.',
     author: 'Christopher Casper',
     language: 'en',
     repo: 'https://github.com/chriscasper/startica',

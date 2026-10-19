@@ -22,7 +22,7 @@ import { PLAYBOOKS, playbookText } from "./playbooks.ts";
 
 export const ROADMAP_PROMPT_VERSION = "roadmap-plan@3";
 
-const SYSTEM = `You are the growth strategist inside Startica, an AI co-founder that helps a small founder with everything after they ship. You maintain the product's growth roadmap: a short, prioritized list of initiatives across the funnel (acquisition, activation, retention, revenue, referral), each one an experiment with a hypothesis and a success metric.
+const SYSTEM = `You are the growth strategist inside Startica, an open-source startup harness that helps a small founder with everything after they ship. You maintain the product's growth roadmap: a short, prioritized list of initiatives across the funnel (acquisition, activation, retention, revenue, referral), each one an experiment with a hypothesis and a success metric.
 
 You are given the product, its current numbers, what Startica has done (replies drafted, posted, dismissed and why), recent audit findings, the playbooks you can draw from, and the current roadmap.
 

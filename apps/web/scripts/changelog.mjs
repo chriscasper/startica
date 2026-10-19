@@ -23,7 +23,7 @@ title: Changelog
 layout: page
 eyebrow: Changelog
 lede: Every notable change to Startica, newest first.
-description: Release notes for Startica, the open-source AI co-founder for everything after you ship.
+description: Release notes for Startica, the open-source startup harness.
 ---
 
 <!-- Generated from CHANGELOG.md by scripts/changelog.mjs. Edit CHANGELOG.md at the repo root instead. -->

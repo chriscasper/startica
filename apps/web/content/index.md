@@ -1,14 +1,14 @@
 ---
 title: Startica
 layout: landing
-description: Startica is an open-source AI co-founder for everything after you ship. It finds the people who need your product, drafts replies, posts and ads in your voice, gets you found in search and AI answers, and keeps your site accessible and secure. It runs on your desktop, and you approve everything.
+description: "The open-source startup harness. Startica is a harness for your own AI model: it researches your market, finds the conversations, drafts the replies and ads, and checks your SEO, accessibility and security. You approve every move. It runs on your desktop."
 image: /og.png
 schema:
   "@context": https://schema.org
   "@type": SoftwareApplication
   name: Startica
   url: https://mystartica.com
-  description: "An open-source desktop app for founders: marketing, SEO and AI visibility, accessibility and security checks for your product, with your own AI key and nothing posted or changed without you."
+  description: "The open-source startup harness: a desktop app for founders that puts your own AI model to work on marketing, SEO and AI visibility, accessibility and security checks for your product, with your own AI key and nothing posted or changed without you."
   applicationCategory: BusinessApplication
   operatingSystem: macOS, Windows, Linux
   isAccessibleForFree: true

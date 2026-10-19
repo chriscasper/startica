@@ -20,7 +20,7 @@ export default function WelcomePage() {
       <div className="grid gap-1">
         <StarticaLogo title={null} className="mb-4 h-8 w-auto justify-self-start" />
         <h1 className="text-2xl font-semibold tracking-tight">Welcome to Startica</h1>
-        <p className="text-muted-foreground">Your AI co-founder for everything after you ship. Two minutes of setup, and Startica starts learning about your product.</p>
+        <p className="text-muted-foreground">Your AI, harnessed for everything after you ship. Two minutes of setup, and Startica starts learning about your product.</p>
       </div>
       <Suspense fallback={<Skeleton className="h-80 w-full" />}>
         <Welcome />

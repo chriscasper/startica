@@ -4,7 +4,7 @@ description: Startica is a local-first desktop app that looks after a product on
 layout: doc
 ---
 
-Startica is an AI co-founder for everything after you ship, and it runs on your computer. You tell it about your product and its website. It learns the product and its market, finds the conversations where your customers talk, drafts replies, posts and ads for you to review, and checks your sites for the problems that keep people from finding, using or trusting them. Each day it boils all of that down to a short list of what to do next.
+Startica is a startup harness for everything after you ship, and it runs on your computer. A harness puts your own AI model (Claude or OpenAI, with your key) to work on a fixed set of jobs, and keeps you holding the reins. You tell it about your product and its website. It learns the product and its market, finds the conversations where your customers talk, drafts replies, posts and ads for you to review, and checks your sites for the problems that keep people from finding, using or trusting them. Each day it boils all of that down to a short list of what to do next.
 
 You stay in control: Startica never posts, launches or changes anything itself. Even when it fills a reply in on the site for you, you press the site's own button. Ads are files you import and launch. Fixes for your site are suggestions you copy.
 

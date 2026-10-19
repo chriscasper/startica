@@ -32,7 +32,7 @@ const FOCUS: Record<AuditKind, string> = {
   geo: `Audit visibility in AI assistants' answers (generative engine optimization), using the research notes: does the product appear when the audience asks AI assistants or search for recommendations; how is it described; which competitors appear instead and why; what sources those answers cite; what content or mentions would get the product included.`,
 };
 
-const SYSTEM = `You are a senior growth and conversion reviewer inside Startica, an AI co-founder that helps a small founder with everything after they ship. Be specific and evidence-based: quote or cite what you saw. Prioritize: high = likely costing signups now; medium = clear improvement; low = polish. 5–12 findings. Never invent facts about the product; if you couldn't check something, say so in the detail.`;
+const SYSTEM = `You are a senior growth and conversion reviewer inside Startica, an open-source startup harness that helps a small founder with everything after they ship. Be specific and evidence-based: quote or cite what you saw. Prioritize: high = likely costing signups now; medium = clear improvement; low = polish. 5–12 findings. Never invent facts about the product; if you couldn't check something, say so in the detail.`;
 
 /** Facts an SEO audit can measure directly instead of asking a model. */
 export async function seoFacts(siteUrl: string): Promise<string> {

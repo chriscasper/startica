@@ -106,7 +106,7 @@ Both sites are built: the marketing site (`apps/web`) and 80 docs pages (`apps/d
 
 ## 6. Website decisions
 
-**Tagline (decided 2026-10-14):** "Your AI co-founder for everything after you ship." Sub-line: "Startica finds the people who need your product, gets you found in search and AI answers, and keeps your site accessible and secure. One desktop app, your own keys, and nothing goes out without you." Rejected: "one app instead of five subscriptions" (frames it by what it replaces), "grow your product, keep your site in shape" (forgettable), keeping the marketing headline (undersells half the app).
+**Tagline (decided 2026-10-18):** Category line "The open-source startup harness." Headline "Your AI, harnessed for everything after you ship." Body "Startica is a harness for your own AI model: it researches your market, finds the conversations, drafts the replies and ads, and checks your SEO, accessibility and security. You approve every move." Why: "co-founder" implied autonomy that contradicts "you approve everything" and is a crowded claim; a harness is the structure around your own model, with you holding the reins. Replaced: "Your AI co-founder for everything after you ship" (2026-10-14). Also rejected: "one app instead of five subscriptions" (frames it by what it replaces), "grow your product, keep your site in shape" (forgettable), keeping the marketing headline (undersells half the app).
 
 **The four jobs** (the home page's main section, each in its module's accent color): Reach people (Marketing) · Get found (SEO & GEO) · Work for everyone (Accessibility) · Stay safe (Security). Then how it fits together: Dashboard, Today, Roadmap and the shared scan.
 

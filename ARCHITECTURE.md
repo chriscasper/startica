@@ -1,6 +1,6 @@
 # Startica: architecture
 
-> **Startica** ([mystartica.com](https://mystartica.com)) is an open-source AI co-founder for everything after you ship. It's a **desktop app for macOS, Windows and Linux** (Electron + SQLite): one user per install, local-first, no account and no Startica server. It's built as modules in one shell: **Marketing**, **Accessibility**, **SEO & GEO** and **Security**.
+> **Startica** ([mystartica.com](https://mystartica.com)) is the open-source startup harness: your own AI model, harnessed for everything after you ship. It's a **desktop app for macOS, Windows and Linux** (Electron + SQLite): one user per install, local-first, no account and no Startica server. It's built as modules in one shell: **Marketing**, **Accessibility**, **SEO & GEO** and **Security**.
 >
 > This file is for contributors: how the built app works, the decisions behind it and the rules for changing it. **What's left to build, for the app, the websites and the launch, is in [PLAN.md](PLAN.md).** User documentation lives at [docs.mystartica.com](https://docs.mystartica.com).
 >

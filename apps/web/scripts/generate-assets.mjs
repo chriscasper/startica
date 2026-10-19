@@ -37,7 +37,7 @@ const ogSvg = ({ label, host }) => `
   <rect x="900" y="560" width="300" height="70" fill="#a996ff"/>
   <svg x="80" y="176" width="481" height="96" viewBox="${LOGO_VIEWBOX}" fill="#fbf5e9">${paths(LOGO_PATHS)}</svg>
   ${label ? `<text x="585" y="270" font-family="Arial, sans-serif" font-size="56" font-weight="700" fill="#fab53b">${label}</text>` : ''}
-  <text x="80" y="350" font-family="Arial, sans-serif" font-size="34" fill="#e3e7e4">Your AI co-founder for everything after you ship.</text>
+  <text x="80" y="350" font-family="Arial, sans-serif" font-size="34" fill="#e3e7e4">Your AI, harnessed for everything after you ship.</text>
   <text x="80" y="400" font-family="Arial, sans-serif" font-size="26" fill="#a7b8c6">Marketing · SEO &amp; GEO · Accessibility · Security · Open source</text>
   <text x="80" y="520" font-family="Arial, sans-serif" font-size="24" fill="#fab53b">${host}</text>
 </svg>

@@ -66,6 +66,7 @@
 ] %}
 
 {% set faqs = [
+  { q: "Why a “startup harness”?", a: "A harness puts power to work while you hold the reins. Startica wraps your own AI model, Claude or OpenAI with your key, in the research, background jobs, playbooks and checks that the work after launch needs. The AI does the legwork; you approve every move." },
   { q: "Is Startica free?", a: "Yes. The app is free and open source under the MIT license. Scans and checks cost nothing. You pay only for the APIs you choose to use, mainly Claude or OpenAI, under a monthly budget you set." },
   { q: "Who is it for?", a: "Founders and small teams who look after their own product: no marketing department, no accessibility consultant, no security team. It's a single-user app with no logins or sync." },
   { q: "Does it post or change anything for me?", a: "No. On supported sites, Startica opens the page, fills in your reply and waits for you to press the site's own button. Ads are files you import and launch yourself. Fixes for your site are suggestions to copy. It never sends email." },
@@ -92,19 +93,19 @@
       <div>
         <p class="animate-enter inline-flex flex-wrap items-center gap-x-2 gap-y-1 border border-chalk/20 bg-chalk/5 px-3 py-1.5 text-xs font-semibold text-chalk/80">
           <span class="h-1.5 w-1.5 rounded-full bg-signal" aria-hidden="true"></span>
-          Open source · MIT · macOS, Windows, Linux
+          The open-source startup harness
         </p>
         <h1 class="animate-enter-delay mt-7 font-display text-5xl font-extrabold leading-[0.95] tracking-tight sm:text-6xl">
-          Your AI <span class="whitespace-nowrap">co-founder</span> for everything <span class="underline-grow inline-block">after you ship</span>.
+          Your AI, harnessed for everything <span class="underline-grow inline-block">after you ship</span>.
         </h1>
         <p class="animate-enter-delay-2 mt-7 max-w-xl text-lg leading-relaxed text-chalk/75 sm:text-xl">
-          Startica finds the people who need your product, gets you found in search and AI answers, and keeps your site accessible and secure. One desktop app, your own keys, and nothing goes out without you.
+          Startica is a harness for your own AI model: it researches your market, finds the conversations, drafts the replies and ads, and checks your SEO, accessibility and security. You approve every move.
         </p>
         <div class="animate-enter-delay-3 mt-10 flex flex-wrap items-center gap-4">
           <a href="/get-started" class="btn btn-primary">Get started {{ icon.arrow() }}</a>
           <a href="{{ site.repo }}" class="btn btn-ghost text-chalk">{{ icon.github("h-4 w-4") }} Star on GitHub</a>
         </div>
-        <p class="animate-enter-delay-3 mt-5 text-sm text-chalk/55">Free and open source. Bring your own Claude or OpenAI key.</p>
+        <p class="animate-enter-delay-3 mt-5 text-sm text-chalk/55">Free and open source (MIT) for macOS, Windows and Linux. Bring your own Claude or OpenAI key.</p>
       </div>
 
       {# App mock-up: an illustration of the Dashboard with a fictional product #}

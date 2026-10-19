@@ -79,6 +79,13 @@ describe("Umami", () => {
     expect(on("sessions", "source:(direct) / (none)")).toEqual([8]);
     expect(on("sessions", "page:/pricing")).toEqual([8]);
     expect(on("sessions", "utm_content:draft-123")).toEqual([3]);
+    // Engagement, landing pages, countries, devices and browsers, named as GA4's are.
+    expect(on("engaged_sessions")).toEqual([15]);
+    expect(on("engagement_seconds")).toEqual([900]);
+    expect(on("sessions", "landing:/pricing")).toEqual([6]);
+    expect(on("sessions", "country:US")).toEqual([11]);
+    expect(on("sessions", "device:desktop")).toEqual([12]);
+    expect(on("sessions", "browser:firefox")).toEqual([12]);
     // Key events: only the chosen ones count in the total; every event is kept by name.
     const today = new Date().toLocaleDateString("en-CA");
     expect(rows.filter((r) => r.day === today && r.metric === "key_events" && !r.dimension).map((r) => r.value)).toEqual([2]);
@@ -104,7 +111,14 @@ describe("Umami", () => {
       const result = await runMetricsSync({ workspaceId }, { workspaceId, connectionId: conn!.id });
       expect(result.umami?.error).toBeUndefined();
       const stored = await getDb().select().from(metricsSnapshots).where(and(eq(metricsSnapshots.productId, productId), eq(metricsSnapshots.source, "umami"), eq(metricsSnapshots.metric, "sessions"), eq(metricsSnapshots.dimension, "")));
-      expect(stored.length).toBe(30);
+      // The first sync reads the product's whole history (90 days), and says so in the connection.
+      expect(stored.length).toBe(90);
+      const [synced] = await getDb().select().from(connections).where(eq(connections.id, conn!.id));
+      expect(synced!.config.syncedFrom).toBe(stored.map((r) => r.day).sort()[0]);
+      // Later syncs re-read only the last few days.
+      const before = seen.filter((x) => x.endsWith("/stats")).length;
+      await runMetricsSync({ workspaceId }, { workspaceId, connectionId: conn!.id });
+      expect(seen.filter((x) => x.endsWith("/stats")).length - before).toBe(5);
       // With GA4 connected and working too, GA4 wins; Umami is used when GA4 isn't working.
       await getDb().insert(connections).values({ workspaceId, productId, kind: "ga4", config: { propertyId: "1" }, status: "ok" });
       expect(await webSource(productId)).toBe("ga4");
@@ -113,5 +127,5 @@ describe("Umami", () => {
     } finally {
       closeDatabase();
     }
-  });
+  }, 30_000); // a 90-day first sync, then a short one
 });

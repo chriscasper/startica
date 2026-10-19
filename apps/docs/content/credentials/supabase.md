@@ -170,9 +170,11 @@ Each sync opens a read-only transaction as `startica_reader` and runs:
 ```sql
 select day::text as day, metric::text as metric, value::numeric as value
 from startica.daily_metrics
-where day >= current_date - 30
+where day >= current_date - 90
 order by day
 ```
+
+`90` is the product's [analytics history](/guides/analytics#history) in days: 90 by default, more if you chose a longer history under **Keep analytics history for**. Every sync reads the whole history again, so a corrected day in your database is corrected in Startica on the next sync.
 
 Syncs run every day at 08:15 local time while Startica is open, and when you click **Sync now**.
 
@@ -191,7 +193,7 @@ If the second query works, the table is readable by `PUBLIC` or by a role `start
 
 ## Choose your metrics
 
-The **Analytics** page charts two metric names: `signups` and `active_users`. Any other names are stored too, and the weekly roadmap re-plan reads them.
+The **Analytics** page charts two metric names: `signups` and `active_users`. Any other metric is listed under **Conversions** → **Other product numbers**, summed over the period, and the weekly roadmap re-plan reads them all.
 
 | Metric | Table | Date column | Count per day |
 | --- | --- | --- | --- |
@@ -213,7 +215,7 @@ Tips:
 | --- | --- | --- |
 | The read-only login's connection URL (host, port, database, `startica_reader` user and its password) | `secrets` table | Yes |
 | The view name, your metric definitions, the host and the Supabase project ref | `connections` table | No |
-| The daily totals from the last 30 days, refreshed on each sync | `metrics_snapshots` table | No |
+| The daily totals for the product's analytics history (90 days by default), refreshed on each sync | `metrics_snapshots` table | No |
 
 Startica never stores the user or password from the connection string you pasted. Everything stays in the [data folder](/reference/data-folder) on your computer. See [Privacy and security](/concepts/privacy-security).
 

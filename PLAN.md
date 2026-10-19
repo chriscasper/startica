@@ -4,7 +4,7 @@
 >
 > When an item is built, describe it in ARCHITECTURE.md (or the docs) and remove it from here.
 >
-> Last updated: 2026-10-18.
+> Last updated: 2026-10-19.
 
 ---
 
@@ -36,7 +36,8 @@ Ordered by value for the effort.
 ### Marketing
 - More channels if wanted: Threads, YouTube comments; Facebook groups posting only if users ask.
 - **Reddit's official Data API**, only if access is ever approved: script app with the password grant, a descriptive `User-Agent`, 100 requests per minute, poll `/new` per subreddit and let Startica's scoring decide relevance, store each subreddit's rules in `communities.promo_rules`.
-- Eval sets for the other AI tasks (only the scorer, Accessibility and Security have one).
+- Eval sets for the other AI tasks (only the scorer, Accessibility and Security have one), starting with the weekly analytics read-out (`analytics-summary@1`): does it stick to the numbers it's given.
+- **Analytics** (section 8.2): upgrades and downgrades in MRR movement (needs Stripe's subscription events), currencies other than US dollars, and a channel chart over time.
 
 ### Ads (section 8.6)
 - **Reporting APIs for spend** (opt-in): an `ad_results_sync` job that reads spend, clicks and impressions from each platform instead of entering them by hand.
@@ -82,7 +83,7 @@ Built and tested against stand-ins; still to try for real. Each needs the owner'
 | Ads AD2 | A real picture with an OpenAI key, to compare the cost with the estimate |
 | Assisted posting | One real post on each of the seven sites with a signed-in account |
 | Issue trackers | Real GitHub and GitLab repositories |
-| Analytics | A real Umami instance |
+| Analytics | A real Umami instance (including its entry-page, country, device and browser breakdowns); a real GA4 property's new reports (landing pages, countries, devices, engagement) and a 16-month first sync; a real Stripe account's invoices and rebuilt MRR history against Stripe's dashboard |
 | Credential guides | Follow the docs' credential guides end to end on a fresh Google Cloud project, Supabase account and Stripe account |
 | Desktop shell | Tray, close-to-tray and launch at login on Windows and Linux (only macOS has been run) |
 

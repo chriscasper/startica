@@ -48,6 +48,7 @@ Each move has a badge for its kind:
 | Roadmap | The roadmap's next steps, or a prompt to create the roadmap |
 | Content | A nudge to post in your saved voice |
 | Ads | An ad to stop, scale or rewrite, from a campaign's [results](/ads/results#on-today-and-the-roadmap) |
+| Analytics | The first "Try next" suggestion from the [weekly analytics summary](/guides/analytics#weekly-ai-summary) |
 | Yours | Moves you added yourself, here or with **Today** on an [SEO & GEO opportunity](/seo/opportunities#add-to-today) |
 
 ## How the list is ranked
@@ -65,15 +66,16 @@ Startica checks the rules below in order and adds a move for each one that appli
 | 7 | An ad to stop, scale or rewrite | A campaign's [results](/ads/results#what-to-do-next) suggest it. See below. |
 | 8 | Fix N critical or high security findings | The product's sites have open critical or high [security findings](/security/findings). **Go** opens the findings list. |
 | 9 | Verify *site* to turn on security checks | A scanned site isn't [verified](/security#prove-the-site-is-yours) yet. Only the first such site is listed. |
-| 10 | The roadmap's next steps | Up to 3 open roadmap items: items in progress first, then to-do items by priority. Each shows its next step if it has one. |
-| 11 | Write and post one piece in your saved voice | You have a ready voice profile and created no Content Studio piece in the last 3 days. |
-| 12 | Answer the open questions in the brief | The brief has open questions and you haven't written any owner notes. |
-| 13 | Generate the growth roadmap | The product has a brief but no roadmap items yet. |
-| 14 | Connect analytics (Google, Stripe or the product database) | No connection is working, and no roadmap step already mentions connecting analytics. |
+| 10 | The weekly analytics summary's first suggestion | The latest [weekly analytics summary](/guides/analytics#weekly-ai-summary) was written in the last 7 days. The title is its first **Try next** item, and the note starts "From this week's analytics:". **Go** opens Analytics. |
+| 11 | The roadmap's next steps | Up to 3 open roadmap items: items in progress first, then to-do items by priority. Each shows its next step if it has one. |
+| 12 | Write and post one piece in your saved voice | You have a ready voice profile and created no Content Studio piece in the last 3 days. |
+| 13 | Answer the open questions in the brief | The brief has open questions and you haven't written any owner notes. |
+| 14 | Generate the growth roadmap | The product has a brief but no roadmap items yet. |
+| 15 | Connect analytics (Google, Stripe or the product database) | No connection is working, and no roadmap step already mentions connecting analytics. |
 
 The **Ads** move (row 7) is the single most pressing ad suggestion across the product's campaigns marked **Handed off** or **Running**, a stop first, then a scale, then a rewrite. Its **Go** opens the campaign's **Results** tab. See [What to do next](/ads/results#what-to-do-next).
 
-Rows 4 and 5 are exclusive: you see one or the other, never both. While the [Getting started checklist](#the-getting-started-checklist) shows, rows 3, 4, 5, 9 and 14 are left out.
+Rows 4 and 5 are exclusive: you see one or the other, never both. While the [Getting started checklist](#the-getting-started-checklist) shows, rows 3, 4, 5, 9 and 15 are left out.
 
 Only the first 7 make the list. Moves you finished or skipped still count toward the 7, but they aren't added a second time. So when you click **Refresh** after finishing a few, the next moves down the ranking can move up into the open slots.
 

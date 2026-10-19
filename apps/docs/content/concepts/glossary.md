@@ -75,7 +75,7 @@ A **product** is what you market. Startica finds **conversations** on Reddit, Ha
 | --- | --- |
 | **Read-only login** | The `startica_reader` role in your product's database, created by the SQL script Startica writes for the product database connection. It can read one view of daily totals (`startica.daily_metrics`) and nothing else. See [Product database](/credentials/supabase). |
 | **Connection** | A product-level link to a results source: Google Analytics 4, Umami, Google Search Console, Bing Webmaster Tools, Stripe or the product database. Has a status (Connected, Error) and a last-synced time. See [Bring your own credentials](/credentials/). |
-| **Metric snapshot** | One number for one day: product, day, source (`ga4`, `umami`, `stripe`, `product_db` or `manual`), metric name (such as `sessions` or `mrr`) and an optional split (such as `source:reddit / community`). Syncs overwrite the value for the same day. |
+| **Metric snapshot** | One number for one day: product, day, source (`ga4`, `umami`, `stripe`, `product_db` or `manual`), metric name (such as `sessions` or `mrr`) and an optional split (such as `source:reddit / community`). Syncs overwrite the value for the same day. Kept for the product's [analytics history](/guides/analytics#history), 90 days by default; manual numbers are kept for good. |
 
 ## Under the hood
 

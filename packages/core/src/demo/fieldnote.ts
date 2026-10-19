@@ -578,17 +578,39 @@ export const DEMO_AUDIT: { kind: "landing"; summary: string; findings: AuditFind
 };
 
 /** Daily traffic sources for the Analytics page (share of sessions). */
-export const DEMO_SOURCES: [string, number][] = [
-  ["google / organic", 0.36],
-  ["(direct) / (none)", 0.2],
-  ["bing / organic", 0.03],
-  ["chatgpt.com / ai-assistant", 0.025],
-  ["perplexity.ai / referral", 0.01],
-  ["claude.ai / ai-assistant", 0.005],
-  ["reddit / community", 0.18],
-  ["news.ycombinator.com / referral", 0.08],
-  ["linkedin / social", 0.07],
-  ["newsletter / email", 0.05],
+/** The demo's weekly analytics read-out, as the analytics_summary job would write it. */
+export const DEMO_ANALYTICS_SUMMARY = {
+  headline: "Reddit replies keep bringing the visitors who sign up, while the Hacker News spike mostly bounced.",
+  summary:
+    "Visits grew on the week before, led by r/fieldwork and the field-kit blog post. The Hacker News thread sent a burst of visits to /blog/offline-field-kit, but few stayed past the first page and almost none signed up. Pricing-page visitors convert best: about one in sixteen starts a signup.",
+  wins: [
+    "Communities sent the most signups of any channel: replies in r/fieldwork converted at about 4.5% of visits.",
+    "The newsletter converted best per visit (about 6%), from a small list.",
+    "MRR kept growing, with only one cancellation this week.",
+  ],
+  concerns: [
+    "The Hacker News visits to /blog/offline-field-kit were mostly one-page visits: the post doesn't lead on to the product.",
+    "Mobile is a third of visits; check the signup form on a phone.",
+  ],
+  tryNext: [
+    { title: "Add a clear next step to the offline field kit post", why: "It gets the most new visitors from Hacker News and search, but few of them go on to pricing or signup." },
+    { title: "Reply in two more r/fieldwork threads this week", why: "Your replies there brought the visitors most likely to sign up." },
+    { title: "Link the pricing page from the newsletter", why: "Newsletter readers convert best, and pricing visitors sign up most." },
+  ],
+};
+
+/** Source / medium, share of visits, key events per visit. */
+export const DEMO_SOURCES: [string, number, number][] = [
+  ["google / organic", 0.36, 0.03],
+  ["(direct) / (none)", 0.2, 0.035],
+  ["bing / organic", 0.03, 0.03],
+  ["chatgpt.com / ai-assistant", 0.025, 0.05],
+  ["perplexity.ai / referral", 0.01, 0.04],
+  ["claude.ai / ai-assistant", 0.005, 0.05],
+  ["reddit / community", 0.18, 0.045],
+  ["news.ycombinator.com / referral", 0.08, 0.01],
+  ["linkedin / social", 0.07, 0.015],
+  ["newsletter / email", 0.05, 0.06],
 ];
 
 /** A few logged AI calls so the System page and the spend total look like a used install. */

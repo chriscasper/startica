@@ -13,6 +13,8 @@ import { startSecurityStandin } from "../../../packages/core/src/security/standi
 
 const dataDir = mkdtempSync(join(tmpdir(), "startica-smoke-"));
 process.env.STARTICA_NEXT_DIST = ".next-smoke";
+// The Umami stand-in has no rate limit: a 90-day first sync takes seconds, not minutes.
+process.env.STARTICA_UMAMI_GAP_MS = "0";
 // Search Console calls go to a stand-in with a throwaway service account (ARCHITECTURE.md 10.2).
 const googleAccount = testServiceAccount();
 const googleApi = await startGoogleStandin(0, { publicKey: googleAccount.publicKey, clientEmail: googleAccount.key.client_email });
@@ -116,7 +118,7 @@ try {
   await page.getByRole("button", { name: "Finish" }).click();
   await page.waitForURL(/\/today$/);
 
-  for (const route of ["/", "/dashboard", "/today", "/welcome", "/inbox", "/content", "/roadmap", "/intel", "/analytics", "/accessibility", "/accessibility/issues", "/accessibility/pages", "/accessibility/content", "/accessibility/documents", "/seo", "/seo/health", "/seo/search", "/seo/ai", "/seo/opportunities", "/seo/agents", "/seo/offsite", "/ads", "/security", "/settings", "/settings?tab=products", "/settings?tab=channels", "/system"]) {
+  for (const route of ["/", "/dashboard", "/today", "/welcome", "/inbox", "/content", "/roadmap", "/intel", "/analytics", "/analytics?tab=traffic", "/analytics?tab=conversions", "/analytics?tab=revenue", "/analytics?tab=startica&range=90", "/accessibility", "/accessibility/issues", "/accessibility/pages", "/accessibility/content", "/accessibility/documents", "/seo", "/seo/health", "/seo/search", "/seo/ai", "/seo/opportunities", "/seo/agents", "/seo/offsite", "/ads", "/security", "/settings", "/settings?tab=products", "/settings?tab=channels", "/system"]) {
     const res = await page.goto(`${server.url}${route}`);
     await page.waitForLoadState("networkidle");
     const crashed = await page.getByText(/Application error|Unhandled Runtime Error/).count();
@@ -215,8 +217,11 @@ try {
     await row.getByText("Connected", { exact: true }).waitFor({ timeout: 120_000 });
     await page.goto(`${server.url}/analytics`);
     await page.getByText("All traffic, from Umami.").waitFor({ timeout: 15_000 });
-    const sessions = await page.locator("[data-slot=card]").filter({ hasText: /^Sessions \(30d\)/ }).innerText();
+    const sessions = await page.locator("[data-slot=card]").filter({ hasText: /^Visits \(30d\)/ }).innerText();
     check(/600/.test(sessions), `Umami: connects with an API key and fills Analytics like GA4 (${sessions.replace(/\s+/g, " ")})`);
+    await page.getByRole("link", { name: "Traffic", exact: true }).click();
+    const countries = await page.locator("[data-slot=card]").filter({ has: page.getByText("Countries", { exact: true }) }).innerText();
+    check(/United States/.test(countries) && /330/.test(countries), `Umami: the Traffic tab splits visits by country (${countries.replace(/\s+/g, " ").slice(0, 80)})`);
   }
 
   // A scan under way shows in the header on every page and on the Scan button. Seeded

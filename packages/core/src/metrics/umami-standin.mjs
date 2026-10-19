@@ -30,6 +30,10 @@ export async function startUmamiStandin(port = 0) {
       if (type === "referrer") return send(200, [{ name: "www.google.com", visits: 6 }, { name: "chatgpt.com", visits: 4 }, { name: "news.ycombinator.com", visits: 2 }]);
       if (type === "path") return send(200, [{ name: "/", visits: 12 }, { name: "/pricing?plan=team", visits: 8 }]);
       if (type === "utmContent") return send(200, [{ name: "draft-123", visits: 3 }]);
+      if (type === "entry") return send(200, [{ name: "/", visits: 14 }, { name: "/pricing", visits: 6 }]);
+      if (type === "country") return send(200, [{ name: "US", visits: 11 }, { name: "DE", visits: 5 }, { name: "", visits: 4 }]);
+      if (type === "device") return send(200, [{ name: "desktop", visits: 9 }, { name: "laptop", visits: 3 }, { name: "mobile", visits: 8 }]);
+      if (type === "browser") return send(200, [{ name: "firefox", visits: 12 }, { name: "safari", visits: 8 }]);
       return send(400, { error: "Bad type" });
     }
     if (url.pathname === `/api/websites/${SITE}/events/series`) {

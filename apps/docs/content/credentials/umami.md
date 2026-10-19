@@ -4,7 +4,7 @@ description: "Connect Umami to a product, on Umami Cloud or your own server: an 
 layout: doc
 ---
 
-Startica can read [Umami](https://umami.is) instead of Google Analytics. It reads visits, visitors, traffic sources, pages, custom events and the visits from each reply or piece you posted, and shows them on the same screens as GA4. It works with Umami Cloud and with your own Umami server. Setting it up takes a few minutes.
+Startica can read [Umami](https://umami.is) instead of Google Analytics. It reads visits, visitors, page views, traffic sources, landing pages, pages, countries, devices, browsers, custom events and the visits from each reply or piece you posted, and shows them on the same screens as GA4. It works with Umami Cloud and with your own Umami server. Setting it up takes a few minutes.
 
 An Umami connection belongs to one product. Each product links one Umami website.
 
@@ -26,22 +26,30 @@ Umami and GA4 use different words for similar numbers. Startica stores Umami's n
 | Startica shows | From GA4 | From Umami |
 | --- | --- | --- |
 | Sessions | Sessions | **Visits** |
-| Users | Total users | **Visitors** (unique) |
+| Users | Total users | **Visitors** (unique per day) |
+| New visitors | New users | Not available: Umami doesn't report new visitors |
+| Page views | Views | **Views** |
+| Engaged visits | Engaged sessions: 10 seconds or more, a key event, or 2 or more pages | Visits minus **bounces**: visits with more than one page view |
+| Time per visit | Engagement time | **Visit duration** (total time) |
 | Key events | Events you marked as key events in GA4 | The **custom events** you list under **Key events**, or every custom event when the list is empty |
 | Key events by event name | Key events per event name | Every custom event per event name |
 | Traffic sources | Source / medium | The **referrer**'s domain: search engines become `<engine> / organic` (for example `google / organic`), other sites `<domain> / referral`, and visits without a referrer `(direct) / (none)` |
+| Engagement and key events per source | Engaged sessions and key events per source / medium | Not available: Umami can't split these by source |
+| Landing pages | Sessions, key events and engaged sessions per landing page | Visits per **entry** page. Key events and engagement aren't split by landing page. |
 | Visits per page | Sessions per page path | Visits per page path (query string dropped) |
+| Countries, devices, browsers | Sessions per country, device category and browser | Visits per country, device (laptops count as desktop) and browser |
 | Visits per tracking link | Sessions per `utm_content` | Visits per `utm_content` |
 | Key events per tracking link | Key events per `utm_content` | Chosen key events per `utm_content`, by first-click attribution. Only when you listed key events. |
-| Pageviews | Not read | Pageviews per day |
 
 The search engines Startica recognizes in a referrer are Google, Bing, DuckDuckGo, Yahoo, Ecosia, Yandex, Baidu, Brave Search, Startpage, Qwant, Kagi and Naver.
+
+Pages, landing pages, countries and browsers keep the top 50 values per day. Where Umami has no number, Analytics shows a dash with a note.
 
 Umami's list of referrers leaves out visits without a referrer. Startica counts those as direct: for each day, `(direct) / (none)` is the day's visits minus the visits in the referrer list.
 
 These numbers show on:
 
-- [Analytics](/guides/analytics): the Sessions and Key events tiles and charts, top traffic sources, and Visits and Key events for each post under **Posted by Startica**;
+- [Analytics](/guides/analytics): the traffic and key-event tiles and charts, channels, sources, landing pages, pages, countries, devices and browsers, and visits and key events for each post under **What Startica did**;
 - [Content Studio](/guides/content-studio): each posted piece's visits and key events;
 - [SEO & GEO → Search](/seo/search#visits-from-search-and-ai-assistants) and Analytics: visits from search engines and AI assistants;
 - [Accessibility](/accessibility/results#priority): how many visits the pages with an issue got, for priority.
@@ -122,19 +130,20 @@ Screens name the source they show, for example "All traffic, from Umami." on Ana
 
 ## Syncing
 
-Each sync reads the last 30 days from Umami, one day at a time in your computer's time zone, and stores the daily values in the local database. Re-syncing overwrites earlier values for the same day. Every day gets a key-event total, zero included, so after you change **Key events** the next sync replaces the old totals. Key events per tracking link, and sources, pages and tracking links on days without visits, are only stored when there's something to count, so an old value for such a day can stay.
+The first sync of a connection reads the product's whole [analytics history](/guides/analytics#history) (90 days by default, up to 16 months) from Umami, one day at a time in your computer's time zone, and stores the daily values in the local database. Later syncs read only the last 5 days, which Umami may still correct. Changing the connection with **Change**, or choosing a longer history, reads the whole history again. Re-syncing overwrites earlier values for the same day. Every day gets a key-event total, zero included, so after you change **Key events** the next sync replaces the old totals. Key events per tracking link, and sources, pages and tracking links on days without visits, are only stored when there's something to count, so an old value for such a day can stay.
 
 Syncs run every day at 08:15 local time while Startica is open, when you save the connection, and when you click **Sync now**. See [Background jobs](/guides/background).
 
-Umami can't split its numbers by day, so Startica asks for each day separately: one request for the day's totals and, on days with visits, three more for sources, pages and tracking links. Then one request for custom events, and, with key events listed, one per key event for each day that had visits through a tracking link. Startica waits about a third of a second between requests, about 3 a second, which keeps under Umami Cloud's limit of 50 requests every 15 seconds. A sync usually takes under a minute; with many key events and tagged visits, a few minutes.
+Umami can't split its numbers by day, so Startica asks for each day separately: one request for the day's totals and, on days with visits, seven more for sources, pages, tracking links, landing pages, countries, devices and browsers. Then one request for custom events, and, with key events listed, one per key event for each day that had visits through a tracking link. Startica waits about a third of a second between requests, about 3 a second, which keeps under Umami Cloud's limit of 50 requests every 15 seconds. A later sync usually takes under a minute. The first sync reads the whole history and takes longer: a few minutes for 90 days, and about half an hour for 16 months.
 
 ## Limits
 
 - **AI visits need a referrer.** Startica counts a visit as coming from an AI assistant when its referrer is the assistant's address, such as `chatgpt.com`. GA4's `ai-assistant` medium doesn't exist in Umami. A visit that only carries `utm_source=chatgpt.com` and no referrer counts as direct. See [Visits from search and AI assistants](/seo/search#visits-from-search-and-ai-assistants).
 - **Older Umami skips some breakdowns.** When Umami answers that it doesn't know a breakdown (Umami before 3.1 has no tracking-link breakdown, and older versions no attribution), Startica skips it: no visits or key events per post, and everything else still syncs.
-- **Umami Cloud's free plan keeps about 6 months.** For a website without a team on an account without a subscription, Umami Cloud only answers from the start of the month 6 months ago. Startica's 30-day sync isn't affected.
+- **Umami Cloud's free plan keeps about 6 months.** For a website without a team on an account without a subscription, Umami Cloud only answers from the start of the month 6 months ago. So on that plan, a history of 12 or 16 months in Startica can't reach further back than about 6 months.
 - **Days in your time zone.** Umami days follow your computer's time zone; GA4 days follow the property's time zone.
-- **History starts when you connected.** Each sync reads 30 days, so longer ranges only cover what's been synced since, plus the 30 days before you connected.
+- **History is capped by Settings.** Startica keeps 90 days by default. Choose more under **Keep analytics history for** in **Settings → Products → Connections**, up to 16 months. For anything older, open Umami.
+- **No split by source or landing page.** Umami can't split key events or engagement by source or landing page, and has no new visitors, so those show a dash on Analytics. Key events per post still work, through the tracking links.
 
 ## Disconnect or revoke
 
@@ -158,7 +167,7 @@ Umami can't split its numbers by day, so Startica asks for each day separately: 
 | "Umami: …" | Umami answered with an error; Umami's own message, or the HTTP status, follows. A 5xx status means a problem on the Umami server. |
 | "No credentials saved for this connection" | The saved key is missing. Click **Change** and paste the key again. |
 | "fetch failed" or "The operation was aborted due to timeout" | Startica couldn't reach the server, or it didn't answer within 30 seconds. Check the address and that the server is up and reachable from this computer. |
-| Key events stay at 0 | None of the listed events happened in the last 30 days, or the names don't match Umami's exactly. Check the event names under **Events** in Umami. |
+| Key events stay at 0 | None of the listed events happened in the period you're looking at, or the names don't match Umami's exactly. Check the event names under **Events** in Umami. |
 | Visits per post stay at 0 | Your Umami is older than 3.1, or the posts' links lost their `utm_content`. See [Attribution](/guides/analytics#attribution). |
 | Analytics still shows Google Analytics | GA4 is connected and working too, and wins. See [Both GA4 and Umami](#both-ga4-and-umami). |
 

@@ -109,7 +109,7 @@ AI calls, network fetches and anything slow run as jobs, never inside a request.
 - **Leases.** `claim()` flips the next ready job to `running` and sets `locked_until` to now plus the job's `visibilityTimeoutSeconds`. If the app quits mid-job, the lease expires and the job can be claimed again on the next launch.
 - **Retries.** On failure the job is retried after 1, 4, 9… minutes until `maxAttempts`, then marked `failed`. A successful job is deleted from `jobs`.
 - **History.** Every attempt writes a `job_runs` row, shown on the System page. Every AI call writes an `ai_runs` row linked to its job run.
-- **Schedules** use [croner](https://github.com/Hexagon/croner) in local time: listening hourly at :07, engagement every 6 hours at :17, metrics daily at 08:15, security monitoring daily at 06:47, due site scans hourly at :37, the roadmap re-plan on Mondays at 07:00, and AI visibility on Mondays at 09:30 (only for products with **Run every week** on). The list is `SCHEDULES` in `packages/core/src/jobs/runner.ts`.
+- **Schedules** use [croner](https://github.com/Hexagon/croner) in local time: listening hourly at :07, engagement every 6 hours at :17, metrics daily at 08:15, security monitoring daily at 06:47, due site scans hourly at :37, the roadmap re-plan on Mondays at 07:00, the weekly analytics summary on Mondays at 08:45 (after that morning's metrics sync), and AI visibility on Mondays at 09:30 (only for products with **Run every week** on). The list is `SCHEDULES` in `packages/core/src/jobs/runner.ts`.
 
 Jobs only run while the app is open. That's why closing the window keeps Startica running in the tray. See [Add a background job](/contributing/background-job) and the [jobs reference](/reference/jobs).
 

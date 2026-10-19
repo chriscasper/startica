@@ -59,14 +59,18 @@ To use another property or a new key, click **Replace key**. Leave **Service acc
 
 ## What Startica pulls
 
-Each sync requests the last 30 days from the GA4 Data API and stores daily values in the local database.
+The first sync of a connection requests the product's whole [analytics history](/guides/analytics#history) (90 days by default, up to 16 months) from the GA4 Data API and stores daily values in the local database. Later syncs request only the last 5 days, which GA4 may still correct. Replacing the connection or choosing a longer history reads the whole history again.
 
 | Stored metric | GA4 source | Split by |
 | --- | --- | --- |
-| `sessions`, `users`, `key_events` | `sessions`, `totalUsers`, `keyEvents` | Day only |
-| `sessions` | `sessions` | `source:<source> / <medium>` |
+| `sessions`, `users`, `new_users`, `pageviews`, `engaged_sessions`, `engagement_seconds`, `key_events` | `sessions`, `totalUsers`, `newUsers`, `screenPageViews`, `engagedSessions`, `userEngagementDuration`, `keyEvents` | Day only |
+| `sessions`, `key_events`, `engaged_sessions` | `sessions`, `keyEvents`, `engagedSessions` | `source:<source> / <medium>` |
+| `sessions`, `key_events`, `engaged_sessions` | `sessions`, `keyEvents`, `engagedSessions` | `landing:<landing page>` |
+| `sessions` | `sessions` | `page:<page path>`, `country:<country code>`, `device:<device category>`, `browser:<browser>` |
 | `sessions`, `key_events` | `sessions`, `keyEvents` | `utm_content:<value>`, which carries the draft ID Startica puts in its links (per-reply attribution) |
 | `key_events` | `keyEvents` | `event:<event name>` (non-zero only) |
+
+Page paths drop their query string. Long splits (pages, landing pages, countries and browsers) keep the top 50 values per day, so a long history stays small.
 
 Syncs run every day at 08:15 local time while Startica is open, when you save the connection, and when you click **Sync now**. GA4 itself can take 24 to 48 hours to finalize a day's numbers, so the last day or two may still change. Re-syncing overwrites earlier values for the same day.
 

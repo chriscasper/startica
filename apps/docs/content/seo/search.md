@@ -169,9 +169,9 @@ Things to know:
 
 - **Google's AI Overviews and AI Mode are organic.** Visits from links in Google's AI answers arrive from `google` as organic search, so they're in **Organic search**, not **AI assistants**. Bing's Copilot in search results usually arrives as `bing` organic too.
 - **Only visits with a link count.** An assistant that mentions your product without a link, or a person who reads an answer and then types your address, isn't counted here. [AI visibility](/seo/ai-visibility) checks the answers themselves.
-- **Analytics history starts when you connected it.** Each GA4 or Umami sync reads the last 30 days, so a 90-day or 12-month range only covers what has been synced since then, plus the 30 days before you connected.
+- **Analytics history is 90 days by default.** The first GA4 or Umami sync reads the product's whole [analytics history](/guides/analytics#history), so a 12-month range only covers more than 90 days once you choose a longer history under **Keep analytics history for** in **Settings → Products**.
 
-The [Analytics](/guides/analytics#search-and-ai-assistants) page shows the same counts for its last 30 days.
+The [Analytics](/guides/analytics#search-and-ai-assistants) page shows the same counts on its **Traffic** tab, for the period you pick there.
 
 ## The Bing view
 
@@ -235,7 +235,7 @@ Whether AI assistants mention and recommend your product, with or without a link
 
 In [demo mode](/guides/demo-mode), Search shows 90 days of sample Search Console data for `fieldnote.example` (property `sc-domain:fieldnote.example`, using the GA4 key): growing clicks, two brand queries (`fieldnote` and `fieldnote app`), queries and pages in striking distance, a query and a page with low click-through, hidden queries, five countries, three devices and one sitemap. **Visits from search and AI assistants** shows sample GA4 visits from Google and Bing organic search, and from ChatGPT, Perplexity and Claude. There's no Bing data in the demo, and nothing syncs.
 
-The demo has 90 days of search data and 30 days of GA4 data, so **12 months** shows 90 days, and **90 days** and **12 months** say "(not enough older data to compare)". **7 days** and **28 days** have comparisons.
+The demo has 90 days of search data and 90 days of GA4 data, so **12 months** shows 90 days, and **90 days** and **12 months** say "(not enough older data to compare)". **7 days** and **28 days** have comparisons.
 
 ## Related
 

@@ -38,6 +38,7 @@ import { runTrackerSync, trackerSyncPayload } from "../trackers/trackers.ts";
 import { chatReplyPayload, runChatReply } from "../chat/jobs.ts";
 import { roadmapPlanPayload, runRoadmapPlan } from "../growth/roadmap.ts";
 import { intelBuildPayload, runIntelBuild } from "../intel/build.ts";
+import { analyticsSummaryPayload, runAnalyticsSummary } from "../metrics/summary.ts";
 import { metricsSyncPayload, runMetricsSync } from "../metrics/sync.ts";
 import { pingPayload, runPing } from "./ping.ts";
 
@@ -87,7 +88,10 @@ export const jobs = {
     visibilityTimeoutSeconds: 2400,
     maxAttempts: 1,
   }),
-  metrics_sync: defineJob({ payload: metricsSyncPayload, run: runMetricsSync, visibilityTimeoutSeconds: 600, maxAttempts: 1 }),
+  // A first sync reads the whole history: 16 months of Umami, one day at a time, takes about half an hour.
+  metrics_sync: defineJob({ payload: metricsSyncPayload, run: runMetricsSync, visibilityTimeoutSeconds: 2 * 3600, maxAttempts: 1 }),
+  // One AI call per product: weekly, or once per click.
+  analytics_summary: defineJob({ payload: analyticsSummaryPayload, run: runAnalyticsSummary, visibilityTimeoutSeconds: 900, maxAttempts: 1 }),
   // Opus calls: run once per click or schedule, no silent retries.
   roadmap_plan: defineJob({ payload: roadmapPlanPayload, run: runRoadmapPlan, visibilityTimeoutSeconds: 900, maxAttempts: 1 }),
   audit_run: defineJob({ payload: auditPayload, run: runAudit, visibilityTimeoutSeconds: 1200, maxAttempts: 1 }),

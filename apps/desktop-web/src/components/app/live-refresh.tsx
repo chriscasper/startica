@@ -47,7 +47,8 @@ type Table =
   | "ai_visibility_answers"
   | "seo_opportunities"
   | "agent_checks"
-  | "offsite_pages";
+  | "offsite_pages"
+  | "analytics_summaries";
 
 // Re-renders the page when the server reports a change to one of the watched tables.
 export function LiveRefresh({ tables }: { tables: Table[] }) {

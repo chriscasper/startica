@@ -189,7 +189,7 @@ A posted piece shows what Startica knows about it, when available:
 
 Click **How did it do?** to write notes in your own words (likes, comments, signups, up to 2000 characters). The notes appear on the piece under **How it did**.
 
-Posted pieces also appear in [Analytics](/guides/analytics) under **Posted by Startica**. The weekly [roadmap](/guides/roadmap) re-plan counts how many pieces you posted per channel and the replies they got.
+Posted pieces also appear in [Analytics](/guides/analytics) under **What Startica did** → **Posted by Startica**. The weekly [roadmap](/guides/roadmap) re-plan counts how many pieces you posted per channel and the replies they got.
 
 ## Delete a piece
 

@@ -43,6 +43,7 @@ The schedules use your computer's local time:
 | Engagement check | Every 6 hours, at 17 minutes past (00:17, 06:17, 12:17, 18:17) | Checks replies under the things you posted in the last 14 days. See [Drafting replies](/guides/drafting-replies). |
 | Metrics sync | Daily at 08:15 | Pulls numbers from GA4, Umami, Stripe and your product database, and search data from Google Search Console and Bing. See [Analytics](/guides/analytics) and [Search performance](/seo/search). |
 | Roadmap replan | Weekly, Monday at 07:00 | Reviews the roadmap against the latest results. See [Growth roadmap](/guides/roadmap). |
+| Analytics summary | Weekly, Monday at 08:45 | The AI reads last week's numbers and writes what worked, what to watch and what to try next, only for products with a working analytics connection and only with an AI key. See [Weekly AI summary](/guides/analytics#weekly-ai-summary). |
 | Security monitoring | Daily at 06:47 | Checks every verified site for exposed libraries, new subdomains and certificates, look-alike domains and changed third-party scripts. See [Monitoring](/security/monitoring). |
 | Scheduled site scans | Every hour, at 37 minutes past | Starts a full scan of each site whose last one is older than its **Scan again automatically** interval. See [Scheduled scans](/accessibility/scanning#scheduled-scans). |
 | AI visibility | Weekly, Monday at 09:30 | Asks the AI visibility questions again, only for products with **Run every week** on. It costs money. See [Weekly runs](/seo/ai-visibility#weekly-runs). |

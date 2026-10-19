@@ -476,6 +476,33 @@ export const roadmapReplans = sqliteTable(
   (t) => [index("replans_product_idx").on(t.productId, t.createdAt)],
 );
 
+export type AnalyticsSummaryBody = {
+  headline: string;
+  summary: string;
+  wins: string[];
+  concerns: string[];
+  tryNext: { title: string; why: string }[];
+};
+
+/** The weekly AI read-out of a product's analytics (ARCHITECTURE.md section 8.2), one row per week written. */
+export const analyticsSummaries = sqliteTable(
+  "analytics_summaries",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    productId: productId(),
+    periodStart: text("period_start").notNull(), // YYYY-MM-DD, local days
+    periodEnd: text("period_end").notNull(),
+    status: text("status", { enum: ["ready", "failed"] }).notNull().default("ready"),
+    error: text("error"),
+    body: json<AnalyticsSummaryBody | null>("body"),
+    model: text("model"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("analytics_summaries_product_idx").on(t.productId, t.createdAt)],
+);
+
 /** Today's ranked to-do list, built each day from what's waiting and the roadmap. */
 export const dailyMoves = sqliteTable(
   "daily_moves",
@@ -485,7 +512,7 @@ export const dailyMoves = sqliteTable(
     productId: productId(),
     day: text("day").notNull(), // YYYY-MM-DD, local time
     rank: integer("rank").notNull(),
-    kind: text("kind", { enum: ["inbox", "roadmap", "intel", "setup", "content", "audit", "ads", "custom"] }).notNull(),
+    kind: text("kind", { enum: ["inbox", "roadmap", "intel", "setup", "content", "audit", "ads", "analytics", "custom"] }).notNull(),
     title: text("title").notNull(),
     why: text("why").notNull().default(""),
     href: text("href"),

@@ -18,6 +18,7 @@ import {
 } from "@startica/db/schema";
 import { runStructured, type AiContext } from "../ai/client.ts";
 import { loadProductContext } from "../distribution/context.ts";
+import { latestReadySummary } from "../metrics/summary.ts";
 import { PLAYBOOKS, playbookText } from "./playbooks.ts";
 
 export const ROADMAP_PROMPT_VERSION = "roadmap-plan@3";
@@ -54,6 +55,8 @@ export type RoadmapOutput = z.infer<typeof roadmapOutput>;
 export const roadmapPlanPayload = z.object({ workspaceId: z.guid(), productId: z.guid().optional() });
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 86400_000);
+
+const LEVEL_METRICS = new Set(["mrr", "active_subscriptions", "trials", "active_users", "active_posters"]);
 
 async function evidence(productId: string): Promise<string> {
   const db = getDb();
@@ -122,12 +125,27 @@ async function evidence(productId: string): Promise<string> {
   const piecesByChannel = new Map<string, number>();
   for (const p of pieces) piecesByChannel.set(p.channel, (piecesByChannel.get(p.channel) ?? 0) + 1);
 
+  // Levels (MRR, subscriptions, active users) are read as their latest value, counts as 30-day totals.
+  const latestOf = async (source: string, metric: string) => {
+    const [row] = await db
+      .select({ value: metricsSnapshots.value })
+      .from(metricsSnapshots)
+      .where(and(eq(metricsSnapshots.productId, productId), eq(metricsSnapshots.source, source as "stripe"), eq(metricsSnapshots.metric, metric), eq(metricsSnapshots.dimension, "")))
+      .orderBy(desc(metricsSnapshots.day))
+      .limit(1);
+    return Number(row?.value ?? 0);
+  };
+  const metricText = await Promise.all(
+    metrics.map(async (m) =>
+      LEVEL_METRICS.has(m.metric)
+        ? `${m.source}.${m.metric} (latest) = ${Math.round((await latestOf(m.source, m.metric)) * 100) / 100}`
+        : `${m.source}.${m.metric} = ${Math.round(Number(m.total) * 100) / 100}`,
+    ),
+  );
+  const summary = await latestReadySummary(productId);
   const lines = [
-    `Metrics, last 30 days: ${
-      metrics.length
-        ? metrics.map((m) => `${m.source}.${m.metric} = ${Math.round(Number(m.total) * 100) / 100}`).join("; ")
-        : "none (no analytics, payments or product database connected yet)"
-    }`,
+    `Metrics, last 30 days: ${metricText.length ? metricText.join("; ") : "none (no analytics, payments or product database connected yet)"}`,
+    summary ? `This week's analytics read-out (${summary.periodStart} to ${summary.periodEnd}): ${summary.body.headline} ${summary.body.summary}` : "",
     `Conversations found in 30 days by status: ${oppStats.map((o) => `${o.status} ${o.n}`).join(", ") || "none"}`,
     `Dismiss reasons (all time): ${dismissals.map((d) => `${d.reason} ${d.n}`).join(", ") || "none"}`,
     `Replies posted in 30 days: ${posted.length}${posted.length ? ` (${posted.filter((p) => p.mentions).length} mentioned the product)` : ""}`,
@@ -149,7 +167,7 @@ async function evidence(productId: string): Promise<string> {
           .join("\n")}`
       : "Audits: none run yet",
   ];
-  return lines.join("\n");
+  return lines.filter(Boolean).join("\n");
 }
 
 /** Applies Claude's plan: adds/updates/drops AI items; never touches owner items or done items. */

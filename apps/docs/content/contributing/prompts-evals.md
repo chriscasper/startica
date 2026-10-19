@@ -18,6 +18,7 @@ Prompts sit next to the feature that uses them, in `packages/core/src/`:
 | `content/campaign.ts` | `CAMPAIGN_PROMPT_VERSION` (`email-campaign@1`) | `content_generate` (Email campaign format) |
 | `growth/roadmap.ts` | `ROADMAP_PROMPT_VERSION` (`roadmap-plan@3`) | `roadmap_plan` |
 | `growth/audits.ts` | `AUDIT_PROMPT_VERSION` (`audit@3`) | `audit_run` |
+| `metrics/summary.ts` | `SUMMARY_PROMPT_VERSION` (`analytics-summary@1`) | `analytics_summary` |
 | `jobs/ping.ts` | `ping@1` (inline) | `ping` |
 
 The versions above are the ones at the time of writing; the source is authoritative.

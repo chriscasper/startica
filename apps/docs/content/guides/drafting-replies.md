@@ -180,7 +180,7 @@ For posted replies with a link (saved by **Post…**, or added in **Mark as post
 | X | Only with an [X API token](/credentials/x-api): likes and replies, and whether the post is gone. Each check is one paid read and counts toward the daily cap. |
 | LinkedIn, Facebook, other sites | Nothing. |
 
-The checks run only while Startica is open. Results show on the **Analytics** page under **Posted by Startica**, with GA4 or Umami visits and key events for replies that carried the tracking link.
+The checks run only while Startica is open. Results show on the **Analytics** page under **What Startica did** → **Posted by Startica**, with GA4 or Umami visits and key events for replies that carried the tracking link.
 
 ## Related
 

@@ -220,7 +220,7 @@ The tagged link is shown under each ad and is in every file. Keep it as written 
 
 With [GA4 connected](/credentials/google), the daily sync reads sessions by source and medium, and sessions and key events per `utm_content`. So:
 
-- Visits from your ads show in **Top traffic sources** on [Analytics](/guides/analytics) as `google / paid`, `meta / paid` or `reddit / paid`.
+- Visits from your ads show under the **Paid** channel and in **Sources** on [Analytics](/guides/analytics) → **Traffic**, as `google / paid`, `meta / paid` or `reddit / paid`, and each campaign's spend, visits, key events and cost per key event under **What Startica did** → **Ads**.
 - Visits and key events per ad are recorded by their `utm_content`, from GA4 or Umami, and shown on the campaign's [Results](/ads/results) tab with the spend you enter.
 
 > [!NOTE]

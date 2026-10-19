@@ -20,6 +20,8 @@ import { POSTING_SETTINGS, type PostingSettings } from "@/lib/posting";
 import { cn } from "@/lib/utils";
 import { AddSiteButton, SiteSettingsButton } from "../accessibility/controls";
 import { Connections, type ConnectionRow } from "./connections";
+import { HistorySelect } from "../analytics/summary-button";
+import { HISTORY_CHOICES, historyDays } from "@startica/core/metrics/history";
 import { IssueTracker } from "./issue-tracker";
 import { trackerFor } from "@startica/core/trackers/trackers";
 import {
@@ -286,6 +288,12 @@ async function Products({ productParam }: { productParam: string | string[] | un
             </CardHeader>
             <CardContent>
               <Connections productId={active.id} connections={connectionRows} />
+              <div className="mt-4 grid gap-1 border-t pt-4">
+                <HistorySelect productId={active.id} days={await historyDays(active.id)} choices={HISTORY_CHOICES} />
+                <p className="text-xs text-muted-foreground">
+                  How far back Analytics goes. A longer history is read from GA4 or Umami on the next sync (16 months of Umami can take half an hour); a shorter one drops the older days. For anything older, open GA4 or Umami.
+                </p>
+              </div>
             </CardContent>
           </Card>
 

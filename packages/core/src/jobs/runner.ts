@@ -20,6 +20,8 @@ export const SCHEDULES: { name: string; cron: string; queue: QueueName; when: st
   { name: "engagement", cron: "17 */6 * * *", queue: "engagement_sync", when: "every 6 hours" }, // every 6 hours
   { name: "metrics", cron: "15 8 * * *", queue: "metrics_sync", when: "every day at 08:15" }, // daily, 08:15
   { name: "replan", cron: "0 7 * * 1", queue: "roadmap_plan", when: "every Monday at 07:00" }, // weekly, Monday 07:00
+  // After Monday's metrics sync; only for products with numbers, and only with an AI key.
+  { name: "analytics-summary", cron: "45 8 * * 1", queue: "analytics_summary", when: "every Monday at 08:45" }, // weekly, Monday 08:45
   // Exposure monitoring for every verified site (security S2).
   { name: "security-monitor", cron: "47 6 * * *", queue: "security_monitor", when: "every day at 06:47" }, // daily, 06:47
   // Full rescans of sites whose last scan is older than their interval (accessibility A2).

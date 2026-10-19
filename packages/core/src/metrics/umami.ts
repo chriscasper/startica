@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { SYNC_DAYS, type MetricRow } from "./types.ts";
+import { countryDimension, deviceDimension } from "./ga4.ts";
+import { SYNC_DAYS, TOP_PER_DAY, type MetricRow } from "./types.ts";
 
 /**
  * Umami (ARCHITECTURE.md section 8.2): visits, visitors, sources, pages, tracking links and custom
@@ -52,7 +53,10 @@ export async function umamiClient(baseUrl: string, secret: string, signal?: Abor
   let token = secret.trim();
   let last = 0;
   const call = async (path: string, init: RequestInit = {}) => {
-    const wait = last + (g.__starticaUmamiGap ?? GAP_MS) - Date.now();
+    // STARTICA_UMAMI_GAP_MS: the smoke test's stand-in has no rate limit (ignored in the installed app).
+    const envGap = process.env.STARTICA_PACKAGED !== "1" && process.env.STARTICA_UMAMI_GAP_MS ? Number(process.env.STARTICA_UMAMI_GAP_MS) : null;
+    const gap = g.__starticaUmamiGap ?? envGap ?? GAP_MS;
+    const wait = last + gap - Date.now();
     if (wait > 0) await new Promise((r) => setTimeout(r, wait));
     last = Date.now();
     const res = await fetch(`${baseUrl}${path}`, { ...init, headers: { accept: "application/json", ...(init.headers ?? {}) }, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000) });
@@ -111,7 +115,7 @@ const isoLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).pad
 
 type Expanded = { name?: string | null; visits?: unknown; visitors?: unknown }[];
 
-/** The last SYNC_DAYS days, one local day at a time (Umami can't group breakdowns by day). */
+/** The last `days` days (default SYNC_DAYS), one local day at a time (Umami can't group breakdowns by day). */
 export async function fetchUmamiMetrics(config: UmamiConfig, secret: string, opts: { now?: Date; signal?: AbortSignal; days?: number } = {}): Promise<MetricRow[]> {
   const client = await umamiClient(config.baseUrl, secret, opts.signal);
   const site = `/websites/${config.websiteId}`;
@@ -131,29 +135,44 @@ export async function fetchUmamiMetrics(config: UmamiConfig, secret: string, opt
   };
 
   for (let i = days - 1; i >= 0; i--) {
+    opts.signal?.throwIfAborted();
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
     const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
     const window = { startAt: start.getTime(), endAt: end.getTime() - 1, timezone: tz };
     const day = isoLocal(start);
     const stats = await client.get<Record<string, unknown>>(`${site}/stats`, window);
     const visits = num(stats.visits);
-    out.push({ day, metric: "sessions", value: visits }, { day, metric: "users", value: num(stats.visitors) }, { day, metric: "pageviews", value: num(stats.pageviews) });
+    // A bounce is a visit with one page view; the rest count as engaged, like GA4's engaged sessions.
+    out.push(
+      { day, metric: "sessions", value: visits },
+      { day, metric: "users", value: num(stats.visitors) },
+      { day, metric: "pageviews", value: num(stats.pageviews) },
+      { day, metric: "engaged_sessions", value: Math.max(0, visits - num(stats.bounces)) },
+      { day, metric: "engagement_seconds", value: num(stats.totaltime) },
+    );
     if (visits === 0) continue; // nothing to break down
-    const expanded = async (type: string, dimension: (name: string) => string | null) => {
+    const expanded = async (type: string, dimension: (name: string) => string | null, top = 500) => {
       const rows = await optional<Expanded>(`${site}/metrics/expanded`, { ...window, type, limit: 500 });
       let total = 0;
+      const byDimension = new Map<string, number>();
       for (const r of rows ?? []) {
         const d = dimension(String(r.name ?? ""));
-        if (d) out.push({ day, metric: "sessions", dimension: d, value: num(r.visits) });
+        if (d) byDimension.set(d, (byDimension.get(d) ?? 0) + num(r.visits));
         total += num(r.visits);
       }
+      for (const [d, value] of [...byDimension].sort((a, b) => b[1] - a[1]).slice(0, top)) out.push({ day, metric: "sessions", dimension: d, value });
       return rows ? total : null;
     };
+    const path = (prefix: string) => (p: string) => (p ? `${prefix}:${p.split(/[?#]/)[0] || "/"}` : null);
     // Umami's referrer breakdown leaves out visits without a referrer: those are direct.
     const referred = await expanded("referrer", sourceDimension);
     if (referred !== null && visits > referred) out.push({ day, metric: "sessions", dimension: "source:(direct) / (none)", value: visits - referred });
-    await expanded("path", (p) => (p ? `page:${p.split(/[?#]/)[0] || "/"}` : null));
+    await expanded("path", path("page"), TOP_PER_DAY);
     await expanded("utmContent", (c) => (c ? `utm_content:${c}` : null));
+    await expanded("entry", path("landing"), TOP_PER_DAY);
+    await expanded("country", countryDimension, TOP_PER_DAY);
+    await expanded("device", deviceDimension);
+    await expanded("browser", (b) => (b ? `browser:${b}` : null), TOP_PER_DAY);
   }
 
   // Custom events by name per day, in one call; key events are the chosen ones (or all).

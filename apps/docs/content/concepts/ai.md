@@ -29,7 +29,7 @@ Every AI call belongs to a **task**. Each task is routed to a model, an effort l
 | --- | --- | --- | --- | --- |
 | `strategy` | Claude Opus 5.5 (`claude-opus-5-5`) | GPT-6.1 Sol (`gpt-6.1-sol`) | high | The Intel brief (synthesis), voice profiles, the roadmap and weekly replan, audit findings, [ad campaign](/ads) plans |
 | `research` | Claude Opus 5.5 | GPT-6.1 Sol | high | Web research for the Intel brief and the GEO audit, using the provider's web search |
-| `draft` | Claude Sonnet 5.5 (`claude-sonnet-5-5`) | GPT-6.1 Sol | medium | Reply drafts, Content Studio pieces, topic suggestions, ad rewrites, suggested [AI visibility](/seo/ai-visibility) questions, fix drafts on [Opportunities](/seo/opportunities#drafts), accessibility [fix suggestions and summaries](/accessibility/ai-help), and Security's explain and fix, report import and triage of reported problems |
+| `draft` | Claude Sonnet 5.5 (`claude-sonnet-5-5`) | GPT-6.1 Sol | medium | Reply drafts, Content Studio pieces, topic suggestions, ad rewrites, the [weekly analytics summary](/guides/analytics#weekly-ai-summary), suggested [AI visibility](/seo/ai-visibility) questions, fix drafts on [Opportunities](/seo/opportunities#drafts), accessibility [fix suggestions and summaries](/accessibility/ai-help), and Security's explain and fix, report import and triage of reported problems |
 | `answer` | Claude Sonnet 5.5 | GPT-6.1 Sol | low | [AI visibility](/seo/ai-visibility): answering your questions with web search, as an assistant would |
 | `vision` | Claude Sonnet 5.5 | GPT-6.1 Sol | medium | Reading images: the accessibility [alt text review](/accessibility/ai-help#alt-text-review), and **Ask AI** on [Needs review](/accessibility/ai-help#needs-review) items, which reads the page screenshot |
 | `score` | Claude Haiku 5.5 (`claude-haiku-5-5`) | GPT-6 Luna (`gpt-6-luna`) | low | Scoring each conversation for relevance and intent; reading each AI visibility answer |
@@ -148,6 +148,7 @@ Prompts live in the code next to the feature that uses them. Each has a version 
 | `voice-guide@1` | Voice profiles |
 | `content-write@2`, `email-campaign@1`, `content-topics@2` | Content Studio |
 | `roadmap-plan@3` | Roadmap and replan |
+| `analytics-summary@1` | [Weekly analytics summary](/guides/analytics#weekly-ai-summary) |
 | `ad-plan@1`, `ad-copy@1` | [Ads](/ads): campaign plans and ad rewrites |
 | `ad-creative-ideas@1`, `ad-image@1` | [Ad creatives](/ads/creatives): suggested ideas and the pictures |
 | `visibility-answer@1`, `visibility-analysis@1`, `visibility-questions@1` | [AI visibility](/seo/ai-visibility): answering a question, reading the answer, suggesting questions |

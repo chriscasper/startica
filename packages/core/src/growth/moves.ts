@@ -15,6 +15,7 @@ import {
 import { hasAiKey } from "../ai/client.ts";
 import { topIssue } from "../a11y/track.ts";
 import { topAdSuggestions } from "../ads/results.ts";
+import { latestReadySummary } from "../metrics/summary.ts";
 import { openFindingCounts } from "../security/findings.ts";
 import { openRoadmapItems } from "./roadmap.ts";
 
@@ -140,6 +141,13 @@ export async function buildCandidates(productId: string): Promise<Candidate[]> {
       href: `/security?site=${unverified[0].id}`,
       refId: unverified[0].id,
     });
+  }
+
+  // Analytics (ARCHITECTURE.md section 8.2): the weekly read-out's first suggestion, for the week after it was written.
+  const summary = await latestReadySummary(productId);
+  const next = summary?.body.tryNext[0];
+  if (summary && next && Date.now() - summary.createdAt.getTime() < 7 * 86400_000) {
+    out.push({ kind: "analytics", title: next.title, why: `From this week's analytics: ${next.why}`, href: "/analytics", refId: `${summary.id}:0` });
   }
 
   // 3. The roadmap's next steps.

@@ -42,7 +42,8 @@ Today takes the next steps of up to 3 open items: in-progress items first, then 
 Click **Create the roadmap**. The AI reads:
 
 - your product context (brief, personas, your notes);
-- your numbers from the last 30 days (Google Analytics or Umami, Stripe, the product database, and numbers you entered);
+- your numbers from the last 30 days (Google Analytics or Umami, Stripe, the product database, and numbers you entered): totals for counts such as visits and signups, and the latest value for levels (MRR, active subscriptions, trials, active users);
+- the headline and summary of the latest [weekly analytics summary](/guides/analytics#weekly-ai-summary), if there is one;
 - what Startica has done in the last 30 days: conversations found by status, replies posted, Content Studio pieces posted per channel, and the replies they got;
 - why you dismissed conversations;
 - the communities you watch;

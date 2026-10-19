@@ -130,7 +130,7 @@ function Ga4({ productId, conn }: { productId: string; conn?: ConnectionRow }) {
   return (
     <Row
       title="Google Analytics 4"
-      what="Visits by source, key events, and visits from each Startica reply."
+      what="Visits by source and landing page, engagement, countries and devices, key events, and visits from each Startica reply."
       conn={conn}
       actions={
         <FormDialog
@@ -338,7 +338,7 @@ function Stripe({ productId, conn }: { productId: string; conn?: ConnectionRow }
   return (
     <Row
       title="Stripe"
-      what="Active subscriptions, MRR, new subscriptions and cancellations."
+      what="Subscriptions, trials, MRR and how it moved, cancellations and revenue paid."
       conn={conn}
       actions={
         <FormDialog

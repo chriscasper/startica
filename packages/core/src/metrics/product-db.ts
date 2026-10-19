@@ -42,11 +42,11 @@ export function connectionOptions(url: string): postgres.Options<Record<string, 
   return { max: 1, connect_timeout: 15, idle_timeout: 5, onnotice: () => {}, ...(ssl === undefined ? {} : { ssl }) };
 }
 
-export async function fetchProductDbMetrics(config: z.infer<typeof productDbConfig>, secret: string): Promise<MetricRow[]> {
+export async function fetchProductDbMetrics(config: z.infer<typeof productDbConfig>, secret: string, opts: { days?: number } = {}): Promise<MetricRow[]> {
   if (!/^postgres(ql)?:\/\//.test(secret)) throw new Error("The product database URL should start with postgresql://");
   const sql = postgres(secret, connectionOptions(secret));
   try {
-    return await fetchWith(sql, config);
+    return await fetchWith(sql, config, opts.days);
   } catch (error) {
     throw new Error(explainDbError(error, config.view));
   } finally {
@@ -54,14 +54,14 @@ export async function fetchProductDbMetrics(config: z.infer<typeof productDbConf
   }
 }
 
-async function fetchWith(sql: postgres.Sql, config: z.infer<typeof productDbConfig>): Promise<MetricRow[]> {
+async function fetchWith(sql: postgres.Sql, config: z.infer<typeof productDbConfig>, days = SYNC_DAYS): Promise<MetricRow[]> {
   // Belt and braces: the role should already be read-only.
   return sql.begin("read only", async (tx) => {
     const [schema, view] = config.view.split(".") as [string, string];
     const rows = await tx<{ day: string; metric: string; value: string }[]>`
       select day::text as day, metric::text as metric, value::numeric as value
       from ${tx(schema)}.${tx(view)}
-      where day >= current_date - ${SYNC_DAYS}::int
+      where day >= current_date - ${days}::int
       order by day
     `;
     return rows.map((r) => ({ day: r.day, metric: r.metric, value: Number(r.value) }));

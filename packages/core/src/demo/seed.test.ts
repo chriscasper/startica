@@ -101,7 +101,8 @@ describe("seedDemo", () => {
     }
     const [voice] = await db.select().from(s.voiceProfiles);
     expect(voice?.status).toBe("ready");
-  });
+    // 90 days of demo metrics: seeding takes a few seconds when the whole suite runs at once.
+  }, 30_000);
 
   it("keeps the scorer eval set's product snapshot in sync with the demo product", async () => {
     const [product] = await getDb().select({ id: s.products.id }).from(s.products);

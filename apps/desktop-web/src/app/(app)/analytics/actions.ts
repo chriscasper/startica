@@ -2,6 +2,9 @@
 
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { historyDays, setHistoryDays } from "@startica/core/metrics/history";
+import { requestAnalyticsSummary } from "@startica/core/metrics/summary";
+import { enqueue } from "@startica/db/queue";
 import { metricsSnapshots } from "@startica/db/schema";
 import type { ActionResult } from "@/components/app/form-dialog";
 import { formFields, id, mutate, productScope } from "@/lib/actions";
@@ -38,5 +41,23 @@ export async function deleteManualMetric(metricId: string): Promise<ActionResult
     await (await db())
       .delete(metricsSnapshots)
       .where(and(eq(metricsSnapshots.id, id.parse(metricId)), eq(metricsSnapshots.workspaceId, workspace.id), eq(metricsSnapshots.source, "manual")));
+  });
+}
+
+/** Writes this week's AI summary now (a background job). */
+export async function writeAnalyticsSummary(productId: string): Promise<ActionResult> {
+  return mutate(async () => {
+    const scope = await productScope(productId);
+    await requestAnalyticsSummary(scope.workspaceId, scope.productId);
+  });
+}
+
+/** How much history the product keeps; a longer one is read on the next sync, which starts now. */
+export async function setAnalyticsHistory(productId: string, days: number): Promise<ActionResult> {
+  return mutate(async () => {
+    const scope = await productScope(productId);
+    const before = await historyDays(scope.productId);
+    await setHistoryDays(scope.productId, z.number().int().parse(days));
+    if (days > before) await enqueue(scope.workspaceId, "metrics_sync", { productId: scope.productId });
   });
 }

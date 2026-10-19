@@ -4,7 +4,7 @@ description: Look around Startica with Fieldnote, a sample product, in a separat
 layout: doc
 ---
 
-Demo mode opens Startica with **Fieldnote**, a fictional sample product, already set up: intel, an Inbox with drafted and posted replies, voice profiles, Content Studio pieces, two ad campaigns, a roadmap, audits, 30 days of metrics, 90 days of search data, four AI visibility runs with sample reads of the pages they cite, two agent readiness checks, and sample accessibility and site health results for its site, `fieldnote.example`. It's the quickest way to see what every page does before you connect an AI provider or add your own product.
+Demo mode opens Startica with **Fieldnote**, a fictional sample product, already set up: intel, an Inbox with drafted and posted replies, voice profiles, Content Studio pieces, two ad campaigns, a roadmap, audits, 90 days of metrics with a sample weekly analytics summary, 90 days of search data, four AI visibility runs with sample reads of the pages they cite, two agent readiness checks, and sample accessibility and site health results for its site, `fieldnote.example`. It's the quickest way to see what every page does before you connect an AI provider or add your own product.
 
 The demo lives in its own data folder, so nothing in it mixes with your own data, and nothing in it reaches out: no scans, no AI and no posting.
 

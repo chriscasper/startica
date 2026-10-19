@@ -13,7 +13,8 @@ A metrics connector pulls numbers about a user's product (visits, signups, reven
 
 - Each product has at most one connection per kind (`connections` table, unique on product and kind). A connection holds a JSON `config` and a reference to an encrypted secret.
 - The `metrics_sync` job (`packages/core/src/metrics/sync.ts`) runs daily at 08:15, when the user clicks **Save and test** in Settings, and on **Sync now**. For each connection in scope it reads the secret, calls the connector, upserts the rows into `metrics_snapshots`, and records `status`, `lastError` and `lastSyncedAt` on the connection.
-- Connectors return the last 30 days (`SYNC_DAYS`) every time. Rows are upserted on product, day, source, metric and dimension, so re-syncing is safe and late data gets corrected.
+- `sync.ts` decides the window with `packages/core/src/metrics/history.ts`. Each product keeps `historyDays(productId)` days (90 by default, up to 486, set in Settings → Products). GA4 and Umami read the whole history on a connection's first sync, then only the last `REFRESH_DAYS` (5) days: `syncWindow()` compares the history's first day with `syncedFrom` in the connection's `config`, which `sync.ts` sets after a full read. Saving the connection replaces its config, so the next sync reads everything again; so does a longer history. Stripe and the product database are cheap to read and re-read the whole history every sync.
+- Rows are upserted on product, day, source, metric and dimension, so re-syncing is safe and late data gets corrected. After syncing, `pruneMetrics()` drops a product's synced rows older than its history; manual numbers are kept.
 
 ## The data contract
 
@@ -30,23 +31,40 @@ export type MetricRow = {
   value: number;
 };
 
+/** Days read when a caller doesn't say (tests); syncs read the product's history (history.ts). */
 export const SYNC_DAYS = 30;
+
+/** Long splits (pages, landing pages, countries, browsers) keep this many values per day. */
+export const TOP_PER_DAY = 50;
+
+/** What GA4 and Umami both write, per local day. Counts only, never averages or rates. */
+export const WEB_METRICS = {
+  totals: ["sessions", "users", "new_users", "pageviews", "engaged_sessions", "engagement_seconds", "key_events"],
+  sessions: ["source:", "page:", "landing:", "country:", "device:", "browser:", "utm_content:"],
+  key_events: ["event:", "utm_content:", "source:", "landing:"],
+} as const;
 
 export function isoDay(date: Date): string;
 export function daysAgo(n: number, from = new Date()): Date;
 ```
 
-A connector is a function from its validated config and its secret to rows:
+A connector is a function from its validated config, its secret and a window to rows. GA4 takes the first day to read, the others a number of days:
 
 ```ts
-(config: z.infer<typeof yourConfig>, secret: string) => Promise<MetricRow[]>
+fetchGa4Metrics(config, secret, { from, signal })     // from: YYYY-MM-DD
+fetchUmamiMetrics(config, secret, { days, signal })
+fetchStripeMetrics(config, secret, { days })
+fetchProductDbMetrics(config, secret, { days })
 ```
+
+Default the window to `SYNC_DAYS` when the caller doesn't pass one, so tests stay short; real syncs always pass the product's window.
 
 Naming conventions:
 
-- Metric names are `snake_case` (`sessions`, `key_events`, `active_subscriptions`, `mrr`, `new_subscriptions`, `cancellations`). Reuse an existing name when it means the same thing.
-- Leave `dimension` empty for totals. Splits use `key:value`, like `source:<source> / <medium>`, `utm_content:<draft id>` or `event:<name>`.
-- Point-in-time values (like `mrr`) get one row for today. Counts get one row per day, including zero days.
+- Metric names are `snake_case` (`sessions`, `key_events`, `active_subscriptions`, `mrr`, `new_subscriptions`, `cancellations`). Reuse an existing name when it means the same thing. A new web analytics source writes the names in `WEB_METRICS`, so every screen works with it.
+- Store counts, never averages or rates, so any range adds up. Screens divide (pages per visit, engaged share) after summing. `users` is per day, so a range's sum overcounts returning people; screens show it as a daily average.
+- Leave `dimension` empty for totals. Splits use `prefix:value`, like `source:<source> / <medium>`, `landing:/pricing`, `country:US`, `utm_content:<draft id>` or `event:<name>`. Long splits keep the top `TOP_PER_DAY` values per day (`topPerDay()` in `ga4.ts`).
+- Levels (like `mrr` and `active_subscriptions`) get one row per day for the whole window, rebuilt from history where the source allows it; screens read the last value in a period. Counts get one row per day, including zero days.
 - Undimensioned metrics are automatically included in the numbers the roadmap planner sees.
 
 ## Step 1: Write the connector
@@ -59,15 +77,17 @@ import { daysAgo, isoDay, SYNC_DAYS, type MetricRow } from "./types.ts";
 
 export const stripeConfig = z.object({});
 
-/** Pure: today's MRR and active count, plus daily new subscriptions and cancellations. */
-export function summarizeSubscriptions(subs: SubscriptionLike[], now = new Date()): MetricRow[] {
+/** Pure: per day over the last `days` days, active subscriptions, trials and MRR rebuilt from each
+ *  subscription's start and end, plus new subscriptions, cancellations, MRR gained and lost, and revenue. */
+export function summarizeSubscriptions(subs: SubscriptionLike[], now = new Date(), days = SYNC_DAYS + 1, invoices: InvoiceLike[] = []): MetricRow[] {
   // …
 }
 
-export async function fetchStripeMetrics(_config: z.infer<typeof stripeConfig>, secret: string): Promise<MetricRow[]> {
+export async function fetchStripeMetrics(_config: z.infer<typeof stripeConfig>, secret: string, opts: { days?: number } = {}): Promise<MetricRow[]> {
   if (!/^(rk|sk)_(live|test)_/.test(secret)) throw new Error("That doesn't look like a Stripe key (rk_live_… or rk_test_…)");
-  // page through the API, collect, then:
-  return summarizeSubscriptions(subs);
+  const days = opts.days ?? SYNC_DAYS + 1;
+  // page through subscriptions and paid invoices, collect, then:
+  return summarizeSubscriptions(subs, new Date(), days, invoices);
 }
 ```
 
@@ -77,6 +97,8 @@ Guidelines:
 - Never log the secret or include it in an error message.
 - Keep config non-secret (ids, view names). Anything that grants access goes in the secret.
 - Don't write to the database from the connector; return rows and let `sync.ts` save them.
+- Read the whole window you're given. Don't keep state of your own about what was read before: `sync.ts` and `history.ts` decide that.
+- If an optional permission is missing, skip that part and return the rest, the way Stripe carries on without invoice access.
 
 ## Step 2: Register the kind
 
@@ -89,16 +111,20 @@ The kind appears in a few type lists that must agree:
 ```ts
 type Kind = "ga4" | "umami" | "stripe" | "product_db" | "pageviews";
 
-const connectors: Record<Kind, (config: unknown, secret: string) => Promise<MetricRow[]>> = {
-  ga4: (config, secret) => fetchGa4Metrics(ga4Config.parse(config), secret),
-  umami: (config, secret) => fetchUmamiMetrics(umamiConfig.parse(config), secret),
-  stripe: (config, secret) => fetchStripeMetrics(stripeConfig.parse(config), secret),
-  product_db: (config, secret) => fetchProductDbMetrics(productDbConfig.parse(config), secret),
-  pageviews: (config, secret) => fetchPageviewsMetrics(pageviewsConfig.parse(config), secret),
+type Window = { from: string; days: number; signal?: AbortSignal };
+
+const connectors: Record<Kind, (config: unknown, secret: string, window: Window) => Promise<MetricRow[]>> = {
+  ga4: (config, secret, w) => fetchGa4Metrics(ga4Config.parse(config), secret, { from: w.from, signal: w.signal }),
+  umami: (config, secret, w) => fetchUmamiMetrics(umamiConfig.parse(config), secret, { days: w.days, signal: w.signal }),
+  stripe: (config, secret, w) => fetchStripeMetrics(stripeConfig.parse(config), secret, { days: w.days }),
+  product_db: (config, secret, w) => fetchProductDbMetrics(productDbConfig.parse(config), secret, { days: w.days }),
+  pageviews: (config, secret, w) => fetchPageviewsMetrics(pageviewsConfig.parse(config), secret, { days: w.days }),
 };
+// Web analytics reads its history once, then the last few days (history.ts); the others re-read it all.
+const incremental = new Set<Kind>(["ga4", "umami"]);
 ```
 
-(`pageviews` stands in for your new kind.) These enums are TypeScript-only in SQLite, so no migration is needed; run `yarn db:generate` to confirm it reports no changes.
+(`pageviews` stands in for your new kind.) Add it to `incremental` only if reading the whole history every day would be slow or hit rate limits, and the source can correct recent days. These enums are TypeScript-only in SQLite, so no migration is needed; run `yarn db:generate` to confirm it reports no changes.
 
 ## Step 3: Secrets
 
@@ -143,11 +169,11 @@ The Settings page already watches `connections` with `LiveRefresh`, so the statu
 
 ## Step 5: Show the numbers
 
-`apps/desktop-web/src/app/(app)/analytics/page.tsx` reads `metrics_snapshots` and picks series with `pick(source, metric, dimension)`. Add a tile or chart for your metrics there, following the chart rules in [Working rules](/contributing/working-rules#charts).
+`loadAnalyticsReport()` in `packages/core/src/metrics/report.ts` reads `metrics_snapshots` for the selected period and the one before it, and builds everything the Analytics page shows: `total()` for counts, `level()` for the last value in a period, `series()` for a chart with the period before, and the splits. It only compares with the period before when the source's stored rows cover it. Add your numbers to the report there, then a tile or chart in `apps/desktop-web/src/app/(app)/analytics/tabs.tsx`, following the chart rules in [Working rules](/contributing/working-rules#charts). A web analytics source that writes `WEB_METRICS` needs no changes here.
 
 ## Step 6: Test
 
-Test the pure functions, not the network. `packages/core/src/metrics/metrics.test.ts` builds fake Stripe subscriptions and checks `monthlyRevenue()` and `summarizeSubscriptions()` with a fixed `now`. Do the same for your summarizer: fixed dates, a few representative API objects, and the exact rows you expect, including zero days.
+Test the pure functions, not the network. `packages/core/src/metrics/metrics.test.ts` builds fake Stripe subscriptions and checks `monthlyRevenue()` and `summarizeSubscriptions()` with a fixed `now`, and `analytics.test.ts` covers the report, the sync window and the channel groups. Do the same for your summarizer: fixed dates, a few representative API objects, and the exact rows you expect, including zero days.
 
 ```bash
 yarn test

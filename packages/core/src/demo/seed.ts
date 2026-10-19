@@ -25,6 +25,7 @@ import {
   DEMO_REPLAN,
   DEMO_RESEARCH_DOCS,
   DEMO_ROADMAP,
+  DEMO_ANALYTICS_SUMMARY,
   DEMO_SOURCES,
   DEMO_VOICE_GUIDE,
   DEMO_VOICE_SOURCES,
@@ -32,8 +33,8 @@ import {
 
 /**
  * Loads the Fieldnote demo product (demo/fieldnote.ts) into the open database
- * through the regular schema: intel, Inbox, voice, content, roadmap, 30 days of
- * metrics and a few logged AI runs. No AI calls and no network. The database
+ * through the regular schema: intel, Inbox, voice, content, roadmap, 90 days of
+ * metrics with a weekly analytics summary, and a few logged AI runs. No AI calls and no network. The database
  * must be open and migrated. Dates are relative to `now`.
  */
 
@@ -41,6 +42,19 @@ const DAY = 86_400_000;
 
 
 /** Share of the demo's daily sessions that view each page (GA4 sessions by page path). */
+// Landing pages: share of visits, engaged share, key events per visit.
+const DEMO_LANDING: [string, number, number, number][] = [
+  ["/", 0.48, 0.55, 0.02],
+  ["/pricing", 0.16, 0.7, 0.06],
+  ["/blog/offline-field-kit", 0.14, 0.62, 0.01],
+  ["/features", 0.1, 0.6, 0.03],
+  ["/signup", 0.07, 0.8, 0.12],
+  ["/help", 0.05, 0.5, 0.005],
+];
+const DEMO_COUNTRIES: [string, number][] = [["US", 0.36], ["GB", 0.12], ["DE", 0.1], ["CA", 0.08], ["AU", 0.06], ["NL", 0.05], ["FR", 0.05], ["SE", 0.04], ["NZ", 0.03], ["IN", 0.03]];
+const DEMO_DEVICES: [string, number][] = [["desktop", 0.62], ["mobile", 0.33], ["tablet", 0.05]];
+const DEMO_BROWSERS: [string, number][] = [["Chrome", 0.54], ["Safari", 0.26], ["Firefox", 0.1], ["Edge", 0.08]];
+
 const DEMO_PAGE_SHARES: [string, number][] = [
   ["/", 0.55],
   ["/pricing", 0.22],
@@ -286,43 +300,85 @@ export async function seedDemo(now = new Date()): Promise<SeedResult> {
     const metrics: (typeof s.metricsSnapshots.$inferInsert)[] = [];
     const metric = (d: string, source: "ga4" | "stripe" | "product_db", name: string, value: number, dimension = "") =>
       metrics.push({ ...base, day: d, source, metric: name, dimension, value });
-    const subsStart = 18;
-    let subs = subsStart;
-    for (let i = 29; i >= 0; i--) {
+    // 90 days, Analytics' default history. Local days, as the sync writes them.
+    const localDay = (d: Date) => d.toLocaleDateString("en-CA");
+    const DEMO_DAYS = 90;
+    let subs = 7;
+    for (let i = DEMO_DAYS - 1; i >= 0; i--) {
       const date = ago(i);
-      const d = day(date);
-      const growth = 1 + (29 - i) * 0.025; // traffic grows ~70% over the month
-      const weekend = [0, 6].includes(date.getUTCDay()) ? 0.7 : 1;
+      const d = localDay(date);
+      const growth = 0.6 + (DEMO_DAYS - 1 - i) * 0.0125; // traffic about doubles over the 90 days
+      const weekend = [0, 6].includes(date.getDay()) ? 0.7 : 1;
       const sessions = Math.round(120 * growth * weekend * noise());
-      metric(d, "ga4", "sessions", sessions);
-      metric(d, "ga4", "users", Math.round(sessions * 0.82));
+      // A Hacker News thread 8–10 days ago: a spike of visits that mostly bounced.
+      const spike = i >= 8 && i <= 10 ? Math.round((11 - i) * 45 * noise()) : 0;
+      const all = sessions + spike;
+      metric(d, "ga4", "sessions", all);
+      metric(d, "ga4", "users", Math.round(all * 0.82));
+      metric(d, "ga4", "new_users", Math.round(all * 0.55));
+      metric(d, "ga4", "pageviews", Math.round(sessions * 2.4 * noise() + spike * 1.2));
+      metric(d, "ga4", "engaged_sessions", Math.round(sessions * 0.58 * noise() + spike * 0.2));
+      metric(d, "ga4", "engagement_seconds", Math.round(sessions * 72 * noise() + spike * 15));
       const keyEvents = Math.round(sessions * 0.028 * noise());
-      metric(d, "ga4", "key_events", keyEvents);
+      const trials = Math.round(keyEvents * 0.4);
+      metric(d, "ga4", "key_events", keyEvents + trials);
       metric(d, "ga4", "key_events", keyEvents, "event:sign_up");
-      for (const [src, share] of DEMO_SOURCES) metric(d, "ga4", "sessions", Math.round(sessions * share * noise()), `source:${src}`);
+      if (trials) metric(d, "ga4", "key_events", trials, "event:start_trial");
+      for (const [src, share, conv] of DEMO_SOURCES) {
+        const n = Math.round(sessions * share * noise()) + (src.startsWith("news.ycombinator.com") ? spike : 0);
+        metric(d, "ga4", "sessions", n, `source:${src}`);
+        metric(d, "ga4", "engaged_sessions", Math.round(n * (src.startsWith("news.ycombinator.com") && spike ? 0.25 : 0.58)), `source:${src}`);
+        const k = Math.round(n * conv * noise());
+        if (k) metric(d, "ga4", "key_events", k, `source:${src}`);
+      }
       // Sessions per page (accessibility priority, ARCHITECTURE.md section 9.3): the home and pricing pages get most.
       for (const [path, share] of DEMO_PAGE_SHARES) metric(d, "ga4", "sessions", Math.round(sessions * share * noise()), `page:${path}`);
+      for (const [path, share, engaged, conv] of DEMO_LANDING) {
+        const n = Math.round(sessions * share * noise()) + (path === "/blog/offline-field-kit" ? spike : 0);
+        metric(d, "ga4", "sessions", n, `landing:${path}`);
+        metric(d, "ga4", "engaged_sessions", Math.round((n - (path === "/blog/offline-field-kit" ? spike * 0.8 : 0)) * engaged), `landing:${path}`);
+        const k = Math.round(n * conv * noise());
+        if (k) metric(d, "ga4", "key_events", k, `landing:${path}`);
+      }
+      for (const [code, share] of DEMO_COUNTRIES) metric(d, "ga4", "sessions", Math.round(all * share * noise()), `country:${code}`);
+      for (const [device, share] of DEMO_DEVICES) metric(d, "ga4", "sessions", Math.round(all * share * noise()), `device:${device}`);
+      for (const [browser, share] of DEMO_BROWSERS) metric(d, "ga4", "sessions", Math.round(all * share * noise()), `browser:${browser}`);
       metric(d, "product_db", "signups", Math.max(1, Math.round(sessions * 0.03 * noise())));
-      metric(d, "product_db", "active_users", Math.round((60 + (29 - i) * 1.4) * noise()));
+      metric(d, "product_db", "active_users", Math.round((25 + (DEMO_DAYS - 1 - i) * 0.9) * noise()));
+      metric(d, "product_db", "field_notes_created", Math.round((60 + (DEMO_DAYS - 1 - i) * 3) * noise()));
       const newSubs = i % 4 === 0 ? 2 : i % 3 === 0 ? 1 : 0;
       const cancellations = i % 11 === 0 ? 1 : 0;
       subs += newSubs - cancellations;
+      const seat = 3 * 8; // ~3 seats per team at $8
       metric(d, "stripe", "new_subscriptions", newSubs);
       metric(d, "stripe", "cancellations", cancellations);
       metric(d, "stripe", "active_subscriptions", subs);
-      metric(d, "stripe", "mrr", subs * 3 * 8); // ~3 seats per team at $8
+      metric(d, "stripe", "trials", Math.max(1, Math.round(subs * 0.15)));
+      metric(d, "stripe", "mrr", subs * seat);
+      metric(d, "stripe", "mrr_new", newSubs * seat);
+      metric(d, "stripe", "mrr_churned", cancellations * seat);
+      metric(d, "stripe", "revenue", date.getDate() === 1 ? Math.round(subs * seat * 0.9) : Math.round(newSubs * seat));
     }
     // Visits and signups attributed to posted replies and pieces (utm_content).
     const attributed = [...replyUtm.values(), ...pieceUtm];
     for (const [n, utm] of attributed.entries()) {
       for (let i = 0; i < 4; i++) {
-        const d = day(ago(14 + n * 2 - i));
+        const d = localDay(ago(14 + n * 2 - i));
         metric(d, "ga4", "sessions", Math.round((30 - i * 6) * noise()), `utm_content:${utm}`);
         metric(d, "ga4", "key_events", i < 2 ? 2 - i : 0, `utm_content:${utm}`);
       }
     }
     for (let i = 0; i < metrics.length; i += 200) await db.insert(s.metricsSnapshots).values(metrics.slice(i, i + 200));
     add("metrics snapshots", metrics.length);
+    // Last Monday's weekly analytics read-out (written by hand here: the demo makes no AI calls).
+    await db.insert(s.analyticsSummaries).values({
+      ...base,
+      periodStart: localDay(ago(7)),
+      periodEnd: localDay(ago(1)),
+      body: DEMO_ANALYTICS_SUMMARY,
+      model: "demo",
+      createdAt: ago(0, 3),
+    });
     add("search rows", await seedDemoSearch(db, workspaceId, productId, ago));
     add("AI visibility questions", await seedDemoVisibility(db, workspaceId, productId, ago));
     add("off-site pages read", await seedDemoOffsite(db, workspaceId, productId, ago));

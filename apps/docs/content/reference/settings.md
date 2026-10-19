@@ -234,11 +234,20 @@ Once set up with **Set up**, the row shows "Tracking: _metric names_ · _host_".
 
 **I ran it: test and save** checks the login (it must not be able to change data) and reads the view, then saves the connection and queues a sync. In demo mode the check is skipped. Errors and what they mean: [Product database](/credentials/supabase#troubleshooting).
 
-Analytics shows `signups` and `active_users` by name; other metrics are stored too.
+Analytics shows `signups` and `active_users` by name; other metrics are listed under **Conversions** → **Other product numbers**.
 
 #### Sync now
 
 **Sync now** appears once the product has at least one connection and queues a `metrics_sync` job for all of this product's connections, including Search Console and Bing. Syncs also run automatically every day at 08:15 local time while Startica is open.
+
+#### Keep analytics history for
+
+Below the connections, **Keep analytics history for** sets how far back [Analytics](/guides/analytics#history) goes for this product: **90 days** (the default), **6 months**, **12 months** or **16 months**. "How far back Analytics goes. A longer history is read from GA4 or Umami on the next sync (16 months of Umami can take half an hour); a shorter one drops the older days. For anything older, open GA4 or Umami."
+
+| Change | What happens |
+| --- | --- |
+| Longer | Saved, and a `metrics_sync` job starts for the product to read the older days ("Saved: reading the older days now"). |
+| Shorter | Saved. The next sync drops synced days older than the new history ("Saved: older days are dropped on the next sync"). Numbers you entered by hand are never dropped. |
 
 #### Where connections are stored
 
@@ -248,6 +257,7 @@ Analytics shows `signups` and `active_users` by name; other metrics are stored t
 | Property ID, Umami server, website ID and key events, Search Console property, Bing site, whether the GA4 key is reused, view name, database host, Supabase project ref, metric definitions, status, last sync, errors | Plain, `connections` table |
 | Search data (clicks, impressions and positions per day) | Plain, `search_stats` table |
 | Search Console sitemaps, as last read | Plain, setting `search_sitemaps:<product id>` |
+| How much analytics history to keep | Plain, setting `analytics_history_days:<product id>` (unset means 90 days) |
 
 Saving a connection with the secret field left blank keeps the saved credential. Credentials are only read from Settings. There's no environment variable for any of them, in development either.
 

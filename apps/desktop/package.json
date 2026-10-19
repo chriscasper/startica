@@ -33,6 +33,7 @@
     "files": [
       "main.mjs",
       "updater.mjs",
+      "about/*",
       "posting/*",
       "scanner/*",
       "renderer/*",

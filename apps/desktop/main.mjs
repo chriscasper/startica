@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, dialog, Menu, nativeImage, safeStorage, session, shell, Tray } from "electron";
+import { createAbout } from "./about/window.mjs";
 import { createPosting } from "./posting/window.mjs";
 import { createHighlighter } from "./scanner/highlight.mjs";
 import { createRenderer } from "./renderer/render.mjs";
@@ -39,6 +40,7 @@ let scanner = null; // accessibility scanner (scanner/scanner.mjs)
 let renderer = null; // ad creatives (renderer/render.mjs)
 let updater = null; // auto-update (updater.mjs)
 let highlighter = null; // "Open with highlights" viewer (accessibility A2)
+let about = null; // About window (about/window.mjs)
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -160,6 +162,48 @@ function updateTrayMenu() {
       { type: "separator" },
       { label: `Quit ${APP_NAME}`, role: "quit" },
     ]),
+  );
+}
+
+// --- Application menu ---------------------------------------------------------------
+// Electron's default menu, except "About Startica" opens Startica's own About window (it has a
+// "Check for Updates" button) and "Check for Updates…" sits beside it (in Help on Windows/Linux).
+
+function updateAppMenu() {
+  const aboutItem = { label: `About ${APP_NAME}`, click: () => about?.open() };
+  const updateItems = updater ? [updater.menuItems()[0]] : [];
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate(
+      process.platform === "darwin"
+        ? [
+            {
+              label: APP_NAME,
+              submenu: [
+                aboutItem,
+                ...updateItems,
+                { type: "separator" },
+                { role: "services" },
+                { type: "separator" },
+                { role: "hide" },
+                { role: "hideOthers" },
+                { role: "unhide" },
+                { type: "separator" },
+                { role: "quit" },
+              ],
+            },
+            { role: "fileMenu" },
+            { role: "editMenu" },
+            { role: "viewMenu" },
+            { role: "windowMenu" },
+          ]
+        : [
+            { role: "fileMenu" },
+            { role: "editMenu" },
+            { role: "viewMenu" },
+            { role: "windowMenu" },
+            { role: "help", submenu: [...updateItems, { type: "separator" }, aboutItem] },
+          ],
+    ),
   );
 }
 
@@ -318,7 +362,16 @@ async function showWindow(path) {
 }
 
 app.whenReady().then(async () => {
-  updater = createUpdater({ prefsDir: baseDataDir(), onChange: () => updateTrayMenu() });
+  updater = createUpdater({
+    prefsDir: baseDataDir(),
+    onChange: () => {
+      updateTrayMenu();
+      updateAppMenu();
+      about?.statusChanged();
+    },
+  });
+  about = createAbout({ dir: join(here, "about"), icon: join(assetsDir, "icon.png"), updater: () => updater });
+  updateAppMenu();
   createTray();
   // Assisted posting (ARCHITECTURE.md 8.4): the server asks for the window; the window reports
   // the post the user submitted, and the server records it.

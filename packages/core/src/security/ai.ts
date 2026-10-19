@@ -5,6 +5,7 @@ import { getDb } from "@startica/db/client";
 import { enqueue } from "@startica/db/queue";
 import { securityFindings, securityOccurrences, securityReports, securitySeverities, sites, type SecurityAiHelp, type SecurityReportTriage } from "@startica/db/schema";
 import { runStructured, taskModel, type AiContext } from "../ai/client.ts";
+import { recordVersion } from "../chat/versions.ts";
 import { jobByPayload } from "../jobs/cancel.ts";
 import { describeDetail } from "./report.ts";
 import { isSecurityRule, SECURITY_RULES } from "./rules.ts";
@@ -70,38 +71,49 @@ export async function requestExplain(workspaceId: string, findingId: string): Pr
   await enqueue(workspaceId, "security_explain", { findingId: finding.id });
 }
 
+/** What the AI is told about a finding: the rule, what was seen, the site and its stack (also the context of a Refine chat). */
+export async function explainContext(finding: typeof securityFindings.$inferSelect, site: typeof sites.$inferSelect): Promise<string> {
+  const rule = isSecurityRule(finding.rule) ? SECURITY_RULES[finding.rule] : null;
+  const pages = (await findingPages(site.id, finding.groupKey)).slice(0, 5).map((p) => p.url);
+  const hints = await stackHints(site.id);
+  const facts = site.security;
+  return [
+    "<finding>",
+    `Title: ${rule?.title ?? finding.title ?? finding.rule}`,
+    `Severity: ${finding.severity}`,
+    `Why it matters: ${rule?.why ?? finding.description ?? ""}`,
+    `General fix: ${rule?.fix ?? finding.fix ?? ""}`,
+    `Seen: ${describeDetail(finding.detail) ?? "(nothing more)"}`,
+    "</finding>",
+    `<site>${site.startUrl}${facts?.tls?.issuer ? ` · certificate from ${facts.tls.issuer}` : ""}</site>`,
+    pages.length ? `<pages>\n${pages.join("\n")}\n</pages>` : "",
+    hints.length ? `What the site's responses say about its stack:\n${hints.map((h) => `- ${h}`).join("\n")}` : "The site's responses don't say which server or framework it uses.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/** The stored help from the AI's output. */
+export function helpFrom(out: z.infer<typeof explainOutput>, model: string): SecurityAiHelp {
+  return {
+    summary: out.summary.trim(),
+    steps: out.steps.map((s) => s.trim()).filter(Boolean),
+    snippets: out.snippets.map((s) => ({ label: s.label.trim(), language: s.language.trim(), code: s.code.trim() })),
+    verify: out.verify.trim(),
+    model,
+    createdAt: new Date().toISOString(),
+  };
+}
+
 export async function runSecurityExplain(ctx: AiContext, payload: z.infer<typeof explainPayload>) {
   const where = eq(securityFindings.id, payload.findingId);
   try {
     const { finding, site } = await ownFinding(payload.workspaceId, payload.findingId);
-    const rule = isSecurityRule(finding.rule) ? SECURITY_RULES[finding.rule] : null;
-    const pages = (await findingPages(site.id, finding.groupKey)).slice(0, 5).map((p) => p.url);
-    const hints = await stackHints(site.id);
-    const facts = site.security;
-    const content = [
-      "<finding>",
-      `Title: ${rule?.title ?? finding.title ?? finding.rule}`,
-      `Severity: ${finding.severity}`,
-      `Why it matters: ${rule?.why ?? finding.description ?? ""}`,
-      `General fix: ${rule?.fix ?? finding.fix ?? ""}`,
-      `Seen: ${describeDetail(finding.detail) ?? "(nothing more)"}`,
-      "</finding>",
-      `<site>${site.startUrl}${facts?.tls?.issuer ? ` · certificate from ${facts.tls.issuer}` : ""}</site>`,
-      pages.length ? `<pages>\n${pages.join("\n")}\n</pages>` : "",
-      hints.length ? `What the site's responses say about its stack:\n${hints.map((h) => `- ${h}`).join("\n")}` : "The site's responses don't say which server or framework it uses.",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    const content = await explainContext(finding, site);
     const out = await runStructured(ctx, { task: "draft", promptVersion: EXPLAIN_PROMPT_VERSION, system: EXPLAIN_SYSTEM, messages: [{ role: "user", content }], schema: explainOutput });
-    const help: SecurityAiHelp = {
-      summary: out.summary.trim(),
-      steps: out.steps.map((s) => s.trim()).filter(Boolean),
-      snippets: out.snippets.map((s) => ({ label: s.label.trim(), language: s.language.trim(), code: s.code.trim() })),
-      verify: out.verify.trim(),
-      model: (await taskModel(ctx, "draft")).model,
-      createdAt: new Date().toISOString(),
-    };
+    const help = helpFrom(out, (await taskModel(ctx, "draft")).model);
     await getDb().update(securityFindings).set({ aiHelp: help, aiStatus: "ready", aiError: null }).where(where);
+    await recordVersion({ workspaceId: payload.workspaceId, kind: "security_help", subjectId: finding.id }, help, "suggested", { previous: finding.aiHelp });
     return { steps: help.steps.length };
   } catch (err) {
     await getDb()

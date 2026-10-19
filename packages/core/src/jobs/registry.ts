@@ -35,6 +35,7 @@ import { runSecurityRecheck, securityRecheckPayload } from "../security/findings
 import { monitorPayload, runMonitor } from "../security/monitor.ts";
 import { explainPayload, importPayload, runSecurityExplain, runSecurityImport, runSecurityTriage, triagePayload } from "../security/ai.ts";
 import { runTrackerSync, trackerSyncPayload } from "../trackers/trackers.ts";
+import { chatReplyPayload, runChatReply } from "../chat/jobs.ts";
 import { roadmapPlanPayload, runRoadmapPlan } from "../growth/roadmap.ts";
 import { intelBuildPayload, runIntelBuild } from "../intel/build.ts";
 import { metricsSyncPayload, runMetricsSync } from "../metrics/sync.ts";
@@ -119,6 +120,8 @@ export const jobs = {
   security_explain: defineJob({ payload: explainPayload, run: runSecurityExplain, visibilityTimeoutSeconds: 300, maxAttempts: 1 }),
   security_report_import: defineJob({ payload: importPayload, run: runSecurityImport, visibilityTimeoutSeconds: 600, maxAttempts: 1 }),
   security_intake_triage: defineJob({ payload: triagePayload, run: runSecurityTriage, visibilityTimeoutSeconds: 300, maxAttempts: 1 }),
+  // Refine chats: one reply per message, streamed; web search can make it take a minute or two.
+  chat_reply: defineJob({ payload: chatReplyPayload, run: runChatReply, visibilityTimeoutSeconds: 600, maxAttempts: 1 }),
   // AI calls: run once per click, no silent retries.
   ad_plan: defineJob({ payload: adPlanPayload, run: runAdPlan, visibilityTimeoutSeconds: 900, maxAttempts: 1 }),
   ad_copy: defineJob({ payload: adCopyPayload, run: runAdCopy, visibilityTimeoutSeconds: 300, maxAttempts: 1 }),

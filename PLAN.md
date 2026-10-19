@@ -4,7 +4,7 @@
 >
 > When an item is built, describe it in ARCHITECTURE.md (or the docs) and remove it from here.
 >
-> Last updated: 2026-10-14.
+> Last updated: 2026-10-18.
 
 ---
 
@@ -12,14 +12,19 @@
 
 Ordered by value for the effort.
 
-1. **Message Batches for scoring.** Send large `opportunity_score` backlogs (and other non-urgent bulk work) through Anthropic's and OpenAI's batch APIs at about half the price; results arrive in minutes instead of seconds. Needs a job that submits, polls and stores results, and the budget guard and `ai_runs` logging for batch calls (section 5).
-2. **Accessibility extras** (section 9):
+1. **Refine on the rest of the suggestions** (section 5.1; Security help and the accessibility fix have it). Each is a `ChatSubject`, a revision view and the two buttons:
+   - **Writing:** Inbox reply drafts (a revision is a new `drafts` version), Content Studio pieces, ad copy (checked with `checkAdCopy` before it's stored). Refine sits next to Regenerate; the one-shot guidance box stays as the quick option.
+   - **Plans and fixes:** SEO opportunity drafts (revisions go through `metaProblems` / `jsonldProblems`), audit findings (Apply can also offer Add to roadmap), roadmap items.
+   - **Ask only, no Apply:** Security triage, the Needs-review suggestion, AI-visibility answers. The chat has no `propose_revision` tool.
+   - Later, if wanted: a page listing every chat, and caching the conversation turns as well as the system prompt.
+2. **Message Batches for scoring.** Send large `opportunity_score` backlogs (and other non-urgent bulk work) through Anthropic's and OpenAI's batch APIs at about half the price; results arrive in minutes instead of seconds. Needs a job that submits, polls and stores results, and the budget guard and `ai_runs` logging for batch calls (section 5).
+3. **Accessibility extras** (section 9):
    - Ignore an issue on one page only (today an ignore covers the whole site).
    - Weight the site score by traffic (today it's the plain page average).
    - An HTML version of the accessibility statement to paste into a CMS, and a PDF of the ACR draft.
    - Pass the AI summary to Today and the weekly re-plan.
-3. **AI visibility** (section 10.2, G3): both providers in one run, topic breakdowns.
-4. **Security S3, Deeper coverage** (section 11, shares sign-in with A6):
+4. **AI visibility** (section 10.2, G3): both providers in one run, topic breakdowns.
+5. **Security S3, Deeper coverage** (section 11, shares sign-in with A6):
    - The same passive checks on pages after the user signs in by hand in a visible window (persistent per-site partition). Session cookies are read only to check their flags, never stored.
    - Safety controls: no-scan windows per site, allowed extra hosts (for example a separate login domain), and the existing Stop.
    - Done when the passive checks run on a signed-in stand-in page without storing its session.

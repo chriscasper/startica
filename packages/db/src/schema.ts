@@ -1658,4 +1658,82 @@ export const offsitePages = sqliteTable(
   (t) => [uniqueIndex("offsite_pages_url_idx").on(t.productId, t.url), index("offsite_pages_domain_idx").on(t.productId, t.domain)],
 );
 
+// --- Refine: chats about a suggestion (ARCHITECTURE.md section 5.1) --------------------------------
+
+/** What a chat can refine: a security finding's AI help, an accessibility issue's AI fix. */
+export const chatSubjectKinds = ["security_help", "a11y_fix"] as const;
+export type ChatSubjectKind = (typeof chatSubjectKinds)[number];
+export type ChatSource = { url: string; title: string };
+
+/**
+ * One conversation about one suggestion. A suggestion has at most one open thread; applying a
+ * revision closes it ("applied") and the next Refine starts a new one. Start over closes it too.
+ */
+export const chatThreads = sqliteTable(
+  "chat_threads",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    subjectKind: text("subject_kind", { enum: chatSubjectKinds }).notNull(),
+    subjectId: text("subject_id").notNull(),
+    status: text("status", { enum: ["open", "applied", "closed"] }).notNull().default("open"),
+    appliedMessageId: text("applied_message_id"),
+    closedAt: timestamp("closed_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("chat_threads_subject_idx").on(t.workspaceId, t.subjectKind, t.subjectId, t.status)],
+);
+
+/**
+ * A turn in a chat. Assistant turns are written by the chat_reply job: pending, then streaming
+ * (the body grows as the model writes), then done, failed or cancelled. A turn that revises the
+ * suggestion carries the full revision in `proposal`, in the shape of the subject's AI output.
+ */
+export const chatMessages = sqliteTable(
+  "chat_messages",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    threadId: text("thread_id")
+      .notNull()
+      .references(() => chatThreads.id, { onDelete: "cascade" }),
+    role: text("role", { enum: ["user", "assistant"] }).notNull(),
+    body: text("body").notNull().default(""),
+    status: text("status", { enum: ["pending", "streaming", "done", "failed", "cancelled"] }).notNull().default("done"),
+    error: text("error"),
+    proposal: json<Record<string, unknown>>("proposal"),
+    proposalStatus: text("proposal_status", { enum: ["proposed", "applied"] }),
+    sources: json<ChatSource[]>("sources"),
+    webSearch: integer("web_search", { mode: "boolean" }).notNull().default(false),
+    model: text("model"),
+    jobRunId: text("job_run_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("chat_messages_thread_idx").on(t.threadId, t.createdAt)],
+);
+
+/**
+ * Every version of a refinable suggestion (the stored shape, e.g. SecurityAiHelp), so the owner can
+ * go back. The one applied last (`appliedAt`) is what the subject shows now.
+ */
+export const suggestionVersions = sqliteTable(
+  "suggestion_versions",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    subjectKind: text("subject_kind", { enum: chatSubjectKinds }).notNull(),
+    subjectId: text("subject_id").notNull(),
+    value: json<Record<string, unknown>>("value").notNull(),
+    /** suggested: written by Explain / Suggest a fix. chat: a revision applied from a chat. */
+    source: text("source", { enum: ["suggested", "chat"] }).notNull(),
+    threadId: text("thread_id"),
+    appliedAt: timestamp("applied_at").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("suggestion_versions_subject_idx").on(t.workspaceId, t.subjectKind, t.subjectId)],
+);
+
 export { sql };

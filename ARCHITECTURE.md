@@ -213,11 +213,29 @@ Claude Fable 5.1 (`claude-fable-5-1`) and GPT-6 Astra (`gpt-6-astra`) cost 2.5×
 - **Structured outputs** for every call whose result goes into the database, validated with shared Zod schemas. Never parse free text into the DB.
 - **Prompt caching** on the stable prefix of each prompt; keep volatile content after it.
 - **Refusal handling:** Claude `fallbacks: "default"` (beta `server-side-fallback-2026-07-01`) on Opus and Sonnet plus a `stop_reason` check; OpenAI refusal and `incomplete_details` checks. Refusals logged as `refused`.
-- **Effort** per task; **streaming** for research calls. Model IDs are exact strings from `models.ts`, never with date suffixes.
+- **Effort** per task; **streaming** for research calls and chat replies. Model IDs are exact strings from `models.ts`, never with date suffixes.
+- **Tools:** server web search (research, answers, chats); one strict custom tool, `propose_revision`, in Refine chats (5.1). No tool that acts on anything.
 
 **Module reuse:** Accessibility (A3) and Security (S4) reuse `draft` and `vision` (messages can carry images since A3); Ads AD2 adds an `image` task (OpenAI only). Add a task type only if evals show the defaults don't fit.
 
 **How models are configured:** model IDs and effort live in the `ai_models` table (task → model + effort + max tokens), editable in Settings, seeded with the Claude defaults (`packages/db/src/bootstrap.ts`); picking a provider moves every task still on the other provider to that provider's defaults. Prompts live next to their feature with a version string logged in `ai_runs`. Eval sets: `packages/core/src/ai/evals/<task>/` plus `yarn eval <task> [--model <id>]` (throwaway database; only the scorer has one so far). Every call is logged to `ai_runs`; the budget guard blocks calls when the **monthly cap** is reached.
+
+### 5.1 Refine: chatting about a suggestion
+
+A **Refine** button next to an AI suggestion opens a chat in a panel beside the page (a non-modal `Sheet`, so the suggestion stays readable). The owner asks questions, pushes back or describes their setup. When the AI changes the suggestion, the change appears under its reply as a **revised** version with **Apply**. Nothing changes until the owner applies it.
+
+- **Built so far:** Security's **Help for your stack** (`security_help`) and Accessibility's **Suggested fix** (`a11y_fix`). The rest is in PLAN.md.
+- **One chat per suggestion until a revision is applied.** A suggestion has at most one open thread. Apply writes the revision, closes the thread (`applied`) and the next message starts a new one. **Start over** closes it without applying. Earlier chats stay readable from the panel's header.
+- **Versions:** every suggestion and every applied revision is kept in `suggestion_versions`, and the newest `applied_at` is the one the page shows. **Versions** on the suggestion lists them and **Restore** shows an earlier one again, without deleting anything. Explain / Suggest a fix record a version too (and the existing suggestion as the first, for ones written before versions existed).
+- **Replies run as a job** (`chat_reply`), like every AI call. Send saves the owner's message and a `pending` assistant message, then queues the job. The job streams the reply (`runChat`, `ai/client.ts`) into the message row about every 150 ms. The panel reads `/api/chat` again whenever `/api/events` reports a change to `chat_messages`, so text appears as it's written. **Stop** aborts the job and keeps what was written; **Try again** reruns the last failed or stopped reply.
+- **The prompt:**
+  - The system prompt is the feature's own instructions (`EXPLAIN_SYSTEM`, `FIX_SYSTEM`), the chat rules (`chatRules`, prompt `refine-chat@1`, `draft` task), the same context the suggestion was written from (`explainContext`, `fixContext`) and the suggestion as it stands now, in the tool's shape. It's stable within a chat, so it caches.
+  - The conversation is sent as turns. Earlier revisions go in `<proposed_revision>` tags, and only the last 24 turns are kept.
+- **Revisions** come back through `propose_revision`, a strict tool whose schema is the suggestion's own AI output schema (`explainOutput`, `fixOutput`). `runChat` validates the input. A revision that doesn't match says so in the reply and isn't stored.
+- **Web search** is on by default (up to 3 searches a reply), with a notice and a checkbox under the message box to turn it off (`chat_web_search` setting). Replies list their sources. Page text stays data, not instructions.
+- **Cost:** each reply is an `ai_runs` row under its job run, and the panel shows the open chat's total. The monthly budget applies as everywhere.
+- **Adding a kind:** a `ChatSubject` in `core/chat/subjects.ts` (load, the revision schema, `toStored` / `toRevision`, `write`), its kind in `chatSubjectKinds` (schema.ts, a migration for the enum isn't needed), and its view in `components/app/refine/revision-view.tsx`. Then put `RefineButton` and `VersionsButton` next to the suggestion.
+- **Code:** `core/chat/` (`threads.ts` for the panel's actions and snapshot, `jobs.ts` for the reply job and prompt, `subjects.ts`, `versions.ts`); `ai/anthropic.ts` `anthropicChat`, `ai/openai.ts` `openaiChat`; desktop `components/app/refine/` and `app/api/chat/route.ts`. Tests: `core/chat/chat.test.ts`.
 
 ---
 
@@ -538,6 +556,7 @@ Source of truth: `packages/db/src/schema.ts` (Drizzle, SQLite). Every table has 
 - **Security:** `security_components` (page × library × version, S2), `security_assets` (site × kind subdomain / certificate / lookalike / script × name → detail, first and last seen, changed), `sites.security_monitor`, `issue_trackers.auto_min_security`; findings `source` also `monitor`. `security_reports` (product, reporter, body, received, status new / resolved / dismissed, triage json and status, the finding it became); on `security_findings`: `source` (scan / import / report), `title`, `description`, `fix`, `source_label`, `ai_help`, `ai_status`, `ai_error`. And `security_occurrences` (site × page or site-wide × rule × `group_key` → detail; replaced per page check and per site probe run), `security_findings` (site × `group_key` → rule, severity, status open / fixed / accepted / false_positive, reason, pages count, sample detail, first and last seen, fixed at and by which scan, decided at).
 - **Ads:** `ad_campaigns` (`target_cost` since AD4), `ad_groups`, `ads` (AD1); `ad_creatives` (AD2); `ad_spend` (AD3; migration 0020).
 - **Issue trackers:** `issue_trackers` (one per product), `tracker_issues` (tracker × source kind `a11y` / `security` × source id → issue number, URL, state).
+- **Refine chats (5.1):** `chat_threads` (subject kind × subject id → status open / applied / closed, the applied message), `chat_messages` (thread, role, body, status pending / streaming / done / failed / cancelled, error, proposal and its status, sources, web search, model, job run), `suggestion_versions` (subject kind × subject id → value, source suggested / chat, thread, applied at). Migration 0021.
 
 ### 12.1 Opportunity lifecycle and default thresholds
 
@@ -610,6 +629,7 @@ Every module sits inside one app shell: a left sidebar with Dashboard at the top
 | `site_scan_due` | Hourly at :37 | Queues full scans for sites past their interval |
 | `security_recheck` | Recheck on a site-level finding | Reruns the site probes and refolds the findings |
 | `security_monitor` | Daily 06:47; after full scans of verified sites; Check now; Recheck | Certificate logs, DNS, third-party scripts, OSV with EPSS and KEV → monitoring findings |
+| `chat_reply` | Send in a Refine chat; Try again | One streamed chat reply, maybe with a revision (`draft`, web search unless turned off) |
 | `security_explain`, `security_report_import`, `security_intake_triage` | Explain and fix; Import a report; Add a report / Triage | Fix steps for a finding; findings from another report; triage of a reported problem (all `draft`) |
 | `ai_visibility_run`, `ai_prompts_suggest` | AI visibility | Asks questions with web search and reads the answers; suggests questions |
 | `opportunity_draft` | Opportunities → Draft a fix | A checked title and description, JSON-LD, llms.txt or FAQ draft |

@@ -1,3 +1,4 @@
+import type { z } from "zod";
 import type { AiTask, ModelConfig } from "./models.ts";
 import type { TokenUsage } from "./pricing.ts";
 
@@ -14,6 +15,13 @@ export type ResearchOptions = { maxSearches?: number; maxFetches?: number };
 /** An answer written with web search, with what it cited and the searches behind it. */
 export type Answer = { text: string; citations: { url: string; title: string }[]; searches: string[] };
 export type CallResult<T> = { value: T; model: string; usage: TokenUsage };
+
+/** A tool the model may call once to hand back structured data (a chat's revised suggestion). */
+export type ChatTool = { name: string; description: string; schema: z.ZodType };
+/** A chat turn: optional web search, an optional tool, and the text so far as it's written. */
+export type ChatOptions = { webSearch: boolean; maxSearches?: number; tool?: ChatTool; onText?: (text: string) => void };
+/** A chat reply: its text, the tool's input if the model called it (not yet validated), and its sources. */
+export type ChatReply = { text: string; toolInput: unknown; citations: { url: string; title: string }[]; searches: string[]; model: string };
 
 type Meta = { model?: string; usage?: TokenUsage };
 

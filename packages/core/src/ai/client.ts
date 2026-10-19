@@ -4,10 +4,10 @@ import { getSetting, setSetting } from "@startica/db/bootstrap";
 import { getDb } from "@startica/db/client";
 import { aiModels, aiRuns } from "@startica/db/schema";
 import { hasSecretNamed, readSecretByName } from "@startica/db/secrets";
-import { anthropicAnswer, anthropicResearch, anthropicStructured } from "./anthropic.ts";
-import { AiError, type AiMessage, type Answer, type CallRequest, type CallResult, type ResearchOptions } from "./errors.ts";
+import { anthropicAnswer, anthropicChat, anthropicResearch, anthropicStructured } from "./anthropic.ts";
+import { AiError, type AiMessage, type Answer, type CallRequest, type CallResult, type ChatOptions, type ResearchOptions } from "./errors.ts";
 import { DEFAULT_MODELS, isProvider, PROVIDERS, providerOf, type AiProvider, type AiTask, type ModelConfig } from "./models.ts";
-import { openaiAnswer, openaiImage, openaiResearch, openaiStructured } from "./openai.ts";
+import { openaiAnswer, openaiChat, openaiImage, openaiResearch, openaiStructured } from "./openai.ts";
 import { emptyUsage, estimateCostUsd, type TokenUsage } from "./pricing.ts";
 
 export { AiError, type AiImage, type AiMessage, type AiPart, type Answer } from "./errors.ts";
@@ -37,6 +37,13 @@ type BaseRequest = {
 
 export type StructuredRequest<S extends z.ZodType> = BaseRequest & { schema: S };
 export type ResearchRequest = BaseRequest & ResearchOptions;
+export type ChatRequest<S extends z.ZodType> = BaseRequest &
+  Omit<ChatOptions, "tool"> & {
+    /** A tool the model calls to hand back a revision; its input is checked against `schema`. */
+    tool?: { name: string; description: string; schema: S };
+  };
+/** A chat reply. `proposal` is the tool's input when the model called it and it matched the schema; `proposalError` says why it didn't. */
+export type ChatResult<T> = { text: string; proposal: T | null; proposalError: string | null; citations: { url: string; title: string }[]; searches: string[]; model: string };
 
 /** The API key saved in Settings (encrypted) for a provider. */
 export async function aiApiKey(provider: AiProvider): Promise<string | null> {
@@ -219,6 +226,23 @@ export async function runAnswer(ctx: AiContext, req: BaseRequest & { maxSearches
   return call(ctx, req, (provider, key, request) =>
     provider === "openai" ? openaiAnswer(key, { ...request, maxSearches: req.maxSearches }) : anthropicAnswer(key, { ...request, maxSearches: req.maxSearches }),
   );
+}
+
+/**
+ * A chat turn, streamed through `onText`, with optional web search and an optional tool for a
+ * structured revision. Prose for the owner to read, plus data they choose to apply.
+ */
+export async function runChat<S extends z.ZodType>(ctx: AiContext, req: ChatRequest<S>): Promise<ChatResult<z.infer<S>>> {
+  const options = { webSearch: req.webSearch, maxSearches: req.maxSearches, tool: req.tool, onText: req.onText };
+  const reply = await call(ctx, req, (provider, key, request) => (provider === "openai" ? openaiChat(key, { ...request, ...options }) : anthropicChat(key, { ...request, ...options })));
+  let proposal: z.infer<S> | null = null;
+  let proposalError: string | null = null;
+  if (req.tool && reply.toolInput != null) {
+    const parsed = req.tool.schema.safeParse(reply.toolInput);
+    if (parsed.success) proposal = parsed.data;
+    else proposalError = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+  }
+  return { text: reply.text, proposal, proposalError, citations: reply.citations, searches: reply.searches, model: reply.model };
 }
 
 /** A picture (Ads AD2): OpenAI only, so the image task needs an OpenAI key whatever the default provider. */

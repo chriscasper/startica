@@ -1,8 +1,8 @@
 import OpenAI from "openai";
-import { zodTextFormat } from "openai/helpers/zod";
+import { zodResponsesFunction, zodTextFormat } from "openai/helpers/zod";
 import type { Response } from "openai/resources/responses/responses";
 import type { z } from "zod";
-import { AiError, type AiMessage, type Answer, type CallRequest, type CallResult, type ResearchOptions } from "./errors.ts";
+import { AiError, type AiMessage, type Answer, type CallRequest, type CallResult, type ChatOptions, type ChatReply, type ResearchOptions } from "./errors.ts";
 import type { TokenUsage } from "./pricing.ts";
 
 /**
@@ -118,6 +118,48 @@ export async function openaiAnswer(key: string, req: CallRequest & { maxSearches
   }
   const usage = usageOf(response);
   checkResponse(response, req, usage);
+  return { value: { text: response.output_text.trim(), ...sourcesOf(response) }, model: response.model, usage };
+}
+
+/**
+ * A chat turn, streamed: `onText` gets the text so far as it's written. With web search the
+ * model may look things up first; with a tool (a strict function) it may hand back structured data.
+ */
+export async function openaiChat(key: string, req: CallRequest & ChatOptions): Promise<CallResult<ChatReply>> {
+  const tools: unknown[] = [];
+  if (req.webSearch) tools.push({ type: "web_search" });
+  if (req.tool) tools.push(zodResponsesFunction({ name: req.tool.name, description: req.tool.description, parameters: req.tool.schema }));
+  let text = "";
+  let response: Response;
+  try {
+    const stream = getClient(key).responses.stream(
+      { ...common(req), ...(tools.length ? { tools: tools as never, max_tool_calls: (req.webSearch ? (req.maxSearches ?? 3) : 0) + (req.tool ? 1 : 0) } : {}) },
+      { signal: req.signal },
+    );
+    stream.on("response.output_text.delta", (event) => {
+      text += event.delta;
+      req.onText?.(text);
+    });
+    response = await stream.finalResponse();
+  } catch (error) {
+    throw AiError.wrap(error, { model: req.config.model });
+  }
+  const usage = usageOf(response);
+  checkResponse(response, req, usage);
+  const call = response.output.find((item) => item.type === "function_call" && item.name === req.tool?.name);
+  let toolInput: unknown = null;
+  if (call?.type === "function_call") {
+    try {
+      toolInput = JSON.parse(call.arguments);
+    } catch {
+      toolInput = null;
+    }
+  }
+  return { value: { text: response.output_text.trim(), toolInput, ...sourcesOf(response), model: response.model }, model: response.model, usage };
+}
+
+/** The pages a response cited and the searches behind it. */
+function sourcesOf(response: Response): Pick<Answer, "citations" | "searches"> {
   const citations = new Map<string, string>();
   const searches: string[] = [];
   for (const item of response.output as unknown as { type: string; action?: { query?: string }; content?: { type: string; annotations?: { type: string; url?: string; title?: string }[] }[] }[]) {
@@ -125,7 +167,7 @@ export async function openaiAnswer(key: string, req: CallRequest & { maxSearches
     if (item.type === "message")
       for (const part of item.content ?? []) for (const a of part.annotations ?? []) if (a.type === "url_citation" && a.url && !citations.has(a.url)) citations.set(a.url, a.title ?? "");
   }
-  return { value: { text: response.output_text.trim(), citations: [...citations].map(([url, title]) => ({ url, title })), searches }, model: response.model, usage };
+  return { citations: [...citations].map(([url, title]) => ({ url, title })), searches };
 }
 
 /**

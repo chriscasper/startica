@@ -13,9 +13,12 @@ import { securityFindings, sites, trackerIssues } from "@startica/db/schema";
 import { findingPages } from "@startica/core/security/findings";
 import { hasAiKey } from "@startica/core/ai/client";
 import { COST_HINT } from "@startica/core/security/ai";
+import { versionsToShow } from "@startica/core/chat/threads";
 import { describeDetail, findingInfo } from "@startica/core/security/report";
 import type { LibraryVuln } from "@startica/core/security/monitor";
 import { trackerFor } from "@startica/core/trackers/trackers";
+import { RefineButton } from "@/components/app/refine/refine-panel";
+import { VersionsButton } from "@/components/app/refine/versions-button";
 import { db, getWorkspace } from "@/lib/dal";
 import { desktopApp } from "@/lib/desktop";
 import { pathOf, withSite } from "../../../accessibility/data";
@@ -66,6 +69,7 @@ async function Finding({ params }: { params: PageProps<"/security/findings/[id]"
   const demo = desktopApp().demo;
   const aiReady = !demo && (await hasAiKey());
   const help = finding.aiHelp;
+  const versions = await versionsToShow(workspace.id, "security_help", finding.id);
 
   return (
     <>
@@ -203,7 +207,11 @@ async function Finding({ params }: { params: PageProps<"/security/findings/[id]"
             </>
           )}
           <div>
-            <ExplainButton findingId={finding.id} again={Boolean(help)} disabled={!aiReady || finding.aiStatus === "working"} />
+            <div className="flex flex-wrap items-center gap-2">
+              <ExplainButton findingId={finding.id} again={Boolean(help)} disabled={!aiReady || finding.aiStatus === "working"} />
+              {help && <RefineButton kind="security_help" subjectId={finding.id} disabled={!aiReady || finding.aiStatus === "working"} />}
+              <VersionsButton kind="security_help" noun="fix steps" versions={versions} />
+            </div>
             {!aiReady && <p className="mt-2 text-xs text-muted-foreground">{demo ? "AI help is off in the demo." : "Add an AI key in Settings → General → AI to use this."}</p>}
           </div>
         </CardContent>

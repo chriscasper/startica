@@ -14,6 +14,9 @@ import { trackerFor, trackerIssueFor } from "@startica/core/trackers/trackers";
 import { db, getWorkspace } from "@/lib/dal";
 import { IGNORE_LABEL } from "@startica/core/a11y/track";
 import { COST_HINT } from "@startica/core/a11y/ai";
+import { versionsToShow } from "@startica/core/chat/threads";
+import { RefineButton } from "@/components/app/refine/refine-panel";
+import { VersionsButton } from "@/components/app/refine/versions-button";
 import { hasAiKey } from "@startica/core/ai/client";
 import { CopyBlock } from "@/components/app/copy-block";
 import { desktopApp } from "@/lib/desktop";
@@ -59,6 +62,7 @@ async function Issue({ params }: { params: PageProps<"/accessibility/issues/[id]
 
   const aiReady = !desktopApp().demo && (await hasAiKey());
   const fix = group.aiFix;
+  const versions = await versionsToShow(workspace.id, "a11y_fix", group.id);
   return (
     <>
       <LiveRefresh tables={["a11y_issue_groups", "site_pages", "tracker_issues"]} />
@@ -150,7 +154,11 @@ async function Issue({ params }: { params: PageProps<"/accessibility/issues/[id]
               </>
             )}
             <div>
-              <SuggestFixButton groupId={group.id} again={Boolean(fix)} disabled={!aiReady || group.aiFixStatus === "working"} />
+              <div className="flex flex-wrap items-center gap-2">
+                <SuggestFixButton groupId={group.id} again={Boolean(fix)} disabled={!aiReady || group.aiFixStatus === "working"} />
+                {fix && <RefineButton kind="a11y_fix" subjectId={group.id} disabled={!aiReady || group.aiFixStatus === "working"} />}
+                <VersionsButton kind="a11y_fix" noun="fix" versions={versions} />
+              </div>
               {!aiReady && <p className="mt-2 text-xs text-muted-foreground">{desktopApp().demo ? "AI help is off in the demo." : "Add an AI key in Settings → General → AI to use this."}</p>}
             </div>
           </CardContent>

@@ -4,6 +4,7 @@ import { getDb, transaction } from "@startica/db/client";
 import { enqueue } from "@startica/db/queue";
 import { a11yImages, a11yIssueGroups, a11yOccurrences, sitePages, siteScans, sites, type A11yAiFix, type A11yAiReview, type PageImage } from "@startica/db/schema";
 import { runStructured, taskModel, type AiContext, type AiImage, type AiPart } from "../ai/client.ts";
+import { recordVersion } from "../chat/versions.ts";
 import { jobByPayload } from "../jobs/cancel.ts";
 import { readScreenshot } from "./screenshots.ts";
 
@@ -49,7 +50,7 @@ export const fixOutput = z.object({
 
 export const fixPayload = z.object({ workspaceId: z.guid(), groupId: z.guid(), guidance: z.string().max(500).optional() });
 
-async function ownGroup(workspaceId: string, groupId: string) {
+export async function ownGroup(workspaceId: string, groupId: string) {
   const [g] = await getDb().select().from(a11yIssueGroups).where(and(eq(a11yIssueGroups.id, groupId), eq(a11yIssueGroups.workspaceId, workspaceId)));
   if (!g) throw new Error("Issue not found");
   return g;
@@ -86,29 +87,41 @@ export function fixMessage(g: { help: string; description: string; ruleId: strin
     .join("\n\n");
 }
 
+/** What the AI is told about an issue: the rule and up to three failing elements (also the context of a Refine chat). */
+export async function fixContext(workspaceId: string, groupId: string, guidance?: string): Promise<{ group: typeof a11yIssueGroups.$inferSelect; content: string }> {
+  const group = await ownGroup(workspaceId, groupId);
+  const items = await samples(group.id);
+  if (items.length === 0) throw new Error("This issue isn't on any page right now");
+  return { group, content: fixMessage(group, items, group.pagesCount, guidance) };
+}
+
+/** The stored fix from the AI's output. */
+export function fixFrom(out: z.infer<typeof fixOutput>, model: string, guidance: string | null): A11yAiFix {
+  return {
+    explanation: out.explanation.trim(),
+    html: out.fixed_html.trim(),
+    steps: out.steps.map((s) => s.trim()).filter(Boolean),
+    confidence: out.confidence,
+    guidance,
+    model,
+    createdAt: new Date().toISOString(),
+  };
+}
+
 export async function runFixSuggest(ctx: AiContext, payload: z.infer<typeof fixPayload>) {
   const where = eq(a11yIssueGroups.id, payload.groupId);
   try {
-    const g = await ownGroup(payload.workspaceId, payload.groupId);
-    const items = await samples(g.id);
-    if (items.length === 0) throw new Error("This issue isn't on any page right now");
+    const { group: g, content } = await fixContext(payload.workspaceId, payload.groupId, payload.guidance);
     const out = await runStructured(ctx, {
       task: "draft",
       promptVersion: FIX_PROMPT_VERSION,
       system: FIX_SYSTEM,
-      messages: [{ role: "user", content: fixMessage(g, items, g.pagesCount, payload.guidance) }],
+      messages: [{ role: "user", content }],
       schema: fixOutput,
     });
-    const fix: A11yAiFix = {
-      explanation: out.explanation.trim(),
-      html: out.fixed_html.trim(),
-      steps: out.steps.map((s) => s.trim()).filter(Boolean),
-      confidence: out.confidence,
-      guidance: payload.guidance ?? null,
-      model: (await taskModel(ctx, "draft")).model,
-      createdAt: new Date().toISOString(),
-    };
+    const fix = fixFrom(out, (await taskModel(ctx, "draft")).model, payload.guidance ?? null);
     await getDb().update(a11yIssueGroups).set({ aiFix: fix, aiFixStatus: "ready", aiFixError: null }).where(where);
+    await recordVersion({ workspaceId: payload.workspaceId, kind: "a11y_fix", subjectId: g.id }, fix, "suggested", { previous: g.aiFix });
     return { confidence: fix.confidence };
   } catch (err) {
     await getDb().update(a11yIssueGroups).set({ aiFixStatus: "failed", aiFixError: ctx.signal?.aborted ? "Stopped by you" : err instanceof Error ? err.message : String(err) }).where(where);

@@ -71,6 +71,22 @@
       .copyright {
         margin-top: 6px;
       }
+      .beta {
+        margin-left: 4px;
+        padding: 1px 6px;
+        border-radius: 999px;
+        border: 1px solid rgb(245 158 11 / 0.45);
+        background: rgb(245 158 11 / 0.12);
+        color: #b45309;
+        font-size: 10px;
+        font-weight: 600;
+        vertical-align: 1px;
+      }
+      @media (prefers-color-scheme: dark) {
+        .beta {
+          color: #fbbf24;
+        }
+      }
       .update {
         margin-top: auto;
         display: flex;
@@ -108,7 +124,7 @@
         </svg>
       </div>
       <h1 id="name">Startica</h1>
-      <p id="version"></p>
+      <p><span id="version"></span><span class="beta" id="beta" hidden>Beta</span></p>
       <p class="copyright" id="copyright"></p>
       <div class="update">
         <button id="check" type="button">Check for Updates…</button>
@@ -143,6 +159,7 @@
         if (!info) return;
         document.getElementById("name").textContent = info.name;
         document.getElementById("version").textContent = `Version ${info.version}`;
+        document.getElementById("beta").hidden = false;
         document.getElementById("copyright").textContent = info.copyright;
         show(info.status);
       });

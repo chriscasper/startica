@@ -110,8 +110,9 @@ export function AppSidebar() {
               {/* "!" beats the menu button's [&_svg]:size-4, which would squash the wordmark to 16 × 16. */}
               <div className="flex flex-col gap-1">
                 <StarticaLogo className="h-4! w-auto!" />
-                <span className="text-[10px] leading-none text-sidebar-foreground/60 tabular-nums">
+                <span className="flex items-center gap-1 text-[10px] leading-none text-sidebar-foreground/60 tabular-nums">
                   v{process.env.NEXT_PUBLIC_STARTICA_VERSION}
+                  <span className="rounded-full border border-amber-500/45 bg-amber-500/12 px-1 py-px text-[9px] font-semibold text-amber-700 dark:text-amber-400">Beta</span>
                 </span>
               </div>
             </SidebarMenuButton>

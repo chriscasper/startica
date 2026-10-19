@@ -71,11 +71,12 @@ async function fetchWith(sql: postgres.Sql, config: z.infer<typeof productDbConf
 /** Why a login is refused, or null when it can only read. */
 // A read-only default alone isn't enough: a client can switch it off per transaction.
 // What counts is what the login is allowed to do.
-export function writeRisk(role: { rolsuper: boolean; rolcreaterole: boolean; rolbypassrls: boolean; can_write: boolean }): string | null {
+export function writeRisk(role: { rolsuper: boolean; rolcreaterole: boolean; rolbypassrls: boolean; can_write: boolean; writable?: string[] }): string | null {
   if (role.rolsuper) return "This login is a superuser";
   if (role.rolcreaterole) return "This login can create roles";
   if (role.rolbypassrls) return "This login bypasses row-level security";
-  if (role.can_write) return "This login can change data";
+  // Naming the tables lets the owner find the grant (often one to PUBLIC, which every login gets).
+  if (role.can_write) return `This login can change data${role.writable?.length ? ` (for example in ${role.writable.join(", ")})` : ""}`;
   return null;
 }
 
@@ -90,17 +91,24 @@ export async function checkReaderConnection(url: string, view: string): Promise<
   const sql = postgres(url, connectionOptions(url));
   try {
     // has_table_privilege counts grants through other roles and PUBLIC too.
-    const [role] = await sql<{ rolsuper: boolean; rolcreaterole: boolean; rolbypassrls: boolean; can_write: boolean }[]>`
+    const [role] = await sql<{ rolsuper: boolean; rolcreaterole: boolean; rolbypassrls: boolean; writable: string[] }[]>`
       select r.rolsuper, r.rolcreaterole, r.rolbypassrls,
-             exists (
-               select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+             array(
+               select n.nspname || '.' || c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
                where c.relkind in ('r', 'p') and n.nspname not in ('pg_catalog', 'information_schema')
                  and (has_table_privilege(c.oid, 'INSERT') or has_table_privilege(c.oid, 'UPDATE')
                       or has_table_privilege(c.oid, 'DELETE') or has_table_privilege(c.oid, 'TRUNCATE'))
-             ) as can_write
+                 -- pg_cron grants DELETE on its run log to PUBLIC, but its row-level security policy
+                 -- only reaches the caller's own jobs (the reader has none). Skipped only while that
+                 -- policy is the table's only one.
+                 and not (n.nspname = 'cron' and c.relname = 'job_run_details' and c.relrowsecurity
+                          and not has_table_privilege(c.oid, 'INSERT') and not has_table_privilege(c.oid, 'TRUNCATE')
+                          and not exists (select 1 from pg_policy p where p.polrelid = c.oid and p.polname <> 'cron_job_run_details_policy'))
+               order by 1 limit 5
+             ) as writable
       from pg_roles r where r.rolname = current_user
     `;
-    const risk = role ? writeRisk(role) : "Couldn't read this login's permissions";
+    const risk = role ? writeRisk({ ...role, can_write: role.writable.length > 0 }) : "Couldn't read this login's permissions";
     if (risk) throw new Error(`${risk}. Startica only connects with a read-only login: run the setup SQL and connect as startica_reader, or use a login that can only read.`);
     const rows = await fetchWith(sql, config);
     return { rows: rows.length, metrics: [...new Set(rows.map((r) => r.metric))] };
@@ -117,12 +125,15 @@ export function explainDbError(error: unknown, view: string): string {
   const message = e?.message ?? String(error);
   if (/only connects with a read-only login|Couldn't read this login/.test(message)) return message;
   if (e?.code === "28P01" || /password authentication failed/i.test(message))
-    return "The read-only login's password doesn't match. Run the SQL again (it sets the password), wait a minute for Supabase to pick it up, then test again.";
+    return "The read-only login's password doesn't match. Run the SQL shown in the setup (it sets the password), wait 2–3 minutes for Supabase to pick it up, then test again without writing the SQL again.";
   if (/Tenant or user not found/i.test(message) || (e?.code === "28000" && /role .* does not exist/i.test(message)))
     return "The read-only login doesn't exist yet. Run the setup SQL in your SQL editor first, then test again.";
   if (e?.code === "42P01" || /relation .* does not exist/i.test(message)) return `${view} doesn't exist yet. Run the setup SQL in your SQL editor first, then test again.`;
   if (e?.code === "42501" || /permission denied/i.test(message)) return `The read-only login can't read ${view}. Run the setup SQL again: it grants that.`;
   if (/ENOTFOUND|getaddrinfo/i.test(message)) return "Couldn't find that database host. Copy the connection string again from your database provider.";
-  if (/ECONNREFUSED|ETIMEDOUT|CONNECT_TIMEOUT|timeout/i.test(message)) return "Couldn't reach the database. Check the host and port, and that this computer can reach it.";
+  // An IPv6-only host (Supabase's direct connection) from a network without IPv6.
+  if (/EHOSTUNREACH|ENETUNREACH/.test(message) && /\[?[0-9a-f]*:[0-9a-f:]+\]?:\d+/i.test(message))
+    return "This computer's network can't reach the database: its host only has an IPv6 address. On Supabase, use the Transaction pooler connection string instead (Connect → Transaction pooler); the Direct connection needs IPv6.";
+  if (/ECONNREFUSED|ETIMEDOUT|EHOSTUNREACH|ENETUNREACH|CONNECT_TIMEOUT|timeout/i.test(message)) return "Couldn't reach the database. Check the host and port, and that this computer can reach it.";
   return message;
 }

@@ -75,13 +75,16 @@ describe("read-only only", () => {
     expect(writeRisk({ ...safe, rolsuper: true })).toMatch(/superuser/);
     expect(writeRisk({ ...safe, rolcreaterole: true })).toMatch(/create roles/);
     expect(writeRisk({ ...safe, can_write: true })).toMatch(/change data/);
+    expect(writeRisk({ ...safe, can_write: true, writable: ["public.notes"] })).toMatch(/in public\.notes/);
   });
 
   it("explains the errors people hit while setting up", () => {
-    expect(explainDbError({ code: "28P01", message: "password authentication failed" }, METRICS_VIEW)).toMatch(/Run the SQL again/);
+    expect(explainDbError({ code: "28P01", message: "password authentication failed" }, METRICS_VIEW)).toMatch(/wait 2–3 minutes/);
     expect(explainDbError({ message: "Tenant or user not found" }, METRICS_VIEW)).toMatch(/doesn't exist yet/);
     expect(explainDbError({ code: "42P01", message: 'relation "startica.daily_metrics" does not exist' }, METRICS_VIEW)).toMatch(/startica.daily_metrics doesn't exist yet/);
     expect(explainDbError({ message: "getaddrinfo ENOTFOUND db.nope.example" }, METRICS_VIEW)).toMatch(/Couldn't find that database host/);
+    expect(explainDbError({ message: "connect EHOSTUNREACH 2001:db8::1:5432 - Local (:::53076)" }, METRICS_VIEW)).toMatch(/Transaction pooler/);
+    expect(explainDbError({ message: "connect EHOSTUNREACH 192.0.2.1:5432" }, METRICS_VIEW)).toMatch(/Couldn't reach the database/);
   });
 });
 

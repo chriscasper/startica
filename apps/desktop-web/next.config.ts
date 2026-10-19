@@ -51,6 +51,8 @@ const nextConfig: NextConfig = {
     return [{ source: "/", destination: "/dashboard", permanent: false }];
   },
   // Keep the dev badge clear of the sidebar footer links.
+  // Next's dev server prints every server action's arguments, and some carry passwords.
+  logging: { serverFunctions: false },
   devIndicators: { position: "bottom-right" },
   turbopack: {
     root: path.resolve(__dirname, "../.."),

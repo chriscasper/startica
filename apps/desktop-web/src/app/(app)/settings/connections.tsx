@@ -426,6 +426,8 @@ function ProductDbSetup({ productId, conn }: { productId: string; conn?: Connect
   const [metrics, setMetrics] = useState<Metric[]>(saved ?? [SIGNUPS]);
   const [setup, setSetup] = useState<{ sql: string; password: string } | null>(null);
   const [connectionString, setConnectionString] = useState("");
+  // Also shown in the dialog: a toast is easy to miss while reading the steps.
+  const [connectError, setConnectError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const edit = (next: Metric[]) => {
@@ -441,7 +443,9 @@ function ProductDbSetup({ productId, conn }: { productId: string; conn?: Connect
   const connect = () =>
     startTransition(async () => {
       if (!setup) return;
+      setConnectError(null);
       const { error } = await connectProductDb(productId, { metrics, password: setup.password, connectionString });
+      setConnectError(error);
       if (error) toast.error(error);
       else {
         toast.success("Connected with the read-only login. Syncing now.");
@@ -464,6 +468,7 @@ function ProductDbSetup({ productId, conn }: { productId: string; conn?: Connect
           setMetrics(saved ?? [SIGNUPS]);
           setSetup(null);
           setConnectionString("");
+          setConnectError(null);
         }
       }}
     >
@@ -529,6 +534,11 @@ function ProductDbSetup({ productId, conn }: { productId: string; conn?: Connect
                   Startica only keeps the host and project, signs in as <code>startica_reader</code> with the password from the SQL, and never stores yours. It
                   refuses any login that can change data.
                 </p>
+                {connectError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {connectError}
+                  </p>
+                )}
               </Step>
             </>
           )}

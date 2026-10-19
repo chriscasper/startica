@@ -112,7 +112,7 @@ pgrep -fl Startica
 **Cause and fix.** Read the message. The common ones:
 
 - "The read-only login doesn't exist yet…" or "startica.daily_metrics doesn't exist yet…": the setup SQL hasn't run in this database. Copy it from step 2 and run it in Supabase's SQL Editor or with `psql`, then test again.
-- "The read-only login's password doesn't match…": run the SQL shown in the dialog again, wait a minute (Supabase's pooler takes a moment to pick up a new password), then test again.
+- "The read-only login's password doesn't match…": run the SQL shown in the dialog again, wait 2–3 minutes (Supabase's pooler takes a few minutes to pick up a new password), then test again.
 - "This login is a superuser", "…can create roles", "…bypasses row-level security" or "…can change data": Startica refuses any login that can do more than read. Use the guided **Set up**, which connects as `startica_reader`, instead of an admin URL.
 - "Couldn't reach the database…": check the host, port, firewall and allow-lists. On Supabase, use the **Transaction pooler** connection string.
 - A Postgres error such as `relation "public.event" does not exist` while you run the SQL: a table or column name in step 1 is wrong. Fix it, click **Write the SQL** again and run the new script.

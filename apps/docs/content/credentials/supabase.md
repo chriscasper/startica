@@ -16,7 +16,7 @@ Your product database holds your users' data. Startica only needs a handful of n
 - **Totals, not rows.** The view returns `(day, metric, value)`: for example, 4 signups on 2026-10-08. No emails, names or IDs leave your database.
 - **One view, nothing else.** The login can `SELECT` from `startica.daily_metrics` only. It has no access to your tables.
 - **Read-only twice.** The login's sessions are read-only by default, and every Startica query also runs in a read-only transaction.
-- **Checked before saving.** Before Startica saves a connection, it signs in and checks what the login is allowed to do. It refuses a superuser, a login that can create roles, a login that bypasses row-level security, and a login with `INSERT`, `UPDATE`, `DELETE` or `TRUNCATE` on any table, including grants it gets through other roles or `PUBLIC`. A read-only session setting alone isn't enough, because a client can switch it off.
+- **Checked before saving.** Before Startica saves a connection, it signs in and checks what the login is allowed to do. It refuses a superuser, a login that can create roles, a login that bypasses row-level security, and a login with `INSERT`, `UPDATE`, `DELETE` or `TRUNCATE` on any table, including grants it gets through other roles or `PUBLIC`. The one exception is pg_cron's run log (`cron.job_run_details`): pg_cron lets every login delete from it, but its row-level security only reaches that login's own jobs, and `startica_reader` has none. A read-only session setting alone isn't enough, because a client can switch it off.
 
 There's no Supabase sign-in, no OAuth app and no Management API access to set up.
 
@@ -84,7 +84,7 @@ Startica builds the read-only login's connection from the string you pasted:
 Then it tests the login (see [Why read-only only](#why-read-only-only)) and reads the view. When both pass, it saves the connection, shows "Connected with the read-only login. Syncing now." and syncs right away. The **Product database** row shows **Connected** and "Tracking: _metric names_ · _host_".
 
 > [!TIP]
-> If the test says the password doesn't match right after you ran the SQL, wait a minute and click **I ran it: test and save** again. Supabase's pooler can take a moment to pick up a new login.
+> If the test says the password doesn't match right after you ran the SQL, wait 2–3 minutes and click **I ran it: test and save** again. Supabase's pooler can take a few minutes to pick up a new password. Don't click **Write the SQL** in between: before the first save, it makes a new password each time.
 
 ## Set up on any other Postgres
 
@@ -292,7 +292,7 @@ Startica refuses to save a login that can do more than read. Each message ends w
 
 | Message | Cause and fix |
 | --- | --- |
-| "The read-only login's password doesn't match. Run the SQL again (it sets the password), wait a minute for Supabase to pick it up, then test again." | The password in the database isn't the one Startica has. Usually the script wasn't run yet, or an older script was run after a newer one. Run the script shown in the dialog. |
+| "The read-only login's password doesn't match. Run the SQL shown in the setup (it sets the password), wait 2–3 minutes for Supabase to pick it up, then test again without writing the SQL again." | The password in the database isn't the one Startica has. Usually the script wasn't run yet, or an older script was run after a newer one. Run the script shown in the dialog. |
 | "The read-only login doesn't exist yet. Run the setup SQL in your SQL editor first, then test again." | `startica_reader` isn't in the database (on Supabase's pooler: "Tenant or user not found"). Run the script, or check that you pasted the connection string of the same project. |
 | "startica.daily_metrics doesn't exist yet. Run the setup SQL in your SQL editor first, then test again." | The view is missing. The script didn't run, or stopped at an error before the view was made. With **Use a URL instead**, the message names your view. |
 | "The read-only login can't read startica.daily_metrics. Run the setup SQL again: it grants that." | The `grant` statements didn't run, or the view was replaced by someone else. Running the script again fixes it. |

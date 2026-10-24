@@ -19,8 +19,8 @@
   },
   "devDependencies": {
     "@startica/brand": "workspace:^",
-    "electron": "44.7.0",
-    "electron-builder": "26.15.3"
+    "electron": "45.0.0",
+    "electron-builder": "26.18.0"
   },
   "build": {
     "appId": "com.mystartica.desktop",
@@ -122,6 +122,6 @@
     "email": "hello@mystartica.com"
   },
   "dependencies": {
-    "electron-updater": "6.8.9"
+    "electron-updater": "6.8.11"
   }
 }

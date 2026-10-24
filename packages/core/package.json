@@ -17,28 +17,28 @@
     "real-pass": "tsx scripts/real-pass.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.132.1",
-    "@google-analytics/data": "^7.2.1",
+    "@anthropic-ai/sdk": "^1.3.0",
+    "@google-analytics/data": "^7.3.0",
     "@mozilla/readability": "^0.6.0",
     "@startica/db": "workspace:*",
     "axe-core": "4.14.0",
     "croner": "^10.0.1",
     "dictionary-en": "4.0.0",
-    "linkedom": "^0.18.13",
+    "linkedom": "^0.18.14",
     "nspell": "2.1.5",
-    "openai": "^7.32.0",
+    "openai": "^7.43.0",
     "pdfjs-dist": "6.4.299",
     "postgres": "^3.4.9",
-    "stripe": "^23.0.0",
-    "zod": "^4.6.5"
+    "stripe": "^23.0.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^24",
     "@types/nspell": "^2.1.6",
-    "playwright": "^1.64.0",
+    "playwright": "^1.64.1",
     "tsx": "^4.23.15",
-    "typescript": "^5",
-    "vite": "^8.3.4",
-    "vitest": "^5.0.3"
+    "typescript": "^6.0.3",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   }
 }

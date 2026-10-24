@@ -10,6 +10,9 @@ import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader,
 import { Textarea } from "@/components/ui/textarea";
 import { addReplyLink, dismissOpportunity, draftAnyway, markPosted, postWithStartica, regenerateDraft, saveDraftEdit } from "./actions";
 import { channelLabel } from "@/lib/channels";
+import { PlanTimeButton, type PlanHint } from "@/components/app/plan-time";
+import { RefineButton } from "@/components/app/refine/refine-panel";
+import { VersionsButton, type VersionItem } from "@/components/app/refine/versions-button";
 
 export type OpportunityView = {
   id: string;
@@ -43,6 +46,12 @@ export type OpportunityView = {
   canPost: boolean;
   /** Posted: the link to the user's reply, if known. */
   postedUrl: string | null;
+  /** Content calendar: when the owner plans to post the reply (ms), and the best-time hint. */
+  plannedAt?: number | null;
+  planHint?: PlanHint | null;
+  /** Refine (ARCHITECTURE.md 5.1): an AI key is set (and not the demo), and the draft's versions. */
+  aiReady?: boolean;
+  versions?: VersionItem[];
 };
 
 
@@ -223,6 +232,15 @@ export function OpportunityCard({ opportunity: o }: { opportunity: OpportunityVi
                 Save edits
               </Button>
             )}
+            <PlanTimeButton kind="reply" id={o.id} plannedAt={o.plannedAt ?? null} hint={o.planHint ?? null} />
+            <RefineButton
+              kind="reply_draft"
+              subjectId={o.id}
+              variant="ghost"
+              disabled={!o.aiReady || edited}
+              why={edited ? "Save or undo your edits first: the chat works on the saved draft" : "Add an AI key in Settings → General → AI (off in the demo)"}
+            />
+            <VersionsButton kind="reply_draft" noun="reply draft" versions={o.versions ?? []} />
           </>
         )}
         {(o.status === "drafted" || o.status === "failed") && (

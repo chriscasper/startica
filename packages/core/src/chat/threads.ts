@@ -5,8 +5,8 @@ import { getDb } from "@startica/db/client";
 import { enqueue } from "@startica/db/queue";
 import { aiRuns, chatMessages, chatThreads, type ChatSource, type ChatSubjectKind } from "@startica/db/schema";
 import { jobByPayload, stopJob } from "../jobs/cancel.ts";
-import { CHAT_SUBJECTS } from "./subjects.ts";
-import { listVersions, markApplied, ownVersion, recordVersion } from "./versions.ts";
+import { CHAT_SUBJECTS, subjectShape, type ChatSubject } from "./subjects.ts";
+import { listVersions, listVersionsFor, markApplied, ownVersion, recordVersion, type SuggestionVersion, type VersionSource } from "./versions.ts";
 
 /**
  * Refine chats (ARCHITECTURE.md section 5.1): a conversation with the AI about one suggestion,
@@ -137,7 +137,7 @@ export async function sendChatMessage(workspaceId: string, kind: ChatSubjectKind
   const subject = subjectOf(kind);
   const body = messageInput.parse(text);
   const { current } = await subject.load(workspaceId, subjectId);
-  if (!current) throw new Error(`There are no ${subject.noun} to refine yet: ask for them first`);
+  if (!current) throw new Error(`There's nothing to refine yet: ask for the ${subject.noun} first`);
   const db = getDb();
   let thread = await openThread(workspaceId, kind, subjectId);
   if (thread && (await threadMessages(thread.id)).some((m) => (BUSY as readonly string[]).includes(m.status))) {
@@ -171,9 +171,10 @@ export async function applyRevision(workspaceId: string, messageId: string): Pro
   if (thread.status !== "open") throw new Error("This chat has ended; start a new one to change it again");
   if (!message.proposal) throw new Error("That reply has no revision to apply");
   const subject = subjectOf(thread.subjectKind);
-  const revision = subject.revision.parse(message.proposal);
-  const stored = subject.toStored(revision, message.model ?? "unknown model");
-  const { current } = await subject.load(workspaceId, thread.subjectId);
+  const loaded = await subject.load(workspaceId, thread.subjectId);
+  const { current } = loaded;
+  const revision = subjectShape(subject, loaded).revision.parse(message.proposal);
+  const stored = subject.toStored(revision, message.model ?? "unknown model", current);
   await subject.write(workspaceId, thread.subjectId, stored);
   await recordVersion({ workspaceId, kind: thread.subjectKind, subjectId: thread.subjectId }, stored, "chat", { previous: current, threadId: thread.id });
   const now = new Date();
@@ -222,14 +223,25 @@ export async function restoreVersion(workspaceId: string, versionId: string): Pr
   await markApplied(version.id);
 }
 
+export type VersionToShow = { id: string; createdAt: string; source: VersionSource; current: boolean; revision: Record<string, unknown> };
+
+const toShow = (subject: ChatSubject, v: SuggestionVersion): VersionToShow => ({
+  id: v.id,
+  createdAt: v.createdAt.toISOString(),
+  source: v.source,
+  current: v.current,
+  revision: subject.toRevision(v.value) as Record<string, unknown>,
+});
+
 /** A suggestion's versions for the Versions dialog, each in its revision's shape. */
-export async function versionsToShow(workspaceId: string, kind: ChatSubjectKind, subjectId: string) {
+export async function versionsToShow(workspaceId: string, kind: ChatSubjectKind, subjectId: string): Promise<VersionToShow[]> {
   const subject = subjectOf(kind);
-  return (await listVersions({ workspaceId, kind, subjectId })).map((v) => ({
-    id: v.id,
-    createdAt: v.createdAt.toISOString(),
-    source: v.source,
-    current: v.current,
-    revision: subject.toRevision(v.value) as Record<string, unknown>,
-  }));
+  return (await listVersions({ workspaceId, kind, subjectId })).map((v) => toShow(subject, v));
+}
+
+/** The same for every suggestion on a list page, by subject id (missing: no versions). */
+export async function versionsToShowFor(workspaceId: string, kind: ChatSubjectKind, subjectIds: string[]): Promise<Record<string, VersionToShow[]>> {
+  const subject = subjectOf(kind);
+  const found = await listVersionsFor(workspaceId, kind, subjectIds);
+  return Object.fromEntries([...found].map(([id, versions]) => [id, versions.map((v) => toShow(subject, v))]));
 }

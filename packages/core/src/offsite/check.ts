@@ -4,7 +4,7 @@ import { getDb } from "@startica/db/client";
 import { enqueue } from "@startica/db/queue";
 import { communities as communitiesTable, competitors, offsitePages, products } from "@startica/db/schema";
 import type { AiContext } from "../ai/client.ts";
-import { isPrivateHost, resolvesPublic as resolvesPublicName } from "../net/address.ts";
+import { allowedPublicUrl, allowLocalPublicFetch, publicGet, resolvesPublicHost } from "../net/public-fetch.ts";
 export { privateAddress } from "../net/address.ts";
 import { visibleText } from "../agents/checks.ts";
 import { jobByPayload } from "../jobs/cancel.ts";
@@ -25,65 +25,14 @@ const MAX_PAGES = 30;
 const PER_DOMAIN = 3;
 const FRESH_DAYS = 7;
 const MAX_BYTES = 1_000_000;
-const RESERVED = /\.(example|test|invalid|localhost)$/i;
 
-// Tests read pages from a server on 127.0.0.1, and only from it; never in the installed app.
-const g = globalThis as { __starticaOffsiteLocal?: boolean };
-export function allowLocalOffsite(on: boolean): void {
-  g.__starticaOffsiteLocal = on;
-}
-
+/** Tests read pages from a server on 127.0.0.1, and only from it (the shared public fetch's test mode). */
+export const allowLocalOffsite = allowLocalPublicFetch;
 /** Whether Startica may request this URL at all: public http(s), standard port, a real name. */
-export function allowedOffsite(url: string): boolean {
-  let u: URL;
-  try {
-    u = new URL(url);
-  } catch {
-    return false;
-  }
-  // Test mode reads only the local test server: tests never reach the internet.
-  if (g.__starticaOffsiteLocal && process.env.STARTICA_PACKAGED !== "1") return u.hostname === "127.0.0.1";
-  if (u.protocol !== "https:" && u.protocol !== "http:") return false;
-  if (u.port && u.port !== "80" && u.port !== "443") return false;
-  if (u.username || u.password) return false;
-  return !isPrivateHost(u.hostname) && !RESERVED.test(u.hostname) && u.hostname.includes(".");
-}
+export const allowedOffsite = allowedPublicUrl;
 
-/** Every address the name resolves to is public. Checked before each request, redirects included. */
-async function resolvesPublic(hostname: string): Promise<boolean> {
-  if (g.__starticaOffsiteLocal && process.env.STARTICA_PACKAGED !== "1") return hostname === "127.0.0.1";
-  return resolvesPublicName(hostname);
-}
-
-/**
- * GET with redirects followed by hand (at most 5), so every hop is checked against the
- * rules, and its name resolved, before any request is sent to it.
- */
-async function get(url: string, signal?: AbortSignal): Promise<{ status: number; text: string } | null> {
-  const timeout = signal ? AbortSignal.any([signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000);
-  let current = url;
-  try {
-    for (let hop = 0; hop <= 5; hop++) {
-      if (!allowedOffsite(current) || !(await resolvesPublic(new URL(current).hostname))) return null;
-      const res = await fetch(current, {
-        headers: { "user-agent": OFFSITE_USER_AGENT, accept: "text/html,text/plain;q=0.9,*/*;q=0.5" },
-        redirect: "manual",
-        signal: timeout,
-      });
-      const location = res.headers.get("location");
-      if (res.status >= 300 && res.status < 400 && location) {
-        await res.body?.cancel();
-        current = new URL(location, current).toString();
-        continue;
-      }
-      const buf = await res.arrayBuffer();
-      return { status: res.status, text: new TextDecoder().decode(buf.slice(0, MAX_BYTES)) };
-    }
-    return null; // too many redirects
-  } catch {
-    return null;
-  }
-}
+const get = async (url: string, signal?: AbortSignal) =>
+  publicGet(url, { userAgent: OFFSITE_USER_AGENT, accept: "text/html,text/plain;q=0.9,*/*;q=0.5", maxBytes: MAX_BYTES, signal });
 
 export const offsiteCheckPayload = z.object({ workspaceId: z.guid(), productId: z.guid() });
 
@@ -112,7 +61,7 @@ export async function runOffsiteCheck(ctx: AiContext, payload: z.infer<typeof of
     const u = new URL(page.url);
     const domain = domainOf(page.url)!;
     // The name itself first: a page on a name that resolves to a private address is never read (not even its robots.txt).
-    if (!(await resolvesPublic(u.hostname))) {
+    if (!(await resolvesPublicHost(u.hostname))) {
       await save({ workspaceId: product.workspaceId, productId: payload.productId, url: page.url, domain, checkedAt: new Date(), status: "failed", title: page.title, httpStatus: null, mentionsProduct: false, competitors: [], error: "Startica doesn't read this address (its name points to a private or reserved address)" });
       continue;
     }

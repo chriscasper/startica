@@ -3,11 +3,14 @@
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { enqueue } from "@startica/db/queue";
+import { hasAiKey } from "@startica/core/ai/client";
 import { communityProblem } from "@startica/core/channels/formats";
+import { researchCompetitor } from "@startica/core/competitors/research";
 import { channels, communities, competitors, keywords, personas, products } from "@startica/db/schema";
 import type { ActionResult } from "@/components/app/form-dialog";
 import { fail, formFields, id, lines, mutate, optionalUrl, productScope } from "@/lib/actions";
 import { db, getWorkspace } from "@/lib/dal";
+import { desktopApp } from "@/lib/desktop";
 
 // Everything the owner writes is marked source = 'owner' so rebuilds keep it.
 
@@ -109,9 +112,14 @@ const competitorSchema = z.object({
 export async function saveCompetitor(productId: string, competitorId: string | null, formData: FormData): Promise<ActionResult> {
   return mutate(async () => {
     const scope = await productScope(productId);
-    const values = { ...competitorSchema.parse(formFields(formData)), source: "owner" as const };
+    const fields = formFields(formData);
+    const values = { ...competitorSchema.parse(fields), source: "owner" as const };
     if (competitorId) await (await db()).update(competitors).set(values).where(await inWorkspace(competitors, competitorId));
-    else await (await db()).insert(competitors).values({ ...values, ...scope });
+    else {
+      const [row] = await (await db()).insert(competitors).values({ ...values, ...scope }).returning({ id: competitors.id });
+      // Competitor watch: research a competitor the owner just named (the dialog only offers it with an AI key).
+      if (fields.research === "on" && !desktopApp().demo && (await hasAiKey())) await researchCompetitor(scope.workspaceId, row!.id);
+    }
   });
 }
 

@@ -20,6 +20,20 @@ On an issue's page, **Suggest a fix** sends the rule, its WCAG criteria and up t
 
 **Suggest again** asks for a new one, optionally with guidance such as "We use React; the logo is the `<Logo>` component in `Header.tsx`". About $0.01 each. After you fix it, **Recheck** the issue's pages.
 
+**Refine** opens a chat about the fix: ask who the issue affects, give your framework, or ask for JSX instead of HTML. A revised fix appears under the AI's reply with **Apply**, and **Versions** keeps every one. See [Refining AI suggestions](/guides/refine).
+
+## Fix plans
+
+To fix several issues at once, tick them on **Accessibility → Issues** (the Open list), or tick the box in the header to pick everything listed (up to 25). Then click **Write one fix plan**, optionally add guidance such as your framework or where your components live, and click **Write the plan**.
+
+You get one short plan for all of them, written to paste into a coding agent such as Claude Code or Cursor:
+
+- **Issues**: each one on a line, with its rule, WCAG criteria, impact, pages and an example element and page;
+- **Tasks**: what to change, in order. Issues with the same cause, such as one header component, are one task. Each task says which issues it fixes, where the code probably is and the change, with corrected HTML when it helps;
+- **Done when**: a few checks for afterwards.
+
+The copy button in the plan's top-right corner (it shows when you point at the plan) copies it. **Write again** writes it again for the same issues, with new guidance if you like. The plan page says how many of its issues have been fixed since; after your agent makes the changes, **Recheck** the pages or run a scan. Earlier plans are under **Fix plans** on the Issues list. About $0.01 for every one or two issues.
+
 ## Alt text review
 
 **Accessibility → Images** lists every image the scans found, once per address (a logo on every page is one row), with its alt text and how many pages use it. **Need attention** shows images without alt text and those the review flagged.

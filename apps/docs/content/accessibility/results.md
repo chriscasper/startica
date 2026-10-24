@@ -31,7 +31,7 @@ Below the cards:
 
 Elements count as the same when their HTML matches, ignoring `id`, `data-` and `style` attributes and cache-busting query strings on addresses. So a logo in a shared header with no alt text is one issue on every page it appears on. Fix the header once and it's fixed everywhere.
 
-Filter by **Open**, **Fixed** or **Ignored**, and by impact (each with its count). The [By criterion](#by-criterion) view links here filtered to one WCAG criterion. Open issues are listed by [priority](#priority). **Export CSV** downloads every issue, one row per element.
+Filter by **Open**, **Fixed** or **Ignored**, and by impact (each with its count). The [By criterion](#by-criterion) view links here filtered to one WCAG criterion. Open issues are listed by [priority](#priority). **Export CSV** downloads every issue, one row per element. Tick issues to write one [fix plan](/accessibility/ai-help#fix-plans) for all of them.
 
 | Column | What it shows |
 | --- | --- |

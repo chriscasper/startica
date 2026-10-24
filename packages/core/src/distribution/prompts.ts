@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { sentiments } from "@startica/db/schema";
 
-export const SCORE_PROMPT_VERSION = "opportunity-score@1";
+export const SCORE_PROMPT_VERSION = "opportunity-score@2";
 export const DRAFT_PROMPT_VERSION = "reply-draft@2";
 
 export function scoreSystem(productContext: string): string {
@@ -15,6 +16,7 @@ Score each conversation you're given:
 - intent (0 to 1): how much the author or thread is actively looking for help, a recommendation or an alternative. 1 = "is there an app/site that…", "what do you use for…". 0.5 = complaining about a problem the product addresses. 0 = news, announcements, jokes, or arguments where a reply would be unwelcome.
 - reasoning: one or two sentences explaining both scores.
 - angle: if worth replying, the most helpful angle for a reply in one sentence (what to say, not marketing copy). Otherwise an empty string.
+- sentiment: how the author feels about the topic, the tools they mention or the product: positive (pleased, recommending), negative (frustrated, complaining), mixed (both), or neutral (asking or informing without feeling either way).
 
 Be strict. Most keyword matches are noise. A conversation about a different meaning of a keyword gets relevance near 0.`;
 }
@@ -24,6 +26,7 @@ export const scoreOutput = z.object({
   intent: z.number().describe("0 to 1"),
   reasoning: z.string(),
   angle: z.string(),
+  sentiment: z.enum(sentiments).describe("positive, neutral, negative or mixed"),
 });
 
 export function draftSystem(productContext: string): string {

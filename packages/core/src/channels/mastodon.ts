@@ -3,7 +3,7 @@ import { parseTagCommunity } from "./formats.ts";
 import { getJson, HttpError, withTopReplies } from "./http.ts";
 
 export { parseTagCommunity };
-import type { ChannelAdapter, Engagement, ListeningQuery, RawConversation } from "./types.ts";
+import type { ChannelAdapter, Engagement, ListeningQuery, RawConversation, RawReply, ReplyThread } from "./types.ts";
 
 /**
  * Mastodon (and other fediverse servers with the Mastodon API) without an account.
@@ -19,7 +19,7 @@ import type { ChannelAdapter, Engagement, ListeningQuery, RawConversation } from
 const MAX_TAGS = 10;
 const PER_TAG = 40;
 
-type Status = {
+export type Status = {
   id: string;
   uri: string;
   url: string | null;
@@ -54,6 +54,17 @@ export function fromStatus(s: Status, server: string, community: string | null):
     postedAt: new Date(s.created_at),
     score: s.favourites_count,
     numComments: s.replies_count,
+  };
+}
+
+/** The replies below a status (its context's descendants), each filed under the global uri of the status it answers. */
+export function mastodonReplies(status: Status, descendants: Status[], server: string): ReplyThread {
+  const uriOf = new Map([status, ...descendants].map((s) => [s.id, s.uri]));
+  const replies: RawReply[] = descendants.map((d) => ({ ...fromStatus(d, server, null), inReplyTo: (d.in_reply_to_id && uriOf.get(d.in_reply_to_id)) || status.uri }));
+  return {
+    engagement: { score: status.favourites_count, replies: status.replies_count, removed: false },
+    ownerAuthor: fromStatus(status, server, null).author,
+    replies,
   };
 }
 
@@ -97,6 +108,20 @@ export const mastodon: ChannelAdapter = {
       return { score: s.favourites_count, replies: s.replies_count, removed: false };
     } catch (error) {
       if (error instanceof HttpError && (error.status === 404 || error.status === 410)) return { score: null, replies: null, removed: true };
+      throw error;
+    }
+  },
+
+  async fetchReplies(url: string): Promise<ReplyThread | null> {
+    const ref = parseStatusUrl(url);
+    if (!ref) return null;
+    const base = `https://${ref.server}/api/v1/statuses/${ref.id}`;
+    try {
+      const status = await getJson<Status>(base);
+      const context = await getJson<{ descendants: Status[] }>(`${base}/context`);
+      return mastodonReplies(status, context.descendants, ref.server);
+    } catch (error) {
+      if (error instanceof HttpError && (error.status === 404 || error.status === 410)) return { engagement: { score: null, replies: null, removed: true }, ownerAuthor: null, replies: [] };
       throw error;
     }
   },

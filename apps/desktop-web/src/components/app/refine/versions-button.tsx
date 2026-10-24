@@ -11,7 +11,9 @@ import { restoreSuggestionVersion } from "./actions";
 import { revisionHeadline, RevisionView } from "./revision-view";
 
 /** A version of a suggestion, in its revision's shape (`ChatSubject.toRevision`). */
-export type VersionItem = { id: string; createdAt: string; source: "suggested" | "chat"; current: boolean; revision: Record<string, unknown> };
+export type VersionItem = { id: string; createdAt: string; source: "suggested" | "chat" | "edited"; current: boolean; revision: Record<string, unknown> };
+
+const SOURCE_LABEL = { suggested: "Suggested", chat: "From a chat", edited: "Edited by you" } as const;
 
 /** Every version of a suggestion, newest first, with Restore to show an earlier one again. */
 export function VersionsButton({ kind, noun, versions }: { kind: ChatSubjectKind; noun: string; versions: VersionItem[] }) {
@@ -29,14 +31,14 @@ export function VersionsButton({ kind, noun, versions }: { kind: ChatSubjectKind
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Versions of the {noun}</DialogTitle>
-            <DialogDescription>Each suggestion and each revision you applied from a chat, newest first. Restore shows an earlier one again; nothing is deleted.</DialogDescription>
+            <DialogDescription>Each suggestion, your own edits and each revision you applied from a chat, newest first. Restore shows an earlier one again; nothing is deleted.</DialogDescription>
           </DialogHeader>
           <ul className="flex flex-col gap-2 text-sm">
             {versions.map((v) => (
               <li key={v.id} className="flex flex-col gap-2 rounded-md border p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">{new Date(v.createdAt).toLocaleString()}</span>
-                  <Badge variant="outline">{v.source === "chat" ? "From a chat" : "Suggested"}</Badge>
+                  <Badge variant="outline">{SOURCE_LABEL[v.source]}</Badge>
                   {v.current && <Badge variant="secondary">Showing now</Badge>}
                   <span className="ml-auto flex gap-1">
                     <Button size="xs" variant="ghost" onClick={() => setShown(shown === v.id ? null : v.id)}>

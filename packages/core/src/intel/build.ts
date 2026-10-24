@@ -1,7 +1,7 @@
-import { and, eq, ne, or } from "drizzle-orm";
+import { and, eq, ne, not, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, transaction } from "@startica/db/client";
-import { communities, competitors, keywords, personas, products, researchDocs } from "@startica/db/schema";
+import { communities, competitorAccounts, competitorPeople, competitors, keywords, personas, products, researchDocs } from "@startica/db/schema";
 import { runResearch, runStructured, type AiContext } from "../ai/client.ts";
 import { crawlSite, type CrawledPage } from "./crawl.ts";
 import {
@@ -44,6 +44,13 @@ function siteText(pages: CrawledPage[]): string {
   return out.trim();
 }
 
+/**
+ * A competitor the owner invested in counts as kept: benchmarked accounts, people at it, or an
+ * in-depth profile (competitor watch). Rebuilds don't replace it (deleting it would drop that
+ * work and its history), and the AI is told about it.
+ */
+const tracked = sql`(exists (select 1 from ${competitorAccounts} where ${competitorAccounts.competitorId} = ${competitors.id}) or exists (select 1 from ${competitorPeople} where ${competitorPeople.competitorId} = ${competitors.id}) or ${competitors.profile} is not null)`;
+
 async function ownerItems(productId: string): Promise<string> {
   const db = getDb();
   const [ownPersonas, ownCompetitors, ownKeywords, triaged] = await Promise.all([
@@ -51,7 +58,7 @@ async function ownerItems(productId: string): Promise<string> {
     db
       .select({ name: competitors.name })
       .from(competitors)
-      .where(and(eq(competitors.productId, productId), eq(competitors.source, "owner"))),
+      .where(and(eq(competitors.productId, productId), or(eq(competitors.source, "owner"), tracked))),
     db.select({ keyword: keywords.keyword }).from(keywords).where(and(eq(keywords.productId, productId), eq(keywords.source, "owner"))),
     db
       .select({ channel: communities.channel, name: communities.name })
@@ -67,13 +74,14 @@ async function ownerItems(productId: string): Promise<string> {
   return lines.length ? lines.join("\n") : "None yet.";
 }
 
-async function saveIntel(product: Product, intel: IntelOutput) {
+/** Writes a build's result (exported for tests). */
+export async function saveIntel(product: Product, intel: IntelOutput) {
   const workspaceId = product.workspaceId;
   const productId = product.id;
   await transaction(async (db) => {
-    // Replace AI-written rows; keep anything the owner wrote or triaged.
+    // Replace AI-written rows; keep anything the owner wrote or triaged, and benchmarked competitors.
     await db.delete(personas).where(and(eq(personas.productId, productId), eq(personas.source, "ai")));
-    await db.delete(competitors).where(and(eq(competitors.productId, productId), eq(competitors.source, "ai")));
+    await db.delete(competitors).where(and(eq(competitors.productId, productId), eq(competitors.source, "ai"), not(tracked)));
     await db.delete(keywords).where(and(eq(keywords.productId, productId), eq(keywords.source, "ai")));
     await db
       .delete(communities)
@@ -87,8 +95,11 @@ async function saveIntel(product: Product, intel: IntelOutput) {
     }
     const base = { workspaceId, productId, source: "ai" as const };
     if (intel.personas.length) await db.insert(personas).values(intel.personas.map((p) => ({ ...base, ...p })));
-    if (intel.competitors.length) {
-      await db.insert(competitors).values(intel.competitors.map((c) => ({ ...base, ...c, url: c.url || null })));
+    // Skip competitors that are already there (kept ones), by name.
+    const kept = new Set((await db.select({ name: competitors.name }).from(competitors).where(eq(competitors.productId, productId))).map((c) => c.name.trim().toLowerCase()));
+    const fresh = intel.competitors.filter((c) => !kept.has(c.name.trim().toLowerCase()));
+    if (fresh.length) {
+      await db.insert(competitors).values(fresh.map((c) => ({ ...base, ...c, url: c.url || null })));
     }
     if (intel.keywords.length) {
       await db

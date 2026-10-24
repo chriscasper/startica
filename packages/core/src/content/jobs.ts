@@ -9,6 +9,7 @@ import { fetchHnUserWriting } from "../channels/hackernews.ts";
 import { fetchRedditUserWriting } from "../channels/reddit.ts";
 import { loadProductContext } from "../distribution/context.ts";
 import { utmUrl } from "../distribution/utm.ts";
+import { recordVersion } from "../chat/versions.ts";
 import { CAMPAIGN_NORMS, CAMPAIGN_PROMPT_VERSION, campaignOutput, formatCampaign } from "./campaign.ts";
 import {
   CHANNEL_NORMS,
@@ -103,6 +104,61 @@ export const contentGeneratePayload = z.object({
   guidance: z.string().max(1000).optional(),
 });
 
+/** A piece as Refine and Versions keep it (ARCHITECTURE.md 5.1). `link` is the product link a mention uses. */
+export type ContentPieceValue = {
+  format: (typeof contentPieces.$inferSelect)["format"];
+  title: string | null;
+  body: string;
+  rationale: string | null;
+  mentionsProduct: boolean;
+  link: string | null;
+  createdAt?: string;
+};
+
+export const contentPieceValue = (p: typeof contentPieces.$inferSelect, link: string | null = p.utmUrl): ContentPieceValue => ({
+  format: p.format,
+  title: p.title,
+  body: p.body,
+  rationale: p.rationale,
+  mentionsProduct: Boolean(p.utmUrl),
+  link,
+  createdAt: p.updatedAt.toISOString(),
+});
+
+/** The owner's own edit of a piece's title and text (kept under Versions too). */
+export async function saveOwnerPiece(piece: typeof contentPieces.$inferSelect, values: { title: string | null; body: string }): Promise<void> {
+  if (values.title === piece.title && values.body === piece.body) return;
+  await getDb().update(contentPieces).set(values).where(eq(contentPieces.id, piece.id));
+  await recordVersion({ workspaceId: piece.workspaceId, kind: "content_piece", subjectId: piece.id }, { ...contentPieceValue(piece), ...values, createdAt: undefined }, "edited", {
+    previous: piece.body ? contentPieceValue(piece) : null,
+  });
+}
+
+/** A fresh product link for a piece: a new id per version keeps per-piece attribution unambiguous in GA4. */
+export function pieceLink(productUrl: string | null, piece: Pick<typeof contentPieces.$inferSelect, "channel">): string | null {
+  if (!productUrl) return null;
+  // utm_source = the channel (bluesky, email, linkedin…), utm_campaign = <channel>-<date>.
+  return utmUrl(productUrl, {
+    channel: piece.channel,
+    community: null,
+    draftId: `content-${randomUUID().slice(0, 8)}`,
+    medium: piece.channel === "email" || piece.channel === "newsletter" ? "email" : "content",
+  });
+}
+
+/** What a piece is written from: the channel's norms, the voice guide, the topic and the link. Also the Refine chat's context. */
+export async function pieceContext(piece: typeof contentPieces.$inferSelect, link: string | null): Promise<string> {
+  const [voice] = piece.voiceProfileId
+    ? await getDb().select().from(voiceProfiles).where(and(eq(voiceProfiles.id, piece.voiceProfileId), eq(voiceProfiles.status, "ready")))
+    : [];
+  return [
+    `<channel name="${piece.channel}" format="${piece.format}">\n${piece.format === "campaign" ? CAMPAIGN_NORMS : (CHANNEL_NORMS[piece.channel] ?? CHANNEL_NORMS.other)}\n</channel>`,
+    voice?.guide ? `<voice_guide name="${voice.name}">\n${JSON.stringify(voice.guide, null, 2)}\n</voice_guide>` : "<voice_guide>(none: write in a warm, plain, knowledgeable voice)</voice_guide>",
+    `<topic>${piece.topic}</topic>`,
+    link ? `<link>${link}</link>` : "<link>(no product link; don't link)</link>",
+  ].join("\n\n");
+}
+
 export async function runContentGenerate(ctx: AiContext, payload: z.infer<typeof contentGeneratePayload>) {
   const db = getDb();
   const [piece] = await db.select().from(contentPieces).where(eq(contentPieces.id, payload.pieceId));
@@ -110,20 +166,8 @@ export async function runContentGenerate(ctx: AiContext, payload: z.infer<typeof
   try {
     await db.update(contentPieces).set({ status: "drafting", error: null }).where(eq(contentPieces.id, piece.id));
     const product = await loadProductContext(piece.productId);
-    const [voice] = piece.voiceProfileId
-      ? await db.select().from(voiceProfiles).where(and(eq(voiceProfiles.id, piece.voiceProfileId), eq(voiceProfiles.status, "ready")))
-      : [];
-    // A fresh id per version keeps per-piece attribution unambiguous in GA4.
     const isCampaign = piece.format === "campaign";
-    const link = product.url
-      ? // utm_source = the channel (bluesky, email, linkedin…), utm_campaign = <channel>-<date>.
-        utmUrl(product.url, {
-          channel: piece.channel,
-          community: null,
-          draftId: `content-${randomUUID().slice(0, 8)}`,
-          medium: piece.channel === "email" || piece.channel === "newsletter" ? "email" : "content",
-        })
-      : null;
+    const link = pieceLink(product.url, piece);
 
     const request = {
       task: "draft" as const,
@@ -132,12 +176,7 @@ export async function runContentGenerate(ctx: AiContext, payload: z.infer<typeof
         {
           role: "user" as const,
           content: [
-            `<channel name="${piece.channel}" format="${piece.format}">\n${isCampaign ? CAMPAIGN_NORMS : (CHANNEL_NORMS[piece.channel] ?? CHANNEL_NORMS.other)}\n</channel>`,
-            voice?.guide
-              ? `<voice_guide name="${voice.name}">\n${JSON.stringify(voice.guide, null, 2)}\n</voice_guide>`
-              : "<voice_guide>(none: write in a warm, plain, knowledgeable voice)</voice_guide>",
-            `<topic>${piece.topic}</topic>`,
-            link ? `<link>${link}</link>` : "<link>(no product link; don't link)</link>",
+            await pieceContext(piece, link),
             piece.body && payload.guidance ? `<previous_version>\n${piece.body}\n</previous_version>` : "",
             payload.guidance ? `<owner_guidance>${payload.guidance}</owner_guidance>` : "",
           ]
@@ -165,6 +204,12 @@ export async function runContentGenerate(ctx: AiContext, payload: z.infer<typeof
         status: "draft",
       })
       .where(eq(contentPieces.id, piece.id));
+    await recordVersion(
+      { workspaceId: piece.workspaceId, kind: "content_piece", subjectId: piece.id },
+      { format: piece.format, title: written.title || null, body: written.body, rationale: written.rationale, mentionsProduct: written.mentions_product, link } satisfies ContentPieceValue,
+      "suggested",
+      { previous: piece.body ? contentPieceValue(piece) : null },
+    );
     return { mentionsProduct: written.mentions_product };
   } catch (error) {
     await db

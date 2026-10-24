@@ -41,7 +41,7 @@ These are promises to users. Changing any of them needs a Discussion first.
 - **Structured outputs are validated with Zod.** Anything written to the database comes from `runStructured()` with a Zod schema. Never parse free text into the database.
 - **Model IDs live in config, not code.** Each call names a task (`AiTask`: `ping`, `strategy`, `research`, `draft`, `vision`, `score`, `answer`, `image`), and the `ai_models` table maps tasks to a model and effort. Don't hard-code a model in a job.
 - **Keep the system prompt stable.** It's marked for prompt caching. Put volatile content (dates, the thread text) in the messages.
-- **Every prompt has a version string**, like `SCORE_PROMPT_VERSION = "opportunity-score@1"`, passed as `promptVersion` and logged with each run. Change the prompt, bump the version. If the prompt has an eval set, rerun it and put the result in the commit message. See [Prompts and evals](/contributing/prompts-evals).
+- **Every prompt has a version string**, like `SCORE_PROMPT_VERSION = "opportunity-score@2"`, passed as `promptVersion` and logged with each run. Change the prompt, bump the version. If the prompt has an eval set, rerun it and put the result in the commit message. See [Prompts and evals](/contributing/prompts-evals).
 
 ## Database
 

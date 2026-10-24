@@ -321,6 +321,46 @@ async function seedDemoSecurity(workspaceId: string, site: typeof s.sites.$infer
       },
     })
     .where(and(eq(s.a11yIssueGroups.siteId, site.id), eq(s.a11yIssueGroups.ruleId, "image-alt")));
+  // A fix plan for three picked issues: the header logo's two (one task) and the signup field.
+  const picked = await db
+    .select()
+    .from(s.a11yIssueGroups)
+    .where(and(eq(s.a11yIssueGroups.siteId, site.id), eq(s.a11yIssueGroups.status, "open"), eq(s.a11yIssueGroups.kind, "violation")));
+  const planIssues = ["image-alt", "link-name", "label"].map((r) => picked.find((g) => g.ruleId === r)).filter((g): g is (typeof picked)[number] => Boolean(g));
+  if (planIssues.length === 3) {
+    const [img, link, label] = planIssues as [(typeof picked)[number], (typeof picked)[number], (typeof picked)[number]];
+    await db.insert(s.a11yFixPlans).values({
+      workspaceId,
+      siteId: site.id,
+      groupIds: planIssues.map((g) => g.id),
+      status: "ready",
+      createdAt: ago(3),
+      plan: {
+        summary: "Name the logo in the shared header (two issues, every page but the home page) and label the signup email field.",
+        tasks: [
+          {
+            title: "Name the header logo",
+            groupIds: [img.id, link.id],
+            where: "the shared header template (the logo link)",
+            change: 'Add alt="Fieldnote home" to the logo image: it\'s the link\'s only content, so it names the link too.',
+            html: '<a href="/"><img src="/img/fieldnote-logo.svg" width="132" height="32" alt="Fieldnote home"></a>',
+          },
+          {
+            title: "Label the signup email field",
+            groupIds: [label.id],
+            where: "the signup form",
+            change: "Add a visible <label> tied to the field with for/id; keep the placeholder as an example only.",
+            html: '<label for="signup-email">Email</label>\n<input id="signup-email" type="email" placeholder="you@lab.example" autocomplete="email">',
+          },
+        ],
+        doneWhen: ["image-alt, link-name and label pass on the listed elements", "A screen reader announces the logo link and the email field by name"],
+        issues: planIssues.map((g) => ({ id: g.id, ruleId: g.ruleId, help: g.help, impact: g.impact, criteria: g.criteria, level: g.level, pagesCount: g.pagesCount, occurrencesCount: g.occurrencesCount, selector: g.sampleSelector, url: null, helpUrl: g.helpUrl })),
+        guidance: null,
+        model: "claude-sonnet-5-5",
+        createdAt: ago(3).toISOString(),
+      },
+    });
+  }
   const verdicts: [string, Partial<typeof s.a11yImages.$inferInsert>][] = [
     [`${SITE}/img/coast-team.jpg`, { verdict: "needs_better", suggestedAlt: "Three researchers writing in notebooks on a rocky coast", reason: "The alt text is a file name, which tells people nothing about the photo.", judgedAlt: "IMG_2041.jpg" }],
     [`${SITE}/img/field-kit.jpg`, { verdict: "good", suggestedAlt: null, reason: "It names what's in the photo and fits the article.", judgedAlt: "A field kit laid out: notebook, power bank, GPS unit and a waterproof bag" }],

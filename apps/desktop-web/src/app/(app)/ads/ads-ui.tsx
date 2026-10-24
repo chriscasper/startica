@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { FormDialog, type ActionResult, type Field } from "@/components/app/form-dialog";
 import { Button } from "@/components/ui/button";
 import type { AdCopy, AdPlatform, AdTargeting } from "@startica/db/schema";
+import { RefineButton } from "@/components/app/refine/refine-panel";
+import { VersionsButton, type VersionItem } from "@/components/app/refine/versions-button";
 import { changeStatus, editAd, newAd, newCampaign, removeAd, removeCampaign, replan, rewrite, saveCampaign, saveGroup, stopPlan } from "./actions";
 
 export const PLATFORM_LABEL: Record<AdPlatform, string> = { google: "Google Ads", meta: "Meta", reddit: "Reddit" };
@@ -215,7 +217,20 @@ function copyFields(platform: AdPlatform, ctas: string[]): Field[] {
   ];
 }
 
-export function AdButtons({ platform, ctas, ad }: { platform: AdPlatform; ctas: string[]; ad: { id: string; copy: AdCopy; status: string } }) {
+/** `aiReady` and `versions` are for Refine (ARCHITECTURE.md 5.1). */
+export function AdButtons({
+  platform,
+  ctas,
+  ad,
+  aiReady,
+  versions,
+}: {
+  platform: AdPlatform;
+  ctas: string[];
+  ad: { id: string; copy: AdCopy; status: string };
+  aiReady: boolean;
+  versions: VersionItem[];
+}) {
   const [pending, run] = useAction();
   const c = ad.copy;
   const busy = ad.status === "rewriting";
@@ -229,11 +244,13 @@ export function AdButtons({ platform, ctas, ad }: { platform: AdPlatform; ctas: 
           </Button>
         }
         title="Rewrite this ad"
-        description="The AI rewrites it with your guidance and fixes any problems flagged. Your edits to this ad are replaced."
+        description="The AI rewrites it with your guidance and fixes any problems flagged. Your edits are kept under Versions."
         fields={[{ name: "guidance", label: "Guidance (optional)", type: "textarea", rows: 3, placeholder: "e.g. Lead with the offline mode; less formal" }]}
         submitLabel="Rewrite"
         action={(formData) => rewrite(ad.id, formData)}
       />
+      <RefineButton kind="ad_copy" subjectId={ad.id} variant="ghost" disabled={busy || !aiReady} why={busy ? "Wait for the rewrite" : "Add an AI key in Settings → General → AI (off in the demo)"} />
+      <VersionsButton kind="ad_copy" noun="ad" versions={versions} />
       <FormDialog
         trigger={
           <Button variant="ghost" size="icon" aria-label="Edit ad" disabled={busy}>

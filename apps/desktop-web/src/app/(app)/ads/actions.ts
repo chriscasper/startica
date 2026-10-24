@@ -99,8 +99,9 @@ export async function saveGroup(groupId: string, formData: FormData): Promise<Ac
 
 export async function editAd(adId: string, formData: FormData): Promise<ActionResult> {
   return mutate(async () => {
-    const { ad, campaign } = await ownAd((await getWorkspace()).id, id.parse(adId));
-    await saveAd(ad.id, copyFromForm(campaign.platform, strings(formData)));
+    const workspace = await getWorkspace();
+    const { ad, campaign } = await ownAd(workspace.id, id.parse(adId));
+    await saveAd(workspace.id, ad.id, copyFromForm(campaign.platform, strings(formData)));
   });
 }
 

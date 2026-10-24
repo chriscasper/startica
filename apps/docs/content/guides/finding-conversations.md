@@ -215,7 +215,7 @@ Very short texts (under 12 words) aren't compared, because they're too short to 
 
 The rest are scored by the **score** task. By default this uses Claude Haiku or GPT-6 Luna, depending on your provider. You can change the model on **Settings** under **AI**.
 
-The model returns two numbers between 0 and 1, plus a short explanation and a suggested angle:
+The model returns two numbers between 0 and 1, plus a short explanation, a suggested angle and the author's sentiment (positive, neutral, negative or mixed, shown on [Trends](/guides/listening-trends#sentiment)):
 
 | Score | Meaning | 1 means | 0 means |
 | --- | --- | --- | --- |
@@ -273,6 +273,7 @@ The optional **Community** field sets which community the thread belongs to. Sta
 ## Related
 
 - [Drafting replies](/guides/drafting-replies): what happens after a conversation qualifies
+- [Listening trends](/guides/listening-trends): what the search finds over time
 - [X API (optional, paid)](/credentials/x-api): set up X search
 - [Costs](/concepts/costs): what scoring, drafting and X reads cost
 - [Jobs](/reference/jobs): the `listen_scan` and `opportunity_score` jobs

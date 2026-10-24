@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
-import { CheckIcon, CopyIcon, DownloadIcon, Loader2Icon, PlusIcon, RefreshCwIcon, SendIcon, SparklesIcon, Trash2Icon } from "lucide-react";
+import { CalendarClockIcon, CheckIcon, CopyIcon, DownloadIcon, ImageIcon, Loader2Icon, PlusIcon, RefreshCwIcon, SendIcon, SparklesIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { FormDialog, type ActionResult, type Field } from "@/components/app/form-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +29,9 @@ import {
   suggestTopics,
 } from "./actions";
 import { channelLabel, contentChannelOptions } from "@/lib/channels";
+import { PlanTimeButton, plannedLabel, type PlanHint } from "@/components/app/plan-time";
+import { RefineButton } from "@/components/app/refine/refine-panel";
+import { VersionsButton, type VersionItem } from "@/components/app/refine/versions-button";
 
 export type VoiceGuideView = {
   summary: string;
@@ -60,6 +64,17 @@ export type PieceView = {
   created: string;
   /** The desktop app can open this channel in its posting window (ARCHITECTURE.md 8.4). */
   canPost: boolean;
+  /** Content calendar: when it's planned (ms), why a content plan put it there, and the best-time hint. */
+  plannedAt: number | null;
+  planWhy: string | null;
+  hint: PlanHint | null;
+  /** Social post images made for it. */
+  images: number;
+  /** When it last changed (ms): the card starts over from the saved text when it does. */
+  updated: number;
+  /** Refine (ARCHITECTURE.md 5.1): an AI key is set (and not the demo), and the piece's versions. */
+  aiReady: boolean;
+  versions: VersionItem[];
 };
 export type TopicView = { topic: string; channel: string; why: string };
 
@@ -234,7 +249,7 @@ export function CreatePanel({
 
 // --- Library -------------------------------------------------------------------------
 
-function PieceCard({ piece }: { piece: PieceView }) {
+export function PieceCard({ piece }: { piece: PieceView }) {
   const [title, setTitle] = useState(piece.title ?? "");
   const [body, setBody] = useState(piece.body);
   const [pending, run] = useAction();
@@ -258,6 +273,11 @@ function PieceCard({ piece }: { piece: PieceView }) {
           <Badge variant="outline">{piece.format}</Badge>
           {piece.voice && <Badge variant="secondary">{piece.voice}</Badge>}
           {piece.status === "posted" && <Badge>Posted</Badge>}
+          {piece.plannedAt && piece.status !== "posted" && (
+            <Badge variant="secondary">
+              <CalendarClockIcon /> {plannedLabel(piece.plannedAt)}
+            </Badge>
+          )}
           <span>{piece.created}</span>
         </CardDescription>
         <CardTitle className="text-sm font-normal text-muted-foreground">{piece.topic}</CardTitle>
@@ -274,6 +294,12 @@ function PieceCard({ piece }: { piece: PieceView }) {
           </p>
         )}
         {piece.status === "failed" && <p className="text-sm text-destructive">{piece.error}</p>}
+        {piece.planWhy && (
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">In the content plan: </span>
+            {piece.planWhy}
+          </p>
+        )}
         {!busy && piece.body && (
           <>
             {(piece.title || ["reddit", "hackernews", "discourse", "blog", "newsletter"].includes(piece.channel)) && (
@@ -328,6 +354,22 @@ function PieceCard({ piece }: { piece: PieceView }) {
               Save edits
             </Button>
           )}
+          {piece.status !== "posted" && <PlanTimeButton kind="piece" id={piece.id} plannedAt={piece.plannedAt} hint={piece.hint} />}
+          {piece.body && (
+            <Button size="sm" variant="ghost" nativeButton={false} render={<Link href={`/content/pieces/${piece.id}`} />}>
+              <ImageIcon /> {piece.images ? `Images (${piece.images})` : "Image"}
+            </Button>
+          )}
+          {piece.body && piece.status !== "posted" && (
+            <RefineButton
+              kind="content_piece"
+              subjectId={piece.id}
+              variant="ghost"
+              disabled={!piece.aiReady || edited}
+              why={edited ? "Save or undo your edits first: the chat works on the saved text" : "Add an AI key in Settings → General → AI (off in the demo)"}
+            />
+          )}
+          <VersionsButton kind="content_piece" noun="piece" versions={piece.versions} />
           <FormDialog
             trigger={
               <Button size="sm" variant="ghost">
@@ -455,7 +497,7 @@ export function LibraryPanel({ pieces }: { pieces: PieceView[] }) {
   return (
     <div className="grid max-w-4xl gap-4">
       {pieces.map((p) => (
-        <PieceCard key={`${p.id}-${p.status}-${p.body.length}`} piece={p} />
+        <PieceCard key={`${p.id}-${p.status}-${p.updated}`} piece={p} />
       ))}
     </div>
   );

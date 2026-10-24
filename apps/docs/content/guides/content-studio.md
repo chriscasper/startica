@@ -12,6 +12,7 @@ Content Studio has three tabs:
 | --- | --- |
 | **Create** | Pick a channel, format, voice and topic, and get ideas. |
 | **Library** | Every piece, newest first: edit, rewrite, post or copy, mark as posted, add notes. Shows the latest 50. |
+| **Calendar** | When each piece and reply is planned, reminders, best times to post and AI content plans. See [Content calendar](/guides/content-calendar). |
 | **Voices** | Build voice profiles. See [Voice profiles](/guides/voice-profiles). |
 
 You need a product in Settings first. Content is written from your product's intel (brief, personas), so [build intel](/getting-started/first-run) before you start.
@@ -125,7 +126,11 @@ Click **Rewrite** to get a new version. The dialog asks **What should change? (o
 - With guidance, the AI sees the current version and your instructions and revises it.
 - Without guidance, the AI writes the piece again from scratch.
 
-The new version replaces the old one. Unsaved edits are lost, so copy anything you want to keep first.
+The new version replaces the old one. Unsaved edits are lost, but saved ones are kept: once a piece has two or more versions, **Versions** lists them and **Restore** brings one back.
+
+## Refine it in a chat
+
+**Refine** on a piece that isn't posted opens a chat beside the page: ask whether it suits the channel, ask for a stronger opening, or say what to cut. A revised version appears under the AI's reply with **Apply**. An email campaign is revised email by email, in the same `## Email 1 · Day 0` format. Save or undo your own edits first. See [Refining AI suggestions](/guides/refine).
 
 ## Product mentions and tracking links
 
@@ -190,6 +195,10 @@ A posted piece shows what Startica knows about it, when available:
 Click **How did it do?** to write notes in your own words (likes, comments, signups, up to 2000 characters). The notes appear on the piece under **How it did**.
 
 Posted pieces also appear in [Analytics](/guides/analytics) under **What Startica did** → **Posted by Startica**. The weekly [roadmap](/guides/roadmap) re-plan counts how many pieces you posted per channel and the replies they got.
+
+## Plan it and add an image
+
+**Plan** on a piece sets when you want to post it; Startica reminds you when it's due. See [Content calendar](/guides/content-calendar). **Image** makes a picture with your words in the channel's sizes. See [Post images](/guides/post-images).
 
 ## Delete a piece
 

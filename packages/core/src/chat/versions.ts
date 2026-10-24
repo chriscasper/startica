@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@startica/db/client";
 import { suggestionVersions, type ChatSubjectKind } from "@startica/db/schema";
 
@@ -7,6 +7,8 @@ import { suggestionVersions, type ChatSubjectKind } from "@startica/db/schema";
  * back after applying a revision from a chat or asking for a new suggestion. Kept apart from
  * the chat registry so feature modules can record versions without importing it.
  */
+
+export type VersionSource = "suggested" | "chat" | "edited";
 
 type Subject = { workspaceId: string; kind: ChatSubjectKind; subjectId: string };
 
@@ -17,10 +19,11 @@ const writtenAt = (value: Record<string, unknown>) => {
 };
 
 /**
- * Records a suggestion the subject now shows. `previous` is what it showed before: kept as the
- * first version when nothing was recorded yet (suggestions written before versions existed).
+ * Records a suggestion the subject now shows (or the owner's own edit). `previous` is what it
+ * showed before: kept as the first version when nothing was recorded yet (suggestions written
+ * before versions existed, or that the AI wrote as part of something else, like an ad plan).
  */
-export async function recordVersion(subject: Subject, value: object, source: "suggested" | "chat", options: { previous?: object | null; threadId?: string } = {}): Promise<void> {
+export async function recordVersion(subject: Subject, value: object, source: VersionSource, options: { previous?: object | null; threadId?: string } = {}): Promise<void> {
   const db = getDb();
   const where = and(eq(suggestionVersions.workspaceId, subject.workspaceId), eq(suggestionVersions.subjectKind, subject.kind), eq(suggestionVersions.subjectId, subject.subjectId));
   const scope = { workspaceId: subject.workspaceId, subjectKind: subject.kind, subjectId: subject.subjectId };
@@ -34,17 +37,28 @@ export async function recordVersion(subject: Subject, value: object, source: "su
   await db.insert(suggestionVersions).values({ ...scope, value: value as Record<string, unknown>, source, threadId: options.threadId ?? null, appliedAt: new Date() });
 }
 
-export type SuggestionVersion = { id: string; value: Record<string, unknown>; source: "suggested" | "chat"; createdAt: Date; current: boolean };
+export type SuggestionVersion = { id: string; value: Record<string, unknown>; source: VersionSource; createdAt: Date; current: boolean };
 
 /** A subject's versions, newest first; `current` marks the one applied last. */
 export async function listVersions(subject: Subject): Promise<SuggestionVersion[]> {
+  return (await listVersionsFor(subject.workspaceId, subject.kind, [subject.subjectId])).get(subject.subjectId) ?? [];
+}
+
+/** Versions of several subjects of one kind (a list page), by subject id. */
+export async function listVersionsFor(workspaceId: string, kind: ChatSubjectKind, subjectIds: string[]): Promise<Map<string, SuggestionVersion[]>> {
+  const bySubject = new Map<string, SuggestionVersion[]>();
+  if (subjectIds.length === 0) return bySubject;
   const rows = await getDb()
     .select()
     .from(suggestionVersions)
-    .where(and(eq(suggestionVersions.workspaceId, subject.workspaceId), eq(suggestionVersions.subjectKind, subject.kind), eq(suggestionVersions.subjectId, subject.subjectId)))
+    .where(and(eq(suggestionVersions.workspaceId, workspaceId), eq(suggestionVersions.subjectKind, kind), inArray(suggestionVersions.subjectId, subjectIds)))
     .orderBy(desc(suggestionVersions.createdAt));
-  const latest = rows.reduce<(typeof rows)[number] | null>((best, r) => (!best || r.appliedAt > best.appliedAt ? r : best), null);
-  return rows.map((r) => ({ id: r.id, value: r.value, source: r.source, createdAt: r.createdAt, current: r.id === latest?.id }));
+  for (const id of new Set(rows.map((r) => r.subjectId))) {
+    const own = rows.filter((r) => r.subjectId === id);
+    const latest = own.reduce((best, r) => (r.appliedAt > best.appliedAt ? r : best));
+    bySubject.set(id, own.map((r) => ({ id: r.id, value: r.value, source: r.source, createdAt: r.createdAt, current: r.id === latest.id })));
+  }
+  return bySubject;
 }
 
 /** One version, checked against the workspace. */

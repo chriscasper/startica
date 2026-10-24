@@ -1,5 +1,5 @@
 import { getJson, HttpError, withTopReplies } from "./http.ts";
-import type { ChannelAdapter, Engagement, ListeningQuery, RawConversation } from "./types.ts";
+import type { ChannelAdapter, Engagement, ListeningQuery, RawConversation, RawReply, ReplyThread } from "./types.ts";
 
 /**
  * Bluesky through its public AppView API, no account needed. Search works on
@@ -13,14 +13,14 @@ const PUBLIC_API = "https://public.api.bsky.app/xrpc";
 const MAX_KEYWORDS = 10;
 const PER_KEYWORD = 25;
 
-type BskyPost = {
+export type BskyPost = {
   uri: string;
   author: { did: string; handle: string };
   record: { text?: string; createdAt?: string; reply?: unknown };
   likeCount?: number;
   replyCount?: number;
 };
-type ThreadNode = { post?: BskyPost; replies?: ThreadNode[]; notFound?: boolean };
+export type ThreadNode = { post?: BskyPost; replies?: ThreadNode[]; notFound?: boolean };
 
 /** at://<did>/app.bsky.feed.post/<rkey> → https://bsky.app/profile/<handle or did>/post/<rkey> */
 export function bskyWebUrl(uri: string, handle?: string): string | null {
@@ -49,6 +49,24 @@ export function fromBskyPost(p: BskyPost): RawConversation {
     score: p.likeCount ?? null,
     numComments: p.replyCount ?? null,
   };
+}
+
+const REPLY_DEPTH = 6;
+
+/** Every reply in a getPostThread answer, each filed under the post it answers. */
+export function bskyReplies(thread: ThreadNode): ReplyThread {
+  const root = thread.post;
+  if (!root || thread.notFound) return { engagement: { score: null, replies: null, removed: true }, ownerAuthor: null, replies: [] };
+  const replies: RawReply[] = [];
+  const walk = (node: ThreadNode) => {
+    for (const child of node.replies ?? []) {
+      if (!child.post) continue;
+      replies.push({ ...fromBskyPost(child.post), kind: "comment", inReplyTo: node.post!.uri });
+      walk(child);
+    }
+  };
+  walk(thread);
+  return { engagement: { score: root.likeCount ?? null, replies: root.replyCount ?? null, removed: false }, ownerAuthor: root.author.handle, replies };
 }
 
 export const bluesky: ChannelAdapter = {
@@ -93,6 +111,18 @@ export const bluesky: ChannelAdapter = {
       return post && !data.thread.notFound ? { score: post.likeCount ?? null, replies: post.replyCount ?? null, removed: false } : { score: null, replies: null, removed: true };
     } catch (error) {
       if (error instanceof HttpError && (error.status === 400 || error.status === 404)) return { score: null, replies: null, removed: true };
+      throw error;
+    }
+  },
+
+  async fetchReplies(url: string): Promise<ReplyThread | null> {
+    const uri = bskyAtUri(url);
+    if (!uri) return null;
+    try {
+      const data = await getJson<{ thread: ThreadNode }>(`${PUBLIC_API}/app.bsky.feed.getPostThread?${new URLSearchParams({ uri, depth: String(REPLY_DEPTH), parentHeight: "0" })}`);
+      return bskyReplies(data.thread);
+    } catch (error) {
+      if (error instanceof HttpError && (error.status === 400 || error.status === 404)) return { engagement: { score: null, replies: null, removed: true }, ownerAuthor: null, replies: [] };
       throw error;
     }
   },

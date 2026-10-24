@@ -214,6 +214,32 @@ export const personas = sqliteTable(
   (t) => [index("personas_product_idx").on(t.productId)],
 );
 
+/** Kinds of link a competitor's person or account can have; only bluesky, mastodon, reddit, hackernews and rss are read. */
+export const personLinkKinds = ["linkedin", "x", "bluesky", "mastodon", "reddit", "hackernews", "rss", "github", "youtube", "website", "other"] as const;
+export type PersonLinkKind = (typeof personLinkKinds)[number];
+export type PersonLink = { kind: PersonLinkKind; url: string };
+
+/** A competitor researched in depth (competitor_research). Every list may be empty; unknowns say "unknown". */
+export type CompetitorProfile = {
+  summary: string;
+  audience: string;
+  company: { founded: string; size: string; funding: string; location: string };
+  pricing: { model: string; plans: { name: string; price: string; notes: string }[] };
+  features: string[];
+  messaging: string;
+  channels: string[];
+  recent: { date: string; what: string; url: string }[];
+  praise: string[];
+  complaints: string[];
+  versus: { theyWin: string[]; youWin: string[] };
+  /** Official accounts and feeds seen in the research (blog, changelog, social). */
+  accounts: PersonLink[];
+  /** What changed since the previous profile (empty on the first). */
+  changes: string[];
+  sources: { url: string; title: string }[];
+  model: string;
+};
+
 export const competitors = sqliteTable(
   "competitors",
   {
@@ -226,6 +252,11 @@ export const competitors = sqliteTable(
     strengths: stringList("strengths"),
     weaknesses: stringList("weaknesses"),
     source: text("source", { enum: sources }).notNull().default("owner"),
+    /** The in-depth profile from `competitor_research` (ARCHITECTURE.md section 3, "Competitor watch"). */
+    profile: json<CompetitorProfile>("profile"),
+    profileStatus: text("profile_status", { enum: ["working", "ready", "failed"] }),
+    profileError: text("profile_error"),
+    profiledAt: timestamp("profiled_at"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -287,7 +318,8 @@ export const conversations = sqliteTable(
     postedAt: timestamp("posted_at"),
     score: integer("score"),
     numComments: integer("num_comments"),
-    origin: text("origin", { enum: ["listening", "manual"] }).notNull().default("listening"),
+    // "reply": a reply to the owner's own post, turned into a conversation only when the owner asks for a drafted answer (publication_replies).
+    origin: text("origin", { enum: ["listening", "manual", "reply"] }).notNull().default("listening"),
     /** MinHash signature of the title + text, for near-duplicate detection (core/distribution/fingerprint.ts). */
     fingerprint: text("fingerprint"),
     createdAt: createdAt(),
@@ -301,6 +333,11 @@ export const conversations = sqliteTable(
 
 export const opportunityStatuses = ["new", "archived", "drafting", "drafted", "posted", "dismissed", "failed"] as const;
 export const dismissReasons = ["off_topic", "wrong_audience", "too_old", "rules_forbid", "already_answered", "other"] as const;
+/** How a conversation's author feels about the topic or product, from scoring (opportunity-score@2). */
+export const sentiments = ["positive", "neutral", "negative", "mixed"] as const;
+export type Sentiment = (typeof sentiments)[number];
+/** Who a conversation names, matched by text (not AI) when it's stored: the product, and Intel competitors by id. */
+export type OpportunityMentions = { product: boolean; competitorIds: string[] };
 
 export const opportunities = sqliteTable(
   "opportunities",
@@ -322,12 +359,22 @@ export const opportunities = sqliteTable(
     duplicateOfId: text("duplicate_of_id").references((): AnySQLiteColumn => opportunities.id, { onDelete: "set null" }),
     error: text("error"),
     scoredAt: timestamp("scored_at"),
+    /** Listening trends: from scoring; null for rows scored before opportunity-score@2 or not scored. */
+    sentiment: text("sentiment", { enum: sentiments }),
+    /** Listening trends: the product's listening keywords found in the title and text (null = not computed yet). */
+    matchedKeywords: json<string[]>("matched_keywords"),
+    /** Share of voice: the product and competitors named in the conversation (null = not computed yet). */
+    mentions: json<OpportunityMentions>("mentions"),
+    /** Content calendar: when the owner plans to post the drafted reply; reminded once when due. */
+    plannedAt: timestamp("planned_at"),
+    remindedAt: timestamp("reminded_at"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [
     uniqueIndex("opportunities_unique_idx").on(t.productId, t.conversationId),
     index("opportunities_status_idx").on(t.productId, t.status, t.createdAt),
+    index("opportunities_planned_idx").on(t.productId, t.plannedAt),
   ],
 );
 
@@ -512,7 +559,7 @@ export const dailyMoves = sqliteTable(
     productId: productId(),
     day: text("day").notNull(), // YYYY-MM-DD, local time
     rank: integer("rank").notNull(),
-    kind: text("kind", { enum: ["inbox", "roadmap", "intel", "setup", "content", "audit", "ads", "analytics", "custom"] }).notNull(),
+    kind: text("kind", { enum: ["inbox", "roadmap", "intel", "setup", "content", "audit", "ads", "analytics", "calendar", "listening", "replies", "competitors", "custom"] }).notNull(),
     title: text("title").notNull(),
     why: text("why").notNull().default(""),
     href: text("href"),
@@ -632,10 +679,16 @@ export const contentPieces = sqliteTable(
     postedAt: timestamp("posted_at"),
     notes: text("notes"),
     error: text("error"),
+    /** Content calendar: when the owner plans to post it; reminded once when due. */
+    plannedAt: timestamp("planned_at"),
+    remindedAt: timestamp("reminded_at"),
+    /** The AI content plan that suggested it, and why it's there. */
+    planId: text("plan_id").references((): AnySQLiteColumn => contentPlans.id, { onDelete: "set null" }),
+    planWhy: text("plan_why"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("content_product_idx").on(t.productId, t.createdAt)],
+  (t) => [index("content_product_idx").on(t.productId, t.createdAt), index("content_planned_idx").on(t.productId, t.plannedAt)],
 );
 
 /** Engagement on posted Content Studio pieces, captured by engagement_sync (like engagement_snapshots for replies). */
@@ -674,6 +727,24 @@ export type PageImage = { src: string; alt: string | null; decorative: boolean; 
 
 /** An AI fix suggestion for an accessibility issue (A3). Copy-only. */
 export type A11yAiFix = { explanation: string; html: string; steps: string[]; confidence: "high" | "medium" | "low"; guidance: string | null; model: string; createdAt: string };
+/** One task in a fix plan: the issues it covers (by group id) and the change. */
+export type A11yFixPlanTask = { title: string; groupIds: string[]; where: string; change: string; html: string };
+/** What a fix plan covered, as it was when it was written (the groups can change or go). */
+export type A11yFixPlanIssue = {
+  id: string;
+  ruleId: string;
+  help: string;
+  impact: string | null;
+  criteria: string[];
+  level: string | null;
+  pagesCount: number;
+  occurrencesCount: number;
+  selector: string | null;
+  url?: string | null;
+  helpUrl: string | null;
+};
+/** A fix plan for several issues at once (A3): one task list for a coding agent, plus a snapshot of the issues. */
+export type A11yFixPlan = { summary: string; tasks: A11yFixPlanTask[]; doneWhen: string[]; issues: A11yFixPlanIssue[]; guidance: string | null; model: string; createdAt: string };
 /** An AI suggestion for a Needs review item (A3). The owner decides. */
 export type A11yAiReview = { suggestion: "pass" | "fail" | "unsure"; reason: string; model: string; createdAt: string };
 /** What the owner fills in for the accessibility statement (A4). The statement itself is built from these and the results. */
@@ -1052,6 +1123,26 @@ export const a11yImages = sqliteTable(
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex("a11y_images_src_idx").on(t.siteId, t.src)],
+);
+
+/** A fix plan (A3): one AI-written plan for issues the owner picked on the Issues list. */
+export const a11yFixPlans = sqliteTable(
+  "a11y_fix_plans",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    siteId: text("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    groupIds: stringList("group_ids"),
+    guidance: text("guidance"),
+    status: text("status", { enum: ["working", "ready", "failed"] }).notNull().default("working"),
+    error: text("error"),
+    plan: json<A11yFixPlan>("plan"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("a11y_fix_plans_site_idx").on(t.siteId, t.createdAt)],
 );
 
 /**
@@ -1463,6 +1554,251 @@ export const adSpend = sqliteTable(
   (t) => [index("ad_spend_campaign_idx").on(t.campaignId, t.startDay)],
 );
 
+// --- Marketing planning: calendar, content plans, social images, replies, benchmarks (migration 0024) ---
+
+/** One slot a content plan proposed; `pieceId` is the Content Studio piece made for it. */
+export type ContentPlanItem = { day: string; time: string | null; channel: string; format: string; topic: string; why: string; pieceId: string | null };
+
+/**
+ * An AI content plan (content_plan job): one run that fills a range of days with
+ * planned Content Studio pieces (content_pieces.plan_id), grounded in Intel, the
+ * weekly analytics read-out and what worked. Failures are kept with the error.
+ */
+export const contentPlans = sqliteTable(
+  "content_plans",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    productId: productId(),
+    startDay: text("start_day").notNull(), // YYYY-MM-DD, local days
+    endDay: text("end_day").notNull(),
+    channels: stringList("channels"),
+    postsPerWeek: integer("posts_per_week").notNull().default(5),
+    guidance: text("guidance"),
+    status: text("status", { enum: ["working", "ready", "failed"] }).notNull().default("working"),
+    error: text("error"),
+    summary: text("summary"),
+    items: json<ContentPlanItem[]>("items").notNull().default(sql`'[]'`),
+    model: text("model"),
+    costUsd: real("cost_usd").notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("content_plans_product_idx").on(t.productId, t.createdAt)],
+);
+
+export const contentImageSizes = ["1:1", "4:5", "16:9", "1.91:1"] as const;
+export type ContentImageSize = (typeof contentImageSizes)[number];
+export type ContentImageRender = { size: ContentImageSize; width: number; height: number; file: string; bytes: number; fit?: "small" | "overflow" };
+
+/**
+ * A social post image for a Content Studio piece: the ad creative pipeline (ads/templates.ts,
+ * ads/render.ts, the `image` task) at the sizes the piece's channel takes. Same columns as
+ * ad_creatives, tied to a piece instead of a campaign. Files under <data>/content/images/<id>/.
+ */
+export const contentImages = sqliteTable(
+  "content_images",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    productId: productId(),
+    pieceId: text("piece_id")
+      .notNull()
+      .references(() => contentPieces.id, { onDelete: "cascade" }),
+    concept: text("concept").notNull().default(""),
+    prompt: text("prompt"),
+    imageSource: text("image_source", { enum: ["ai", "upload", "none"] }).notNull().default("ai"),
+    imageFile: text("image_file"),
+    template: text("template", { enum: adTemplates }).notNull().default("overlay"),
+    text: json<AdCreativeText>("text").notNull().default(sql`'{"headline":""}'`),
+    colors: json<AdCreativeColors>("colors").notNull().default(sql`'{"background":"#111827","text":"#ffffff","accent":"#f59e0b"}'`),
+    useLogo: integer("use_logo", { mode: "boolean" }).notNull().default(true),
+    status: text("status", { enum: ["idea", "generating", "rendering", "ready", "failed"] }).notNull().default("rendering"),
+    error: text("error"),
+    costUsd: real("cost_usd").notNull().default(0),
+    renders: json<ContentImageRender[]>("renders").notNull().default(sql`'[]'`),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("content_images_piece_idx").on(t.pieceId, t.createdAt)],
+);
+
+/**
+ * Replies to the owner's own posts (an Inbox reply or a Content Studio piece), read by
+ * engagement_sync through public APIs. Exactly one of publicationId / pieceId is set.
+ * "Draft an answer" turns a reply into a conversation (origin "reply") and an
+ * opportunity, so drafts, Post… and tracking work as for any reply (`opportunityId`).
+ */
+export const publicationReplies = sqliteTable(
+  "publication_replies",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    productId: productId(),
+    publicationId: text("publication_id").references(() => publications.id, { onDelete: "cascade" }),
+    pieceId: text("piece_id").references(() => contentPieces.id, { onDelete: "cascade" }),
+    channel: text("channel", { enum: channels }).notNull(),
+    externalId: text("external_id").notNull(),
+    /** The external id of what it answers: the post itself, or another reply (for nesting). */
+    inReplyTo: text("in_reply_to"),
+    url: text("url").notNull(),
+    author: text("author"),
+    body: text("body").notNull().default(""),
+    postedAt: timestamp("posted_at"),
+    status: text("status", { enum: ["new", "seen", "answered", "dismissed"] }).notNull().default("new"),
+    opportunityId: text("opportunity_id").references(() => opportunities.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("publication_replies_external_idx").on(t.productId, t.channel, t.externalId),
+    index("publication_replies_status_idx").on(t.productId, t.status, t.postedAt),
+    index("publication_replies_publication_idx").on(t.publicationId),
+    index("publication_replies_piece_idx").on(t.pieceId),
+  ],
+);
+
+/**
+ * A person at a competitor worth following (a founder, an executive, a developer advocate):
+ * suggested by competitor_research or added by the owner. Public, professional profiles only.
+ * `links` are every profile found; the readable ones become competitor_accounts when followed.
+ */
+export const competitorPeople = sqliteTable(
+  "competitor_people",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    productId: productId(),
+    competitorId: text("competitor_id")
+      .notNull()
+      .references(() => competitors.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    role: text("role").notNull().default(""),
+    why: text("why").notNull().default(""),
+    links: json<PersonLink[]>("links").notNull().default(sql`'[]'`),
+    status: text("status", { enum: ["suggested", "following", "ignored"] }).notNull().default("following"),
+    source: text("source", { enum: sources }).notNull().default("owner"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("competitor_people_competitor_idx").on(t.competitorId)],
+);
+
+/** Channels whose public accounts can be followed ("x" is never read: no user lookups on X, section 3; "rss" is a blog or newsletter feed, posts only). */
+export const benchmarkChannels = ["bluesky", "mastodon", "reddit", "hackernews", "x", "rss"] as const;
+export type BenchmarkChannel = (typeof benchmarkChannels)[number];
+
+/**
+ * A public account to benchmark: a competitor's (competitorId set) or the owner's own
+ * (competitorId null), by handle per channel: "name.bsky.social", "@name@server",
+ * a Reddit or HN username, an X handle.
+ */
+export const competitorAccounts = sqliteTable(
+  "competitor_accounts",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    productId: productId(),
+    competitorId: text("competitor_id").references(() => competitors.id, { onDelete: "cascade" }),
+    /** Set for a person's account (competitor watch); benchmarks only chart company and own accounts. */
+    personId: text("person_id").references(() => competitorPeople.id, { onDelete: "cascade" }),
+    channel: text("channel", { enum: benchmarkChannels }).notNull(),
+    handle: text("handle").notNull(),
+    url: text("url"),
+    status: text("status", { enum: ["untested", "ok", "error"] }).notNull().default("untested"),
+    lastError: text("last_error"),
+    lastCheckedAt: timestamp("last_checked_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("competitor_accounts_handle_idx").on(t.productId, t.channel, t.handle),
+    index("competitor_accounts_competitor_idx").on(t.competitorId),
+  ],
+);
+
+/**
+ * One day of a benchmarked account (competitor_sync): followers and total posts as the
+ * channel reports them, karma for Reddit and HN, and the posts seen in the last 7 days
+ * with their average engagement (likes + reposts + replies, or score + comments).
+ */
+export const competitorSnapshots = sqliteTable(
+  "competitor_snapshots",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => competitorAccounts.id, { onDelete: "cascade" }),
+    day: text("day").notNull(), // YYYY-MM-DD, local
+    followers: integer("followers"),
+    totalPosts: integer("total_posts"),
+    karma: integer("karma"),
+    postsLast7: integer("posts_last_7"),
+    avgEngagement: real("avg_engagement"),
+    capturedAt: integer("captured_at", { mode: "timestamp_ms" }).notNull().$defaultFn(now),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("competitor_snapshots_day_idx").on(t.accountId, t.day)],
+);
+
+/**
+ * Recent public posts of a followed account (competitor_sync), newest 100 per account. `seenAt`
+ * is set when the owner has seen it (the first read of an account marks what it found as seen).
+ */
+export const competitorPosts = sqliteTable(
+  "competitor_posts",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    productId: productId(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => competitorAccounts.id, { onDelete: "cascade" }),
+    externalId: text("external_id").notNull(),
+    url: text("url").notNull(),
+    title: text("title"),
+    text: text("text").notNull().default(""),
+    kind: text("kind", { enum: ["post", "reply", "comment", "story", "article"] }).notNull().default("post"),
+    postedAt: timestamp("posted_at"),
+    /** Likes + reposts + replies, or points + comments; null where the source doesn't say. */
+    engagement: integer("engagement"),
+    seenAt: timestamp("seen_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("competitor_posts_external_idx").on(t.accountId, t.externalId), index("competitor_posts_product_idx").on(t.productId, t.postedAt)],
+);
+
+export type CompetitorDigest = {
+  headline: string;
+  items: { competitor: string; what: string; whyItMatters: string; urls: string[] }[];
+  suggestions: string[];
+  quiet: string[];
+};
+
+/** The AI's summary of a week of competitor activity (competitor_digest; weekly when switched on). */
+export const competitorDigests = sqliteTable(
+  "competitor_digests",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    productId: productId(),
+    status: text("status", { enum: ["working", "ready", "failed"] }).notNull().default("working"),
+    since: timestamp("since").notNull(),
+    until: timestamp("until").notNull(),
+    digest: json<CompetitorDigest>("digest"),
+    posts: integer("posts").notNull().default(0),
+    error: text("error"),
+    model: text("model"),
+    seenAt: timestamp("seen_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("competitor_digests_product_idx").on(t.productId, t.createdAt)],
+);
+
 // --- Search performance (ARCHITECTURE.md section 10.2) ----------------------------------------------
 
 export const searchSources = ["google", "bing"] as const;
@@ -1687,8 +2023,11 @@ export const offsitePages = sqliteTable(
 
 // --- Refine: chats about a suggestion (ARCHITECTURE.md section 5.1) --------------------------------
 
-/** What a chat can refine: a security finding's AI help, an accessibility issue's AI fix. */
-export const chatSubjectKinds = ["security_help", "a11y_fix"] as const;
+/**
+ * What a chat can refine: a security finding's AI help, an accessibility issue's AI fix, an Inbox
+ * reply draft (by opportunity), a Content Studio piece, an ad's copy.
+ */
+export const chatSubjectKinds = ["security_help", "a11y_fix", "reply_draft", "content_piece", "ad_copy"] as const;
 export type ChatSubjectKind = (typeof chatSubjectKinds)[number];
 export type ChatSource = { url: string; title: string };
 
@@ -1753,8 +2092,8 @@ export const suggestionVersions = sqliteTable(
     subjectKind: text("subject_kind", { enum: chatSubjectKinds }).notNull(),
     subjectId: text("subject_id").notNull(),
     value: json<Record<string, unknown>>("value").notNull(),
-    /** suggested: written by Explain / Suggest a fix. chat: a revision applied from a chat. */
-    source: text("source", { enum: ["suggested", "chat"] }).notNull(),
+    /** suggested: written by the AI (Explain, Suggest a fix, Regenerate…). chat: a revision applied from a chat. edited: saved by the owner. */
+    source: text("source", { enum: ["suggested", "chat", "edited"] }).notNull(),
     threadId: text("thread_id"),
     appliedAt: timestamp("applied_at").notNull(),
     createdAt: createdAt(),

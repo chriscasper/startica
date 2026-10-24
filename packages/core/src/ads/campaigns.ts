@@ -6,7 +6,8 @@ import { adCampaigns, adGroups, adPlatforms, ads, type AdCopy, type AdPlatform, 
 import { jobByPayload, stopJob } from "../jobs/cancel.ts";
 import { checkAdCopy, utmSlug, type AdFlag } from "./checks.ts";
 import { deleteCampaignCreatives } from "./creatives.ts";
-import { competitorNames } from "./jobs.ts";
+import { recordVersion } from "../chat/versions.ts";
+import { adWithCampaign, competitorNames, type AdCopyValue } from "./jobs.ts";
 
 export type AdCampaign = typeof adCampaigns.$inferSelect;
 
@@ -168,12 +169,7 @@ export async function ownGroup(workspaceId: string, groupId: string) {
 }
 
 export async function ownAd(workspaceId: string, adId: string) {
-  const [row] = await getDb()
-    .select({ ad: ads, group: adGroups, campaign: adCampaigns })
-    .from(ads)
-    .innerJoin(adGroups, eq(adGroups.id, ads.groupId))
-    .innerJoin(adCampaigns, eq(adCampaigns.id, adGroups.campaignId))
-    .where(and(eq(ads.id, adId), eq(ads.workspaceId, workspaceId)));
+  const row = await adWithCampaign(workspaceId, adId);
   if (!row) throw new Error("Ad not found");
   return row;
 }
@@ -182,8 +178,13 @@ export async function updateGroup(groupId: string, values: { name: string; angle
   await getDb().update(adGroups).set({ name: values.name, angle: values.angle || null, targeting: values.targeting }).where(eq(adGroups.id, groupId));
 }
 
-export async function saveAd(adId: string, copy: AdCopy): Promise<void> {
-  await getDb().update(ads).set({ copy, source: "owner", status: "ready", error: null }).where(eq(ads.id, adId));
+/** The owner's own edit of an ad (kept as a version, so Refine and Versions can go back to it). */
+export async function saveAd(workspaceId: string, adId: string, copy: AdCopy): Promise<void> {
+  const { ad, campaign } = await ownAd(workspaceId, adId);
+  await getDb().update(ads).set({ copy, source: "owner", status: "ready", error: null }).where(eq(ads.id, ad.id));
+  await recordVersion({ workspaceId, kind: "ad_copy", subjectId: ad.id }, { platform: campaign.platform, copy, source: "owner" } satisfies AdCopyValue, "edited", {
+    previous: { platform: campaign.platform, copy: ad.copy, source: ad.source, createdAt: ad.updatedAt.toISOString() } satisfies AdCopyValue,
+  });
 }
 
 /** A new ad in a group, copied from the group's first ad so there's something to edit. */

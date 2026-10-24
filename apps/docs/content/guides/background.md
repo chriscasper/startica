@@ -47,6 +47,7 @@ The schedules use your computer's local time:
 | Security monitoring | Daily at 06:47 | Checks every verified site for exposed libraries, new subdomains and certificates, look-alike domains and changed third-party scripts. See [Monitoring](/security/monitoring). |
 | Scheduled site scans | Every hour, at 37 minutes past | Starts a full scan of each site whose last one is older than its **Scan again automatically** interval. See [Scheduled scans](/accessibility/scanning#scheduled-scans). |
 | AI visibility | Weekly, Monday at 09:30 | Asks the AI visibility questions again, only for products with **Run every week** on. It costs money. See [Weekly runs](/seo/ai-visibility#weekly-runs). |
+| Content calendar | Every 15 minutes | Reminds you once, with a notification and a Today move, about planned posts and replies that are due. Never posts. See [Reminders](/guides/content-calendar#reminders). |
 
 > [!WARNING]
 > Nothing runs while Startica is quit or the computer is asleep. Missed runs are not made up when the app starts again. They simply happen at the next scheduled time. If you want hourly scans, keep Startica running in the tray.

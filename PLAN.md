@@ -12,8 +12,7 @@
 
 Ordered by value for the effort.
 
-1. **Refine on the rest of the suggestions** (section 5.1; Security help and the accessibility fix have it). Each is a `ChatSubject`, a revision view and the two buttons:
-   - **Writing:** Inbox reply drafts (a revision is a new `drafts` version), Content Studio pieces, ad copy (checked with `checkAdCopy` before it's stored). Refine sits next to Regenerate; the one-shot guidance box stays as the quick option.
+1. **Refine on the rest of the suggestions** (section 5.1; Security help, the accessibility fix, reply drafts, Content Studio pieces and ad copy have it). Each is a `ChatSubject`, a revision view and the two buttons:
    - **Plans and fixes:** SEO opportunity drafts (revisions go through `metaProblems` / `jsonldProblems`), audit findings (Apply can also offer Add to roadmap), roadmap items.
    - **Ask only, no Apply:** Security triage, the Needs-review suggestion, AI-visibility answers. The chat has no `propose_revision` tool.
    - Later, if wanted: a page listing every chat, and caching the conversation turns as well as the system prompt.
@@ -37,7 +36,9 @@ Ordered by value for the effort.
 - More channels if wanted: Threads, YouTube comments; Facebook groups posting only if users ask.
 - **Reddit's official Data API**, only if access is ever approved: script app with the password grant, a descriptive `User-Agent`, 100 requests per minute, poll `/new` per subreddit and let Startica's scoring decide relevance, store each subreddit's rules in `communities.promo_rules`.
 - Eval sets for the other AI tasks (only the scorer, Accessibility and Security have one), starting with the weekly analytics read-out (`analytics-summary@1`): does it stick to the numbers it's given.
+- **Content calendar and plans** (section 8.7): an eval set for `content-plan@1` (slots inside the range, no invented facts, uses the best-time hints) and `post-image@1`; attaching post images in assisted posting (today Post… fills text only and the owner attaches the image); best-time hints cached in `settings` only if computing them on each page view gets slow; Windows and Linux notification clicks (only macOS has been run).
 - **Analytics** (section 8.2): upgrades and downgrades in MRR movement (needs Stripe's subscription events), currencies other than US dollars, and a channel chart over time.
+- **Competitor benchmarks and watch** (section 3): X accounts (benchmarks and followed people) only if the owner changes the no-user-lookups decision (with the owner's token, rationed under the daily read cap; `x` is already in `benchmarkChannels`); LinkedIn has no public read path, so people's LinkedIn stays a link. An eval set for `competitor-profile@1` (no invented prices or people, only URLs from the notes, the people rules) and `competitor-digest@1`. A scheduled re-research (monthly, opt-in) if owners want profiles kept fresh without clicking. GitHub activity for people (public events API, 60 requests an hour without a token). Reddit followers and karma if the Data API is ever approved. Pruning old snapshots (today they're kept; one small row per account a day).
 
 ### Ads (section 8.6)
 - **Reporting APIs for spend** (opt-in): an `ad_results_sync` job that reads spend, clicks and impressions from each platform instead of entering them by hand.
@@ -81,8 +82,13 @@ Built and tested against stand-ins; still to try for real. Each needs the owner'
 | Security S4 | `yarn eval security` passes on both providers |
 | Ads AD1 | One manual import into Google Ads Editor and one into Meta, to confirm the template columns |
 | Ads AD2 | A real picture with an OpenAI key, to compare the cost with the estimate |
+| Content calendar | A real reminder notification in the installed app on each system (click opens the item); a real `content_plan` run against the estimate; real post-image uploads on Bluesky (1 MB) and X |
 | Assisted posting | One real post on each of the seven sites with a signed-in account |
+| Refine | A real chat on both providers for each kind, with a revision through `propose_revision` in the subject's strict schema (the reply draft, a post and an email campaign, a Google, Meta and Reddit ad), and an ad revision that trips `checkAdCopy` |
+| Listening and replies | `yarn eval score` on both providers for `opportunity-score@2` (adds sentiment; scores should match `@1`) and a look at its sentiment labels; replies read from a real post on Reddit, Hacker News, Bluesky, Mastodon and Discourse (Discourse's `/t/<id>/<post>.json` window on a long topic) |
 | Issue trackers | Real GitHub and GitLab repositories |
+| Competitor watch | A real `competitor_research` run on both providers against the cost estimate ($0.30 to $0.80), with a look at the people it suggests (public roles only, no personal details); real blog feeds (RSS, Atom, a Substack, a site whose feed is only found by `<link rel="alternate">`); a real digest |
+| Competitor benchmarks | A real check of each source (Bluesky, a Mastodon server, Hacker News, a Reddit user feed) to confirm the response shapes the parsers expect; whether Reddit's user `.rss` honors `limit=100` |
 | Analytics | A real Umami instance (including its entry-page, country, device and browser breakdowns); a real GA4 property's new reports (landing pages, countries, devices, engagement) and a 16-month first sync; a real Stripe account's invoices and rebuilt MRR history against Stripe's dashboard |
 | Credential guides | Follow the docs' credential guides end to end on a fresh Google Cloud project, Supabase account and Stripe account |
 | Desktop shell | Tray, close-to-tray and launch at login on Windows and Linux (only macOS has been run) |

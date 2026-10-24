@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition, type ReactElement } from "react";
+import { useRef, useState, useTransition, type ReactElement } from "react";
 import { ImageIcon, Loader2Icon, PencilIcon, PlusIcon, RefreshCwIcon, SparklesIcon, SquareIcon, Trash2Icon, UploadIcon } from "lucide-react";
 import { toast } from "sonner";
-import { templateHtml, TEMPLATE_LABEL } from "@startica/core/ads/templates";
+import { TEMPLATE_LABEL } from "@startica/core/ads/templates";
+import { TemplatePreview as Preview, useDataUrl } from "@/components/app/template-preview";
 import type { AdCreativeColors, AdCreativeText, AdTemplate } from "@startica/db/schema";
 import type { ActionResult } from "@/components/app/form-dialog";
 import { Button } from "@/components/ui/button";
@@ -47,45 +48,6 @@ const BLANK: CreativeValues = {
   useLogo: true,
   picture: null,
 };
-
-/** An image as a data: URL, so the sandboxed preview can show it without the app's session. */
-function useDataUrl(src: string | Blob | null): string | null {
-  const [data, setData] = useState<{ src: string | Blob; url: string } | null>(null);
-  useEffect(() => {
-    if (!src) return;
-    let live = true;
-    (async () => {
-      const blob = typeof src === "string" ? await (await fetch(src)).blob() : src;
-      const reader = new FileReader();
-      reader.onload = () => live && typeof reader.result === "string" && setData({ src, url: reader.result });
-      reader.readAsDataURL(blob);
-    })().catch(() => {});
-    return () => {
-      live = false;
-    };
-  }, [src]);
-  return src && data?.src === src ? data.url : null;
-}
-
-/** The template at 1080×1080, drawn live in a sandboxed frame while editing. */
-function Preview({ values, picture, logo }: { values: Omit<CreativeValues, "picture" | "adId" | "useLogo" | "concept">; picture: string | null; logo: string | null }) {
-  const size = { width: 1080, height: 1080 };
-  const html = useMemo(
-    () => templateHtml({ template: values.template, width: size.width, height: size.height, text: values.text, colors: values.colors, image: picture, logo }),
-    [values, picture, logo, size.width, size.height],
-  );
-  const box = 240;
-  return (
-    <div className="overflow-hidden rounded-md border" style={{ width: box, height: box }} aria-label="Preview">
-      <iframe
-        title="Creative preview"
-        sandbox="allow-scripts"
-        srcDoc={html}
-        style={{ width: size.width, height: size.height, transform: `scale(${box / size.width})`, transformOrigin: "0 0", border: 0, pointerEvents: "none" }}
-      />
-    </div>
-  );
-}
 
 export function CreativeDialog({
   campaignId,

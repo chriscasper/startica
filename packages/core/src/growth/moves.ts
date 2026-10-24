@@ -18,6 +18,9 @@ import { topAdSuggestions } from "../ads/results.ts";
 import { latestReadySummary } from "../metrics/summary.ts";
 import { openFindingCounts } from "../security/findings.ts";
 import { openRoadmapItems } from "./roadmap.ts";
+import { calendarCandidates } from "../content/calendar-moves.ts";
+import { listeningCandidates } from "../distribution/listening-moves.ts";
+import { competitorCandidates } from "../competitors/activity.ts";
 
 /**
  * Today's moves: a short ranked list built by rules from what's actually waiting
@@ -69,7 +72,11 @@ export async function buildCandidates(productId: string): Promise<Candidate[]> {
   const out: Candidate[] = [];
   const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-  // 1. Time-sensitive: conversations go quiet within a day or two.
+  // 1. Time-sensitive: what the content calendar plans for today, then conversations that go quiet within a day or two.
+  out.push(...(await calendarCandidates(productId)));
+  // Replies to the owner's posts and listening spikes (ARCHITECTURE.md 8.1).
+  out.push(...(await listeningCandidates(productId, localDay())));
+  out.push(...(await competitorCandidates(productId)));
   if (drafted > 0) {
     out.push({
       kind: "inbox",

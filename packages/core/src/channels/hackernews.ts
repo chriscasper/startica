@@ -1,6 +1,6 @@
 import { parseHTML } from "linkedom";
 import { USER_AGENT } from "../intel/crawl.ts";
-import type { ChannelAdapter, Engagement, ListeningQuery, RawConversation } from "./types.ts";
+import type { ChannelAdapter, Engagement, ListeningQuery, RawConversation, RawReply, ReplyThread } from "./types.ts";
 
 // Algolia's public HN API: https://hn.algolia.com/api
 const API = "https://hn.algolia.com/api/v1";
@@ -20,7 +20,7 @@ type Hit = {
   num_comments?: number | null;
 };
 
-type Item = {
+export type Item = {
   id: number;
   type: "story" | "comment" | string;
   title: string | null;
@@ -79,6 +79,36 @@ function fromHit(hit: Hit): RawConversation {
   };
 }
 
+/** Every reply below an item (the Algolia items API nests them), each filed under its parent. Deleted ones have no text and are dropped. */
+export function hnReplies(item: Item, threadTitle: string | null = item.title): ReplyThread {
+  const replies: RawReply[] = [];
+  const walk = (parent: Item) => {
+    for (const child of parent.children ?? []) {
+      const body = hnHtmlToText(child.text);
+      if (body && child.author) {
+        replies.push({
+          channel: "hackernews",
+          externalId: String(child.id),
+          url: itemUrl(child.id),
+          kind: "comment",
+          community: "Hacker News",
+          author: child.author,
+          title: null,
+          threadTitle,
+          body,
+          postedAt: new Date(child.created_at_i * 1000),
+          score: null,
+          numComments: child.children?.length ?? 0,
+          inReplyTo: String(parent.id),
+        });
+      }
+      walk(child);
+    }
+  };
+  walk(item);
+  return { engagement: { score: item.points, replies: item.children.length, removed: !item.text && !item.title }, ownerAuthor: item.author, replies };
+}
+
 async function fetchItem(id: string): Promise<Item> {
   return getJson<Item>(`${API}/items/${id}`);
 }
@@ -133,6 +163,12 @@ export const hackerNews: ChannelAdapter = {
     const item = await fetchItem(id);
     // HN hides comment points; replies are the useful signal. Deleted items come back without text.
     return { score: item.points, replies: item.children.length, removed: !item.text && !item.title };
+  },
+
+  async fetchReplies(url: string): Promise<ReplyThread | null> {
+    const id = parseItemId(url);
+    if (!id) return null;
+    return hnReplies(await fetchItem(id));
   },
 };
 

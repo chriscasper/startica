@@ -118,11 +118,47 @@ try {
   await page.getByRole("button", { name: "Finish" }).click();
   await page.waitForURL(/\/today$/);
 
-  for (const route of ["/", "/dashboard", "/today", "/welcome", "/inbox", "/content", "/roadmap", "/intel", "/analytics", "/analytics?tab=traffic", "/analytics?tab=conversions", "/analytics?tab=revenue", "/analytics?tab=startica&range=90", "/accessibility", "/accessibility/issues", "/accessibility/pages", "/accessibility/content", "/accessibility/documents", "/seo", "/seo/health", "/seo/search", "/seo/ai", "/seo/opportunities", "/seo/agents", "/seo/offsite", "/ads", "/security", "/settings", "/settings?tab=products", "/settings?tab=channels", "/system"]) {
+  for (const route of ["/", "/dashboard", "/today", "/welcome", "/inbox", "/inbox?tab=replies", "/inbox?tab=trends", "/inbox?tab=trends&range=90", "/content", "/content/calendar", "/content/calendar?view=month", "/roadmap", "/intel", "/intel?tab=benchmarks", "/analytics", "/analytics?tab=traffic", "/analytics?tab=conversions", "/analytics?tab=revenue", "/analytics?tab=startica&range=90", "/accessibility", "/accessibility/issues", "/accessibility/pages", "/accessibility/content", "/accessibility/documents", "/seo", "/seo/health", "/seo/search", "/seo/ai", "/seo/opportunities", "/seo/agents", "/seo/offsite", "/ads", "/security", "/settings", "/settings?tab=products", "/settings?tab=channels", "/system"]) {
     const res = await page.goto(`${server.url}${route}`);
     await page.waitForLoadState("networkidle");
     const crashed = await page.getByText(/Application error|Unhandled Runtime Error/).count();
     check(res?.status() === 200 && crashed === 0, `${route} renders (${res?.status()})`);
+  }
+
+  // Analytics export: the Markdown download and the printable page for the product.
+  {
+    const { DatabaseSync } = await import("node:sqlite");
+    const db = new DatabaseSync(join(dataDir, "startica.db"));
+    const product = db.prepare("select id from products where name = ?").get("Smoke Test Co");
+    db.close();
+    const md = await page.request.get(`${server.url}/analytics/report/download?product=${product.id}&range=30`);
+    const print = await page.request.get(`${server.url}/analytics/report/print?product=${product.id}&range=30`);
+    const text = await md.text();
+    check(md.status() === 200 && text.startsWith("#") && print.status() === 200, `Analytics export: Markdown and printable page (${md.status()}, ${print.status()})`);
+  }
+
+  // Content calendar: a piece planned for tomorrow shows on the week view, opens with Plan, and has an images page.
+  {
+    const { DatabaseSync } = await import("node:sqlite");
+    const db = new DatabaseSync(join(dataDir, "startica.db"));
+    const now = Date.now();
+    const pieceId = crypto.randomUUID();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    // One for each product, so it doesn't matter which one is active by now.
+    for (const [i, p] of db.prepare("select id, workspace_id from products").all().entries()) {
+      db.prepare("insert into content_pieces (id, workspace_id, product_id, channel, format, topic, body, status, planned_at, plan_why, created_at, updated_at) values (?, ?, ?, 'bluesky', 'post', 'Smoke planned post', 'Three things to note before you lose signal.', 'draft', ?, 'Mornings do best.', ?, ?)").run(i === 0 ? pieceId : crypto.randomUUID(), p.workspace_id, p.id, tomorrow.getTime(), now, now);
+    }
+    db.close();
+    await page.goto(`${server.url}/content/calendar?date=${tomorrow.toLocaleDateString("en-CA")}`);
+    await page.getByText("Smoke planned post").first().click();
+    await page.waitForURL(/focus=piece/);
+    await page.getByText("In the content plan:").waitFor();
+    check((await page.getByRole("button", { name: /Plan|AM|PM/ }).count()) > 0, "Content calendar: a planned piece shows on the week and opens with its planned time");
+    const res = await page.goto(`${server.url}/content/pieces/${pieceId}`);
+    await page.getByText("Sizes for Bluesky").waitFor();
+    check(res?.status() === 200, "Content Studio: a piece's post images page shows the channel's sizes");
   }
 
   // Ads: a planned campaign (seeded: the smoke has no AI key) shows its checks and downloads paused for import.
@@ -362,6 +398,16 @@ try {
     const logoListed = await page.getByText(/\/logo\.svg$/).count();
     const altOff = await page.getByRole("button", { name: /Review \d+ images?/ }).isDisabled();
     check(logoListed > 0 && altOff, `A3: the Images screen lists the stand-in's images (${logoListed}) and the alt text review waits for an AI key`);
+
+    // A3 fix plans: pick every open issue; the plan bar counts them and waits for an AI key.
+    await page.goto(`${server.url}/accessibility/issues`);
+    await page.getByRole("checkbox", { name: /Pick (every issue listed|the top \d+ issues)/ }).check();
+    const bar = page.getByRole("region", { name: "Fix plan" });
+    const picked = (await bar.getByText(/^\d+ issues? picked$/).innerText().catch(() => "")).trim();
+    const planOff = await bar.getByRole("button", { name: /Write one fix plan/ }).isDisabled();
+    const plansPage = await page.goto(`${server.url}/accessibility/fix-plans`);
+    const plansEmpty = await page.getByText(/No fix plans yet/).count();
+    check(/^\d+ issues? picked$/.test(picked) && planOff && plansPage?.status() === 200 && plansEmpty === 1, `A3: issues can be picked for one fix plan, which waits for an AI key (${picked || "no bar"}), and Fix plans renders`);
 
     // A4: mark a criterion by hand, fill in the statement, open the printable report.
     await page.goto(`${server.url}/accessibility/checklist?show=all`);

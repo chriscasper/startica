@@ -17,8 +17,10 @@ The Inbox shows the product selected in the sidebar's product switcher.
 | **Posted** | Threads you posted with Startica or marked as posted | `posted` |
 | **Archived** | Threads that didn't qualify | `archived` |
 | **Dismissed** | Threads you dismissed | `dismissed` |
+| **Replies** | [Replies to your posts](/guides/replies), with the answers you asked Startica to draft | |
+| **Trends** | [Listening trends](/guides/listening-trends): counts per keyword and community, spikes, sentiment, share of voice | |
 
-Each tab shows a count and the 50 most recent items, newest first. There are no other filters. The page updates on its own as jobs finish.
+Each status tab shows a count and the 50 most recent items, newest first. There are no other filters. The page updates on its own as jobs finish.
 
 ## How a thread moves through the Inbox
 
@@ -73,9 +75,13 @@ Click **Regenerate** to get a new draft. The dialog asks **Anything to change? (
 Shorter. Don't mention the product. Answer the question about exporting first.
 ```
 
-Your guidance is passed to the AI along with the thread. The new draft becomes the next version. Earlier versions are kept in the database but the card shows only the latest.
+Your guidance is passed to the AI along with the thread. The new draft becomes the next version. The card shows the latest; once there are two or more, **Versions** lists them all and **Restore** brings one back.
 
 **Regenerate** is available on drafted and failed cards. It's also how you retry a failed draft.
+
+## Refine it in a chat
+
+For more back and forth than one round of guidance, click **Refine** on a drafted card. A chat opens beside the Inbox: ask whether mentioning the product is OK in that community, push back, or say what to change. A revised draft appears under the AI's reply with **Apply**, which saves it as the next version. Save or undo your own edits first. See [Refining AI suggestions](/guides/refine).
 
 ## Post it
 
@@ -180,11 +186,12 @@ For posted replies with a link (saved by **Post…**, or added in **Mark as post
 | X | Only with an [X API token](/credentials/x-api): likes and replies, and whether the post is gone. Each check is one paid read and counts toward the daily cap. |
 | LinkedIn, Facebook, other sites | Nothing. |
 
-The checks run only while Startica is open. Results show on the **Analytics** page under **What Startica did** → **Posted by Startica**, with GA4 or Umami visits and key events for replies that carried the tracking link.
+The same check reads the [replies to your post](/guides/replies) on Reddit, Hacker News, Bluesky, Mastodon and Discourse. The checks run only while Startica is open. Results show on the **Analytics** page under **What Startica did** → **Posted by Startica**, with GA4 or Umami visits and key events for replies that carried the tracking link.
 
 ## Related
 
 - [Finding conversations](/guides/finding-conversations)
+- [Replies to your posts](/guides/replies)
 - [Posting with Startica](/guides/assisted-posting)
 - [Manual channels](/guides/manual-channels)
 - [Content Studio](/guides/content-studio): longer posts in a saved voice. Inbox replies don't use voice profiles.

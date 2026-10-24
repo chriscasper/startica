@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getDb } from "@startica/db/client";
 import { chatMessages, chatThreads } from "@startica/db/schema";
 import { runChat, type AiContext, type AiMessage } from "../ai/client.ts";
-import { CHAT_SUBJECTS, type ChatSubject } from "./subjects.ts";
+import { CHAT_SUBJECTS, subjectShape, type ChatSubject, type LoadedSubject } from "./subjects.ts";
 
 /**
  * The chat_reply job (ARCHITECTURE.md section 5.1): writes the AI's reply in a Refine chat. The
@@ -11,7 +11,7 @@ import { CHAT_SUBJECTS, type ChatSubject } from "./subjects.ts";
  * a revision comes back through the propose_revision tool, in the suggestion's own schema.
  */
 
-export const CHAT_PROMPT_VERSION = "refine-chat@1";
+export const CHAT_PROMPT_VERSION = "refine-chat@2"; // @2: wording that fits a singular suggestion ("the ad")
 export const chatReplyPayload = z.object({ workspaceId: z.guid(), messageId: z.guid() });
 
 /** Messages kept in the prompt; older ones drop off (the suggestion and its context always stay). */
@@ -23,7 +23,7 @@ const STREAM_WRITE_MS = 150;
 export const REVISION_TOOL = "propose_revision";
 
 export function chatRules(noun: string): string {
-  return `Now you're in a conversation with the owner about these ${noun}. They may ask questions, push back, tell you about their setup, or ask for changes.
+  return `Now you're in a conversation with the owner about the ${noun}. They may ask questions, push back, tell you about their setup, or ask for changes.
 
 How to reply:
 - Be brief and plain: a few short paragraphs at most. Use simple Markdown only: short lists, **bold**, \`inline code\` and fenced code blocks.
@@ -36,11 +36,11 @@ How to reply:
 }
 
 /** The system prompt: the feature's instructions, the chat rules, the context and the suggestion as it stands (stable within a chat, so it's cached). */
-export function chatSystem(subject: ChatSubject, loaded: { context: string; current: object | null }): string {
+export function chatSystem(subject: ChatSubject, loaded: LoadedSubject): string {
   const current = loaded.current
-    ? `The ${subject.noun} as they stand now, in ${REVISION_TOOL}'s shape:\n<current>\n${JSON.stringify(subject.toRevision(loaded.current), null, 2)}\n</current>`
-    : `There are no ${subject.noun} yet.`;
-  return `${subject.system}\n\n${chatRules(subject.noun)}\n\n<context>\n${loaded.context}\n</context>\n\n${current}`;
+    ? `The current ${subject.noun}, in ${REVISION_TOOL}'s shape:\n<current>\n${JSON.stringify(subject.toRevision(loaded.current), null, 2)}\n</current>`
+    : `Nothing has been written yet.`;
+  return `${subjectShape(subject, loaded).system}\n\n${chatRules(subject.noun)}\n\n<context>\n${loaded.context}\n</context>\n\n${current}`;
 }
 
 /** The conversation so far as model turns: finished replies only, revisions in tags, same-role turns merged, starting with the owner. */
@@ -103,12 +103,15 @@ export async function runChatReply(ctx: AiContext, payload: z.infer<typeof chatR
       messages,
       webSearch: message.webSearch,
       maxSearches: MAX_SEARCHES,
-      tool: { name: REVISION_TOOL, description: `Hand the owner the complete revised ${subject.noun}, to apply if they want. Call it at most once, after your text.`, schema: subject.revision },
+      tool: { name: REVISION_TOOL, description: `Hand the owner the complete revised ${subject.noun}, to apply if they want. Call it at most once, after your text.`, schema: subjectShape(subject, loaded).revision },
       onText,
     });
     await writing;
-    let body = reply.text || (reply.proposal ? `Here are the revised ${subject.noun}.` : "");
+    let body = reply.text || (reply.proposal ? `Here's a revision of the ${subject.noun}.` : "");
     if (reply.proposalError) body += `\n\n(The revision didn't come back in the right shape, so there's nothing to apply. Ask again.)`;
+    // Startica's own checks (ad copy limits) go under the reply, so the owner and the next turn see them.
+    const problems = reply.proposal && subject.problems ? await subject.problems(payload.workspaceId, thread.subjectId, reply.proposal) : [];
+    if (problems.length) body += `\n\n**Startica's checks on this revision:**\n${problems.map((p) => `- ${p}`).join("\n")}`;
     await db
       .update(chatMessages)
       .set({

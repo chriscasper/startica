@@ -143,7 +143,7 @@ Prompts live in the code next to the feature that uses them. Each has a version 
 | Prompt version | Feature |
 | --- | --- |
 | `intel-research@2`, `intel-synthesis@4` | Intel brief (since `intel-synthesis@3` it lists suggested communities strongest first, so the [Getting started checklist](/getting-started/first-day#the-getting-started-checklist) can pre-tick the top ones) |
-| `opportunity-score@1` | Scoring conversations |
+| `opportunity-score@2` | Scoring conversations (since `@2` also the author's sentiment, for [listening trends](/guides/listening-trends)) |
 | `reply-draft@2` | Reply drafts |
 | `voice-guide@1` | Voice profiles |
 | `content-write@2`, `email-campaign@1`, `content-topics@2` | Content Studio |

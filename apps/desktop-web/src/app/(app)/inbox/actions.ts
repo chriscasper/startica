@@ -3,11 +3,11 @@
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { adapters, channelFromUrl, redditCommunity } from "@startica/core/channels/index";
-import { storeConversation } from "@startica/core/distribution/jobs";
+import { saveOwnerDraft, storeConversation } from "@startica/core/distribution/jobs";
+import { draftReplyAnswer, replyStatuses, setReplyStatus } from "@startica/core/distribution/replies";
 import { LISTEN_CHANNELS, listeningState, pauseFor, setChannelPaused, setListeningPaused } from "@startica/core/distribution/listening";
 import { scanActivity } from "@startica/core/jobs/activity";
 import { setThresholds } from "@startica/core/distribution/thresholds";
-import { transaction } from "@startica/db/client";
 import { recordReplyPosted } from "@startica/core/posting/record";
 import { replyRequest } from "@startica/core/posting/requests";
 import { enqueue } from "@startica/db/queue";
@@ -99,25 +99,7 @@ export async function importLink(productId: string, formData: FormData): Promise
 export async function saveDraftEdit(opportunityId: string, body: string): Promise<ActionResult> {
   return mutate(async () => {
     const opp = await ownOpportunity(opportunityId);
-    const text = z.string().trim().min(1, "The draft is empty").parse(body);
-    await transaction(async (tx) => {
-      const [latest] = await tx
-        .select()
-        .from(drafts)
-        .where(eq(drafts.opportunityId, opp.id))
-        .orderBy(desc(drafts.version))
-        .limit(1);
-      await tx.insert(drafts).values({
-        workspaceId: opp.workspaceId,
-        opportunityId: opp.id,
-        version: (latest?.version ?? 0) + 1,
-        body: text,
-        mentionsProduct: latest?.mentionsProduct ?? false,
-        utmUrl: latest?.utmUrl ?? null,
-        rationale: "Edited by you.",
-        source: "owner",
-      });
-    });
+    await saveOwnerDraft(opp.workspaceId, opp.id, body);
   });
 }
 
@@ -226,5 +208,23 @@ export async function pauseChannel(productId: string, channel: string, paused: b
   return mutate(async () => {
     const scope = await productScope(productId);
     await setChannelPaused(scope.productId, z.enum(channels).parse(channel), paused);
+  });
+}
+
+// --- Replies to the owner's posts (ARCHITECTURE.md 8.1) -------------------------------
+
+/** "Draft an answer": turns a reply into a conversation and opportunity, and queues a draft. */
+export async function draftAnswer(replyId: string): Promise<ActionResult> {
+  return mutate(async () => {
+    const workspace = await getWorkspace();
+    await draftReplyAnswer(workspace.id, id.parse(replyId));
+  });
+}
+
+/** Marks replies seen, answered, dismissed, or new again. */
+export async function setRepliesStatus(replyIds: string[], status: string): Promise<ActionResult> {
+  return mutate(async () => {
+    const workspace = await getWorkspace();
+    await setReplyStatus(workspace.id, z.array(id).max(500).parse(replyIds), z.enum(replyStatuses).parse(status));
   });
 }

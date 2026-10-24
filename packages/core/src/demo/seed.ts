@@ -4,10 +4,14 @@ import { ensureWorkspace } from "@startica/db/bootstrap";
 import { getDb, transaction, type Db } from "@startica/db/client";
 import { seedDemoAccessibility } from "./accessibility.ts";
 import { seedDemoAds } from "./ads.ts";
+import { seedDemoPlanning } from "./planning.ts";
 import { seedDemoSearch } from "./search.ts";
 import { seedDemoVisibility } from "./visibility.ts";
 import { seedDemoAgents } from "./agents.ts";
 import { seedDemoOffsite } from "./offsite.ts";
+import { seedDemoListening } from "./listening.ts";
+import { seedDemoBenchmarks } from "./benchmarks.ts";
+import { seedDemoCompetitorWatch } from "./competitor-watch.ts";
 import * as s from "@startica/db/schema";
 import { estimateCostUsd } from "../ai/pricing.ts";
 import { fingerprint } from "../distribution/fingerprint.ts";
@@ -382,6 +386,11 @@ export async function seedDemo(now = new Date()): Promise<SeedResult> {
     add("search rows", await seedDemoSearch(db, workspaceId, productId, ago));
     add("AI visibility questions", await seedDemoVisibility(db, workspaceId, productId, ago));
     add("off-site pages read", await seedDemoOffsite(db, workspaceId, productId, ago));
+    const listening = await seedDemoListening(db, workspaceId, productId, ago);
+    add("listening history", listening.conversations);
+    add("replies to your posts", listening.replies);
+    add("benchmarked accounts", await seedDemoBenchmarks(db, workspaceId, productId, ago));
+    add("competitor posts", await seedDemoCompetitorWatch(db, workspaceId, productId, ago));
 
     // --- System: job history and AI spend -------------------------------------------
     for (const r of DEMO_AI_RUNS) {
@@ -438,6 +447,10 @@ export async function seedDemo(now = new Date()): Promise<SeedResult> {
   add("accessibility pages", await seedDemoAccessibility(workspaceId, productId, ago));
   add("agent readiness checks", await seedDemoAgents(getDb(), workspaceId, productId, ago));
   add("ad campaigns", await seedDemoAds(getDb(), workspaceId, productId, ago));
+  // The content calendar: earlier posts for best-time hints, a content plan, a planned reply and a post image.
+  const planning = await seedDemoPlanning(getDb(), workspaceId, productId, now);
+  add("calendar pieces", planning.pieces);
+  add("post images", planning.images);
 
   return { workspaceId, productId, counts };
 }

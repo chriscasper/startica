@@ -26,12 +26,17 @@ export const QUEUE_LABELS: Record<string, string> = {
   voice_profile_build: "Building a voice",
   content_generate: "Writing content",
   content_topics: "Suggesting topics",
+  calendar_remind: "Checking the content calendar",
+  content_plan: "Planning content",
+  content_image_image: "Drawing a post image",
+  content_image_render: "Rendering post image sizes",
   site_scan: "Accessibility scan",
   site_page_check: "Accessibility page check",
   a11y_fix_suggest: "Suggesting an accessibility fix",
   a11y_review_assist: "Helping with a manual review",
   a11y_alt_review: "Reviewing alt text",
   a11y_summary: "Summarizing accessibility",
+  a11y_fix_plan: "Writing an accessibility fix plan",
   site_content_check: "Checking documents and content",
   site_scan_due: "Looking for sites due a rescan",
   tracker_sync: "Syncing issues",
@@ -51,6 +56,9 @@ export const QUEUE_LABELS: Record<string, string> = {
   opportunity_draft: "Drafting a fix",
   agent_check: "Checking agent readiness",
   offsite_check: "Reading pages AI answers cite",
+  competitor_sync: "Reading competitor accounts",
+  competitor_research: "Researching a competitor",
+  competitor_digest: "Summarizing competitor activity",
 };
 
 /** Why a job of this queue runs, when it wasn't started by its schedule. */
@@ -69,12 +77,17 @@ const REASONS: Record<string, string> = {
   voice_profile_build: "You asked for a voice to be built from its samples.",
   content_generate: "You asked for a piece of content.",
   content_topics: "You asked for topic ideas.",
+  calendar_remind: "Looking for planned posts that are due.",
+  content_plan: "You asked for a content plan.",
+  content_image_image: "You asked for a picture to be drawn (this costs money).",
+  content_image_render: "A post image changed, so every size is rendered again.",
   site_scan: "A full check of the site, started by you or by its rescan interval.",
   site_page_check: "You asked to recheck some pages.",
   a11y_fix_suggest: "You asked AI for a fix.",
   a11y_review_assist: "You asked AI to help with a manual check.",
   a11y_alt_review: "You asked AI to review the site's alt text.",
   a11y_summary: "You asked for a summary of the site's accessibility.",
+  a11y_fix_plan: "You asked for one fix plan for the issues you picked.",
   site_content_check: "You started a check of the site's documents and content.",
   tracker_sync: "A scan finished, and your issue tracker is set to follow it.",
   security_recheck: "You started a security check.",
@@ -93,6 +106,9 @@ const REASONS: Record<string, string> = {
   opportunity_draft: "You asked for a fix to be drafted.",
   agent_check: "You started an agent readiness check.",
   offsite_check: "You asked to read the pages AI answers cite.",
+  competitor_sync: "You followed an account or asked to check them now.",
+  competitor_research: "You asked Startica to research a competitor.",
+  competitor_digest: "You asked for a summary of what your competitors did this week.",
 };
 
 /** Where to see each queue's work. */
@@ -111,12 +127,17 @@ const PAGES: Record<string, string> = {
   voice_profile_build: "/content",
   content_generate: "/content",
   content_topics: "/content",
+  calendar_remind: "/content/calendar",
+  content_plan: "/content/calendar",
+  content_image_image: "/content",
+  content_image_render: "/content",
   site_scan: "/accessibility",
   site_page_check: "/accessibility",
   a11y_fix_suggest: "/accessibility/issues",
   a11y_review_assist: "/accessibility/review",
   a11y_alt_review: "/accessibility/images",
   a11y_summary: "/accessibility/reports",
+  a11y_fix_plan: "/accessibility/fix-plans",
   site_content_check: "/accessibility/content",
   site_scan_due: "/accessibility",
   tracker_sync: "/accessibility/issues",
@@ -130,10 +151,13 @@ const PAGES: Record<string, string> = {
   opportunity_draft: "/seo/opportunities",
   agent_check: "/seo/agents",
   offsite_check: "/seo/offsite",
+  competitor_sync: "/intel?tab=benchmarks",
+  competitor_research: "/intel?tab=competitors",
+  competitor_digest: "/intel?tab=following",
 };
 
 // Queues that run as many small jobs at once; they're shown as one line.
-const GROUPED = new Set(["opportunity_score", "draft_generate", "ad_creative_render"]);
+const GROUPED = new Set(["opportunity_score", "draft_generate", "ad_creative_render", "content_image_render"]);
 
 export type BackgroundTask = {
   /** The first job's id; stable while the task runs. */

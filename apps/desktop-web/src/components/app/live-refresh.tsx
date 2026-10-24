@@ -26,12 +26,16 @@ type Table =
   | "voice_profiles"
   | "content_pieces"
   | "content_snapshots"
+  | "content_images"
+  | "content_plans"
   | "publications"
+  | "publication_replies"
   | "sites"
   | "site_scans"
   | "site_pages"
   | "a11y_issue_groups"
   | "a11y_images"
+  | "a11y_fix_plans"
   | "security_findings"
   | "security_reports"
   | "issue_trackers"
@@ -48,6 +52,11 @@ type Table =
   | "seo_opportunities"
   | "agent_checks"
   | "offsite_pages"
+  | "competitor_accounts"
+  | "competitor_snapshots"
+  | "competitor_people"
+  | "competitor_posts"
+  | "competitor_digests"
   | "analytics_summaries";
 
 // Re-renders the page when the server reports a change to one of the watched tables.

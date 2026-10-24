@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -10,6 +10,7 @@ import { taskModel, type AiContext } from "../ai/client.ts";
 import { estimateCostUsd } from "../ai/pricing.ts";
 import { jobByPayload, stopJob } from "../jobs/cancel.ts";
 import { type AdCampaign } from "./campaigns.ts";
+import { checkUpload, IMAGE_SIZE, isSafeId, pictureIn, readImageIn, savePictureIn } from "./pipeline.ts";
 import { isHexColor } from "./templates.ts";
 
 export type AdCreative = typeof adCreatives.$inferSelect;
@@ -50,8 +51,7 @@ export const CREATIVE_SPECS: Record<AdPlatform, { sizes: { size: AdCreativeSize;
   },
 };
 
-/** The picture is drawn once, square and large, and each size crops it. */
-export const IMAGE_SIZE = { width: 2048, height: 2048 };
+export { IMAGE_SIZE } from "./pipeline.ts";
 
 // Output tokens per megapixel by quality (OpenAI's per-image figures at 1024×1024, checked 2026-10-13).
 const TOKENS_PER_MP: Record<string, number> = { low: 196, medium: 439, high: 1756, xhigh: 3122, max: 7024 };
@@ -69,54 +69,24 @@ export async function imageEstimate(ctx: AiContext): Promise<{ model: string; qu
 
 // --- Files -----------------------------------------------------------------------------
 
-const safeId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
+const safeId = isSafeId;
 export const creativeFolder = (id: string) => join(dataDir(), "ads", "creatives", id);
 const logoFolder = () => join(dataDir(), "ads", "logos");
 export const RENDER_FILE = /^(1x1|4x5|9x16|1\.91x1)\.(png|jpg)$/;
-const PICTURE_FILE = /^picture\.(png|jpg|webp)$/;
-export const sizeFile = (size: AdCreativeSize, format: "png" | "jpeg") => `${size.replace(":", "x")}.${format === "png" ? "png" : "jpg"}`;
-
-/** PNG, JPEG or WebP, from the file's first bytes; null for anything else. */
-export function imageType(data: Buffer): "png" | "jpg" | "webp" | null {
-  if (data.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "png";
-  if (data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) return "jpg";
-  if (data.subarray(0, 4).toString("latin1") === "RIFF" && data.subarray(8, 12).toString("latin1") === "WEBP") return "webp";
-  return null;
-}
-
-export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
-
-function checkUpload(data: Buffer): "png" | "jpg" | "webp" {
-  if (data.length > MAX_UPLOAD_BYTES) throw new Error("That image is over 20 MB");
-  const type = imageType(data);
-  if (!type) throw new Error("Use a PNG, JPEG or WebP image");
-  return type;
-}
+export { imageType, MAX_UPLOAD_BYTES, sizeFile } from "./pipeline.ts";
 
 export function savePicture(creativeId: string, data: Buffer): string {
-  const type = checkUpload(data);
-  const dir = creativeFolder(creativeId);
-  mkdirSync(dir, { recursive: true });
-  for (const f of existsSync(dir) ? readdirSync(dir) : []) if (PICTURE_FILE.test(f)) rmSync(join(dir, f), { force: true });
-  const file = `picture.${type}`;
-  writeFileSync(join(dir, file), data);
-  return file;
+  return savePictureIn(creativeFolder(creativeId), data);
 }
 
 /** A creative's picture or one of its rendered sizes. */
 export function readCreativeFile(creativeId: string, file: string): Buffer | null {
-  if (!safeId(creativeId) || !(RENDER_FILE.test(file) || PICTURE_FILE.test(file))) return null;
-  try {
-    return readFileSync(join(creativeFolder(creativeId), file));
-  } catch {
-    return null;
-  }
+  if (!safeId(creativeId)) return null;
+  return readImageIn(creativeFolder(creativeId), file, RENDER_FILE);
 }
 
 export function picturePath(creative: Pick<AdCreative, "id" | "imageFile">): string | null {
-  if (!creative.imageFile || !PICTURE_FILE.test(creative.imageFile)) return null;
-  const path = join(creativeFolder(creative.id), creative.imageFile);
-  return existsSync(path) ? path : null;
+  return pictureIn(creativeFolder(creative.id), creative.imageFile);
 }
 
 /** The product's logo for templates, one per product. */

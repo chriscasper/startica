@@ -29,6 +29,9 @@ const kindLabel: Record<string, string> = {
   audit: "Audit",
   ads: "Ads",
   analytics: "Analytics",
+  calendar: "Calendar",
+  listening: "Listening",
+  replies: "Replies",
   custom: "Yours",
 };
 

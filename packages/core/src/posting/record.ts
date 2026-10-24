@@ -1,6 +1,6 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { transaction } from "@startica/db/client";
-import { contentPieces, conversations, drafts, opportunities, publications } from "@startica/db/schema";
+import { contentPieces, conversations, drafts, opportunities, publicationReplies, publications } from "@startica/db/schema";
 import type { PostingTarget } from "./requests.ts";
 
 /**
@@ -44,6 +44,8 @@ export async function recordReplyPosted(opts: { opportunityId: string; draftId?:
       mentionsProduct: draft.mentionsProduct,
     });
     await tx.update(opportunities).set({ status: "posted" }).where(eq(opportunities.id, opp.id));
+    // An answer to a reply on the owner's own post: that reply is answered now.
+    await tx.update(publicationReplies).set({ status: "answered" }).where(eq(publicationReplies.opportunityId, opp.id));
     return true;
   });
 }

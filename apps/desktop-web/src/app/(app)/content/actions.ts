@@ -2,6 +2,8 @@
 
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { deletePieceImages } from "@startica/core/content/images";
+import { saveOwnerPiece } from "@startica/core/content/jobs";
 import { recordPiecePosted } from "@startica/core/posting/record";
 import { pieceRequest } from "@startica/core/posting/requests";
 import { enqueue } from "@startica/db/queue";
@@ -139,10 +141,7 @@ export async function regeneratePiece(pieceId: string, formData: FormData): Prom
 export async function savePieceEdit(pieceId: string, title: string, body: string): Promise<ActionResult> {
   return mutate(async () => {
     const piece = await own(contentPieces, pieceId);
-    await (await db())
-      .update(contentPieces)
-      .set({ title: title.trim() || null, body: z.string().trim().min(1, "It's empty").parse(body) })
-      .where(eq(contentPieces.id, piece.id));
+    await saveOwnerPiece(piece, { title: title.trim() || null, body: z.string().trim().min(1, "It's empty").parse(body) });
   });
 }
 
@@ -160,9 +159,7 @@ export async function postPieceWithStartica(pieceId: string, title: string, body
     const piece = await own(contentPieces, pieceId);
     const text = z.string().trim().min(1, "It's empty").parse(body);
     const values = { title: title.trim() || null, body: text };
-    if (values.title !== piece.title || values.body !== piece.body) {
-      await (await db()).update(contentPieces).set(values).where(eq(contentPieces.id, piece.id));
-    }
+    await saveOwnerPiece(piece, values);
     if (["hackernews", "reddit", "discourse"].includes(piece.channel) && !values.title) throw new Error("Add a title first: this channel's posts need one");
     const request = pieceRequest({ id: piece.id, channel: piece.channel, format: piece.format, ...values }, await postingContext(piece.productId));
     if (!request) throw new Error("Startica can't post this one for you (threads, text over the site's limit, or a missing Mastodon server or Discourse forum); copy the text instead");
@@ -181,6 +178,7 @@ export async function savePieceNotes(pieceId: string, formData: FormData): Promi
 export async function deletePiece(pieceId: string): Promise<ActionResult> {
   return mutate(async () => {
     const piece = await own(contentPieces, pieceId);
+    await deletePieceImages([piece.id]); // the image files (rows go with the piece)
     await (await db()).delete(contentPieces).where(eq(contentPieces.id, piece.id));
   });
 }

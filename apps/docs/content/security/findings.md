@@ -11,7 +11,7 @@ A **finding** is one security problem to fix, listed with every page it's on. Th
 - **Why it matters** and **How to fix it**, plus what the check saw (the cookie's name, the header's value, the script's host).
 - **Pages**: where the latest scan saw it. Missing headers are usually one setting at the server, CDN or framework that fixes every page at once.
 - **References**: the OWASP Top 10 category and related SOC 2 and ISO/IEC 27001 controls. They help you or your auditor see where the finding belongs. They are not an assessment: Startica doesn't say whether a control is met.
-- **Help for your stack**: with an AI key, **Explain and fix** writes a plain explanation, fix steps and configuration for the server or framework your site's responses show (for example a `Server` header). It's text to copy: nothing is changed for you. About $0.02 each. See [How Startica uses AI](/concepts/ai).
+- **Help for your stack**: with an AI key, **Explain and fix** writes a plain explanation, fix steps and configuration for the server or framework your site's responses show (for example a `Server` header). It's text to copy: nothing is changed for you. About $0.02 each. See [How Startica uses AI](/concepts/ai). **Refine** opens a chat about the steps (your host, whether it breaks anything), and **Versions** keeps every one. See [Refining AI suggestions](/guides/refine).
 - Buttons: **Accept the risk**, **Not a problem**, **Recheck** (or **Mark fixed** for imported and reported findings), **Add to Roadmap** and, with an issue tracker connected, **Create GitHub issue** or **Create GitLab issue**.
 
 > [!WARNING]

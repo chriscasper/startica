@@ -397,6 +397,20 @@ The match uses `utm_content`. Keep the link exactly as written when you post. If
 > [!TIP]
 > Mark your GA4 signup or purchase event as a key event, or list it under **Key events** on the Umami connection. Then the **Key events** column tells you which posts led to signups, not just visits.
 
+## Export a report
+
+To share a period with someone, use the buttons next to the period picker. They export the period you have selected:
+
+| Button | What you get |
+| --- | --- |
+| **Markdown** | A `.md` file, for example `fieldnote-analytics-2026-09-22-to-2026-10-21.md` |
+| **Printable page** | The same report as a page in your browser, laid out for printing. Use **Print or save as PDF** at the top, or your browser's print dialog, to save a PDF. |
+| **Save as PDF** | In the desktop app only: renders the printable page and asks where to save the PDF. |
+
+The report has the Overview tiles against the period before, **What changed**, the latest weekly AI summary (marked as written by AI, with its dates and model), traffic by channel and the top landing pages, conversions and key events, revenue from Stripe, and **What Startica did** with the posts per community and ads. Sections without a connection are left out.
+
+It's built from the numbers on this page by a fixed template: exporting makes no AI call, and the same data always gives the same report. Exports work in the [demo](/guides/demo-mode) too.
+
 ## How Startica uses these numbers
 
 Besides this page, your metrics feed:
@@ -410,6 +424,7 @@ Besides this page, your metrics feed:
 - [Google Analytics](/credentials/google)
 - [Umami](/credentials/umami)
 - [Search performance](/seo/search)
+- [Competitor benchmarks](/guides/benchmarks)
 - [Stripe credentials](/credentials/stripe)
 - [Product database (Supabase or Postgres)](/credentials/supabase)
 - [Privacy and security](/concepts/privacy-security)

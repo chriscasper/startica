@@ -3,7 +3,7 @@ import { forumBase } from "./formats.ts";
 import { getJson, HttpError, withTopReplies } from "./http.ts";
 
 export { forumBase };
-import type { ChannelAdapter, Engagement, ListeningQuery, RawConversation } from "./types.ts";
+import type { ChannelAdapter, Engagement, ListeningQuery, RawConversation, RawReply, ReplyThread } from "./types.ts";
 
 /**
  * Discourse forums through each forum's public JSON (no account). A watched
@@ -22,8 +22,8 @@ const MAX_NEW_TOPICS = 6; // per forum per scan: each one costs a request for it
 const MAX_SEARCH_POSTS = 4;
 const GAP_MS = 4_500; // ≈13 requests a minute per forum
 
-type TopicPost = { id: number; post_number: number; username: string; cooked: string; created_at: string; reply_count?: number; reply_to_post_number?: number | null; actions_summary?: { id: number; count?: number }[] };
-type Topic = { id: number; slug: string; title: string; created_at: string; posts_count: number; post_stream: { posts: TopicPost[] } };
+export type TopicPost = { id: number; post_number: number; username: string; cooked: string; created_at: string; reply_count?: number; reply_to_post_number?: number | null; actions_summary?: { id: number; count?: number }[] };
+export type Topic = { id: number; slug: string; title: string; created_at: string; posts_count: number; post_stream: { posts: TopicPost[] } };
 type LatestTopic = { id: number; slug: string; title: string; created_at: string; posts_count: number };
 type SearchPost = { id: number; topic_id: number; post_number: number; username: string; created_at: string; blurb: string };
 type SinglePost = TopicPost & { topic_id: number; topic_slug: string; raw?: string; deleted_at?: string | null; hidden?: boolean };
@@ -55,6 +55,29 @@ function conversation(base: string, community: string | null, topic: { id: numbe
     score: likes,
     numComments: post.reply_count ?? null,
   };
+}
+
+/**
+ * The replies below a post, from the topic's JSON around it. Below the first post every
+ * later post in the topic answers it; below a later post, the posts that reply to it or to
+ * one of its replies. A topic's JSON carries about 20 posts around the one asked for.
+ */
+export function discourseReplies(base: string, topic: Topic, postNumber: number): ReplyThread | null {
+  const posts = [...topic.post_stream.posts].sort((a, b) => a.post_number - b.post_number);
+  const target = posts.find((p) => p.post_number === postNumber);
+  if (!target) return null;
+  const community = new URL(base).host;
+  const idOf = new Map(posts.map((p) => [p.post_number, conversation(base, community, topic, p, "", null).externalId]));
+  const below = new Set([postNumber]);
+  const replies: RawReply[] = [];
+  for (const p of posts) {
+    if (p.post_number <= postNumber) continue;
+    const parent = p.reply_to_post_number ?? 1;
+    if (postNumber !== 1 && !below.has(parent)) continue;
+    below.add(p.post_number);
+    replies.push({ ...conversation(base, community, topic, p, htmlToText(p.cooked), likesOf(p)), inReplyTo: idOf.get(parent) ?? idOf.get(postNumber) ?? null });
+  }
+  return { engagement: { score: likesOf(target), replies: target.reply_count ?? null, removed: false }, ownerAuthor: target.username, replies };
 }
 
 /** Spaces requests to each forum so a scan stays under anonymous rate limits. */
@@ -131,6 +154,19 @@ export const discourse: ChannelAdapter = {
       return { score: likesOf(post), replies: post.reply_count ?? null, removed: Boolean(post.deleted_at || post.hidden) };
     } catch (error) {
       if (error instanceof HttpError && (error.status === 404 || error.status === 410)) return { score: null, replies: null, removed: true };
+      throw error;
+    }
+  },
+
+  async fetchReplies(url: string): Promise<ReplyThread | null> {
+    const ref = parseTopicUrl(url);
+    if (!ref) return null;
+    try {
+      // /t/<id>/<post number>.json answers with the posts around that one.
+      const topic = await getJson<Topic>(`${ref.base}/t/${ref.topicId}/${ref.postNumber}.json`);
+      return discourseReplies(ref.base, topic, ref.postNumber) ?? { engagement: await this.fetchEngagement!(url), ownerAuthor: null, replies: [] };
+    } catch (error) {
+      if (error instanceof HttpError && (error.status === 404 || error.status === 410)) return { engagement: { score: null, replies: null, removed: true }, ownerAuthor: null, replies: [] };
       throw error;
     }
   },

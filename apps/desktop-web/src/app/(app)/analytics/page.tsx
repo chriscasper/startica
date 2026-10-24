@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { PageSkeleton } from "@/components/app/page-skeleton";
 import { db, getActiveProduct } from "@/lib/dal";
 import { cn } from "@/lib/utils";
+import { ExportButtons } from "./export-buttons";
 import { ConversionsTab, OverviewTab, RevenueTab, StarticaTab, TrafficTab } from "./tabs";
 
 export const metadata: Metadata = { title: "Analytics" };
@@ -116,6 +117,9 @@ async function AnalyticsContent({ searchParams }: { searchParams: PageProps<"/an
           </Link>
           {report.web && <>, or open {report.webLabel} for anything older</>}.
         </p>
+        <div className="ml-auto">
+          <ExportButtons productId={product.id} range={range} pdf={process.env.STARTICA_ELECTRON === "1"} />
+        </div>
       </div>
 
       {report.connected.size === 0 && (

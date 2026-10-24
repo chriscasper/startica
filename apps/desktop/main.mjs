@@ -6,7 +6,7 @@ import { fork } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { app, BrowserWindow, dialog, Menu, nativeImage, safeStorage, session, shell, Tray } from "electron";
+import { app, BrowserWindow, dialog, Menu, nativeImage, Notification, safeStorage, session, shell, Tray } from "electron";
 import { createAbout } from "./about/window.mjs";
 import { createPosting } from "./posting/window.mjs";
 import { createHighlighter } from "./scanner/highlight.mjs";
@@ -148,6 +148,7 @@ function updateTrayMenu() {
       { label: "Today", click: go("/today") },
       { label: "Inbox", click: go("/inbox") },
       { label: "Content Studio", click: go("/content") },
+      { label: "Content Calendar", click: go("/content/calendar") },
       { label: "Roadmap", click: go("/roadmap") },
       { type: "separator" },
       {
@@ -251,6 +252,7 @@ function startServer() {
       else if (message?.type === "launch-at-login" && app.isPackaged) setLaunchAtLogin(Boolean(message.enabled));
       else if (message?.type === "open-data-folder") void shell.openPath(baseDataDir());
       else if (message?.type === "desktop-query") answerQuery(message);
+      else if (message?.type === "notify") notify(message);
     });
     server.once("exit", (code) => {
       server = null;
@@ -264,19 +266,20 @@ function startServer() {
 }
 
 /**
- * Saves one of Startica's own report pages as a PDF (accessibility A4): renders it in a
+ * Saves one of Startica's own report pages as a PDF (accessibility A4, the Analytics report): renders it in a
  * hidden window on the app's session (it carries the launch token), asks where to save,
- * and writes the file. Only the report's path is accepted.
+ * and writes the file. Only these report paths are accepted.
  */
 async function savePdf({ path, filename }) {
-  if (!serverInfo || typeof path !== "string" || !/^\/accessibility\/report\/print\?site=[0-9a-f-]{36}$/i.test(path)) return;
+  const report = /^\/accessibility\/report\/print\?site=[0-9a-f-]{36}$/i.test(path) || /^\/analytics\/report\/print\?product=[0-9a-f-]{36}&range=\d{1,3}$/i.test(path);
+  if (!serverInfo || typeof path !== "string" || !report) return;
   const win = new BrowserWindow({ show: false, webPreferences: { session: session.defaultSession, sandbox: true, contextIsolation: true, nodeIntegration: false } });
   try {
     await win.loadURL(new URL(path, serverInfo.url).toString());
     const pdf = await win.webContents.printToPDF({ printBackground: true, pageSize: "A4", margins: { marginType: "default" } });
     const parent = BrowserWindow.getAllWindows().find((w) => w.isVisible());
     const { canceled, filePath } = await dialog.showSaveDialog(parent ?? undefined, {
-      defaultPath: join(app.getPath("downloads"), String(filename || "accessibility-report.pdf").replace(/[^\w.-]+/g, "-")),
+      defaultPath: join(app.getPath("downloads"), String(filename || "startica-report.pdf").replace(/[^\w.-]+/g, "-")),
       filters: [{ name: "PDF", extensions: ["pdf"] }],
     });
     if (!canceled && filePath) writeFileSync(filePath, pdf);
@@ -291,6 +294,26 @@ async function savePdf({ path, filename }) {
 function answerQuery({ requestId, what }) {
   const value = what === "launch-at-login" ? (app.isPackaged ? launchAtLogin() : null) : undefined;
   server?.send({ type: "desktop-answer", requestId, value });
+}
+
+// --- Desktop notifications (content calendar reminders) ------------------------------------
+// The server's calendar_remind job asks for one when planned posts are due. Clicking it opens the
+// app on the item, where the owner presses Post… (Startica never posts on its own).
+
+const shownNotifications = new Set(); // keeps them alive until clicked or closed (else they can be collected)
+
+function notify({ title, body, href }) {
+  if (!Notification.isSupported() || typeof title !== "string") return;
+  // Only paths inside the app: "/content/calendar?focus=piece:<uuid>" and the like.
+  const path = typeof href === "string" && /^\/[\w\-/]*(\?[\w\-=&:%.]*)?$/.test(href) ? href : "/content/calendar";
+  const n = new Notification({ title: title.slice(0, 120), body: String(body ?? "").slice(0, 300) });
+  shownNotifications.add(n);
+  n.on("click", () => {
+    shownNotifications.delete(n);
+    void showWindow(path);
+  });
+  n.on("close", () => shownNotifications.delete(n));
+  n.show();
 }
 
 // --- Accessibility scanner (ARCHITECTURE.md 9.3) ---------------------------------------------

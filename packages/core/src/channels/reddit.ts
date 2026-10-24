@@ -1,5 +1,5 @@
 import { parseHTML } from "linkedom";
-import type { ChannelAdapter, Engagement, ListeningQuery, RawConversation } from "./types.ts";
+import type { ChannelAdapter, Engagement, ListeningQuery, RawConversation, RawReply, ReplyThread } from "./types.ts";
 
 /**
  * Reddit via its public Atom (RSS) feeds: the feeds Reddit offers to feed readers.
@@ -42,7 +42,7 @@ async function fetchFeedOnce(url: string, signal?: AbortSignal): Promise<Respons
 }
 
 /** Serialized, rate-limited feed fetch; retries once after a 429. */
-function fetchFeed(url: string, signal?: AbortSignal): Promise<string> {
+export function fetchFeed(url: string, signal?: AbortSignal): Promise<string> {
   const task = chain.then(async () => {
     signal?.throwIfAborted();
     let res = await fetchFeedOnce(url, signal);
@@ -140,6 +140,29 @@ export function redditEngagement(entries: FeedEntry[], targetId: string): Engage
   return { score: null, replies, removed };
 }
 
+/**
+ * Replies below the owner's post or comment, from the same feed as its engagement. The
+ * feed is flattened (no parent ids), so every reply is filed as answering the target.
+ * Removed and deleted comments are left out.
+ */
+export function redditReplies(entries: FeedEntry[], targetId: string): ReplyThread {
+  const target = entries.find((e) => e.externalId === targetId);
+  const replies: RawReply[] = entries
+    .filter((e) => e.kind === "comment" && e.externalId !== targetId && !GONE.has(e.body.trim()) && e.author !== "[deleted]")
+    .map((e) => ({ ...e, inReplyTo: targetId }));
+  return { engagement: redditEngagement(entries, targetId), ownerAuthor: target?.author ?? null, replies };
+}
+
+/** The feed below a post or comment link and the id of the thing it's about. */
+async function targetFeed(url: string): Promise<{ entries: FeedEntry[]; targetId: string } | null> {
+  const ids = redditThingIds(url);
+  if (!ids) return null;
+  // Comment permalinks need their own path (with the slug); short links only name the post.
+  const path = /reddit\.com\//i.test(url) ? new URL(url).pathname.replace(/\/?$/, "/") : `/comments/${ids.postId}/`;
+  const entries = parseRedditFeed(await fetchFeed(`${BASE}${path}.rss?limit=100`));
+  return { entries, targetId: ids.commentId ? `t1_${ids.commentId}` : `t3_${ids.postId}` };
+}
+
 // --- Adapter ----------------------------------------------------------------------
 
 export const reddit: ChannelAdapter = {
@@ -202,12 +225,13 @@ export const reddit: ChannelAdapter = {
   },
 
   async fetchEngagement(url: string) {
-    const ids = redditThingIds(url);
-    if (!ids) return null;
-    // Comment permalinks need their own path (with the slug); short links only name the post.
-    const path = /reddit\.com\//i.test(url) ? new URL(url).pathname.replace(/\/?$/, "/") : `/comments/${ids.postId}/`;
-    const entries = parseRedditFeed(await fetchFeed(`${BASE}${path}.rss?limit=100`));
-    return redditEngagement(entries, ids.commentId ? `t1_${ids.commentId}` : `t3_${ids.postId}`);
+    const feed = await targetFeed(url);
+    return feed ? redditEngagement(feed.entries, feed.targetId) : null;
+  },
+
+  async fetchReplies(url: string) {
+    const feed = await targetFeed(url);
+    return feed ? redditReplies(feed.entries, feed.targetId) : null;
   },
 };
 

@@ -1,17 +1,15 @@
-import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { and, asc, eq, inArray, sum } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@startica/db/client";
 import { enqueue } from "@startica/db/queue";
-import { adCampaigns, adCreatives, adGroups, ads, adTemplates, aiRuns, products, type AdRender } from "@startica/db/schema";
-import { runImage, runStructured, type AiContext } from "../ai/client.ts";
+import { adCampaigns, adCreatives, adGroups, ads, adTemplates, type AdRender } from "@startica/db/schema";
+import { runStructured, type AiContext } from "../ai/client.ts";
 import { loadProductContext } from "../distribution/context.ts";
-import { checkConcept, CREATIVE_SPECS, creativeFolder, IMAGE_SIZE, logoPath, picturePath, RENDER_FILE, savePicture, sizeFile } from "./creatives.ts";
+import { checkConcept, CREATIVE_SPECS, creativeFolder, logoPath, picturePath, RENDER_FILE, savePicture } from "./creatives.ts";
 import { competitorNames } from "./jobs.ts";
 import { AD_PLATFORMS } from "./platforms.ts";
 import { adCopyText } from "./prompts.ts";
-import { renderTemplate } from "./render.ts";
+import { drawPicture, imageSpend, pictureRequest, renderSizes } from "./pipeline.ts";
 import { isHexColor, TEMPLATE_LABEL } from "./templates.ts";
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -21,34 +19,8 @@ export const creativePayload = z.object({ workspaceId: z.guid(), creativeId: z.g
 
 export const AD_IMAGE_PROMPT_VERSION = "ad-image@1";
 
-/** The rules every picture is drawn under; the founder's concept follows. */
-export function imageSystem(template: string): string {
-  return [
-    "A picture for a paid social or display ad, made to sit under text that is added afterwards.",
-    "Rules:",
-    "- No text, letters, numbers, captions, logos, watermarks or screens with readable words: the ad's words are added later.",
-    "- No real or identifiable people, celebrities or public figures; people, if any, are generic and not the focus of a face close-up.",
-    "- No brand names, trademarks, or other companies' products, packaging or app icons.",
-    "- No before-and-after comparisons, no body-image or health claims, nothing shocking.",
-    "- Composition: the subject near the center with generous margins, so the picture can be cropped to wide and tall formats.",
-    template === "overlay" ? "- Keep the lower third calm and uncluttered (a soft background), because the words sit there." : "- A clean, uncluttered background.",
-    "- Natural light, a modern, credible look; not stock-photo clichés.",
-  ].join("\n");
-}
-
-export function imagePrompt(product: { name: string; oneLiner: string | null }, concept: string): string {
-  return [`The product: ${product.name}${product.oneLiner ? `: ${product.oneLiner}` : ""}.`, `The picture: ${concept.trim()}`].join("\n");
-}
-
-/** What the AI spent in one job run, from its logged calls. */
-async function jobSpend(ctx: AiContext): Promise<number> {
-  if (!ctx.jobRunId) return 0;
-  const [row] = await getDb()
-    .select({ total: sum(aiRuns.costUsd) })
-    .from(aiRuns)
-    .where(and(eq(aiRuns.jobRunId, ctx.jobRunId), eq(aiRuns.task, "image")));
-  return Number(row?.total ?? 0);
-}
+export { imagePrompt, imageSystem } from "./pipeline.ts";
+const jobSpend = imageSpend;
 
 export async function runCreativeImage(ctx: AiContext, payload: z.infer<typeof creativePayload>) {
   const db = getDb();
@@ -62,17 +34,9 @@ export async function runCreativeImage(ctx: AiContext, payload: z.infer<typeof c
   try {
     const problem = checkConcept(creative.concept, await competitorNames(campaign.productId));
     if (problem) throw new Error(problem);
-    const [product] = await db.select({ name: products.name, oneLiner: products.oneLiner }).from(products).where(eq(products.id, campaign.productId));
-    const system = imageSystem(creative.template);
-    const prompt = imagePrompt(product ?? { name: "the product", oneLiner: null }, creative.concept);
-    await db.update(adCreatives).set({ prompt: `${system}\n\n${prompt}` }).where(eq(adCreatives.id, creative.id));
-    const picture = await runImage(ctx, {
-      task: "image",
-      promptVersion: AD_IMAGE_PROMPT_VERSION,
-      system,
-      messages: [{ role: "user", content: prompt }],
-      size: `${IMAGE_SIZE.width}x${IMAGE_SIZE.height}`,
-    });
+    const request = await pictureRequest(campaign.productId, creative.concept, creative.template, "ad");
+    await db.update(adCreatives).set({ prompt: request.stored }).where(eq(adCreatives.id, creative.id));
+    const picture = await drawPicture(ctx, request, AD_IMAGE_PROMPT_VERSION);
     const file = savePicture(creative.id, picture);
     const cost = await jobSpend(ctx);
     await db
@@ -107,21 +71,18 @@ export async function runCreativeRender(ctx: AiContext, payload: z.infer<typeof 
     const imagePath = creative.imageSource === "none" ? null : picturePath(creative);
     if (creative.imageSource !== "none" && !imagePath) throw new Error("The picture is missing: draw or upload it again");
     const logo = creative.useLogo ? logoPath(campaign.productId) : null;
-    const renders: AdRender[] = [];
-    const dir = creativeFolder(creative.id);
-    mkdirSync(dir, { recursive: true });
-    for (const s of spec.sizes) {
-      ctx.signal?.throwIfAborted();
-      const out = await renderTemplate(
-        { template: creative.template, width: s.width, height: s.height, text: creative.text, colors: creative.colors, image: null, logo: null, imagePath, logoPath: logo },
-        spec.maxBytes,
-      );
-      const file = sizeFile(s.size, out.format);
-      writeFileSync(join(dir, file), out.data);
-      renders.push({ size: s.size, width: s.width, height: s.height, file, bytes: out.data.length, ...(out.fit === "ok" ? {} : { fit: out.fit }) });
-    }
-    // A size that was a PNG last time and a JPEG now leaves its old file behind.
-    for (const f of readdirSync(dir)) if (RENDER_FILE.test(f) && !renders.some((r) => r.file === f)) rmSync(join(dir, f), { force: true });
+    const renders: AdRender[] = await renderSizes({
+      ctx,
+      dir: creativeFolder(creative.id),
+      sizes: spec.sizes,
+      template: creative.template,
+      text: creative.text,
+      colors: creative.colors,
+      imagePath,
+      logoPath: logo,
+      maxBytes: spec.maxBytes,
+      renderFile: RENDER_FILE,
+    });
     await db.update(adCreatives).set({ renders, status: "ready", error: null }).where(eq(adCreatives.id, creative.id));
     return { rendered: renders.length };
   } catch (err) {

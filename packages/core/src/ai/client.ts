@@ -33,6 +33,8 @@ type BaseRequest = {
   // Stable instructions go here; they're cached by both providers.
   system: string;
   messages: AiMessage[];
+  /** A long answer (a fix plan for many issues): raises the task's output budget to at least this. */
+  minOutputTokens?: number;
 };
 
 export type StructuredRequest<S extends z.ZodType> = BaseRequest & { schema: S };
@@ -165,7 +167,10 @@ async function call<T>(
   req: BaseRequest,
   run: (provider: AiProvider, key: string, request: CallRequest) => Promise<CallResult<T>>,
 ): Promise<T> {
-  const config = await loadModelConfig(ctx, req.task);
+  const loaded = await loadModelConfig(ctx, req.task);
+  // OpenAI's budget includes reasoning, hence twice as much (like the defaults in models.ts).
+  const floor = (req.minOutputTokens ?? 0) * (providerOf(loaded.model) === "openai" ? 2 : 1);
+  const config = floor > loaded.maxTokens ? { ...loaded, maxTokens: floor } : loaded;
   const base = { task: req.task, model: config.model, promptVersion: req.promptVersion };
 
   const spent = await monthToDateSpendUsd(ctx.workspaceId);

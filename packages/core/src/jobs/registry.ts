@@ -1,5 +1,7 @@
 import type { z } from "zod";
 import type { AiContext } from "../ai/client.ts";
+import { competitorDigestPayload, runCompetitorDigest } from "../competitors/activity.ts";
+import { competitorResearchPayload, runCompetitorResearch } from "../competitors/research.ts";
 import {
   draftPayload,
   engagementPayload,
@@ -21,6 +23,9 @@ import {
   voiceProfilePayload,
 } from "../content/jobs.ts";
 import { creativeIdeasPayload, creativePayload, runCreativeIdeas, runCreativeImage, runCreativeRender } from "../ads/creative-jobs.ts";
+import { calendarRemindPayload, runCalendarRemind } from "../content/calendar.ts";
+import { contentImagePayload, runContentImageDraw, runContentImageRender } from "../content/image-jobs.ts";
+import { contentPlanPayload, runContentPlan } from "../content/plan.ts";
 import { adCopyPayload, adPlanPayload, runAdCopy, runAdPlan } from "../ads/jobs.ts";
 import { promptsSuggestPayload, runPromptsSuggest, runVisibility, visibilityRunPayload } from "../visibility/jobs.ts";
 import { draftPayload as opportunityDraftPayload, runOpportunityDraft } from "../opportunities/drafts.ts";
@@ -30,6 +35,7 @@ import { pageCheckPayload, runPageCheck, runSiteScan, siteScanPayload } from "..
 import { runScanDue, scanDuePayload } from "../a11y/track.ts";
 import { contentPayload, runContentCheck } from "../a11y/documents.ts";
 import { altPayload, fixPayload, reviewPayload, runAltReview, runFixSuggest, runReviewAssist, runSummary, summaryPayload } from "../a11y/ai.ts";
+import { planPayload, runFixPlan } from "../a11y/fix-plan.ts";
 import { auditPayload, runAudit } from "../growth/audits.ts";
 import { runSecurityRecheck, securityRecheckPayload } from "../security/findings.ts";
 import { monitorPayload, runMonitor } from "../security/monitor.ts";
@@ -40,6 +46,7 @@ import { roadmapPlanPayload, runRoadmapPlan } from "../growth/roadmap.ts";
 import { intelBuildPayload, runIntelBuild } from "../intel/build.ts";
 import { analyticsSummaryPayload, runAnalyticsSummary } from "../metrics/summary.ts";
 import { metricsSyncPayload, runMetricsSync } from "../metrics/sync.ts";
+import { competitorSyncPayload, runCompetitorSync } from "../benchmarks/accounts.ts";
 import { pingPayload, runPing } from "./ping.ts";
 
 type JobDefinition<P extends z.ZodType> = {
@@ -100,6 +107,13 @@ export const jobs = {
   voice_profile_build: defineJob({ payload: voiceProfilePayload, run: runVoiceProfileBuild, visibilityTimeoutSeconds: 600, maxAttempts: 1 }),
   content_generate: defineJob({ payload: contentGeneratePayload, run: runContentGenerate, visibilityTimeoutSeconds: 300, maxAttempts: 1 }),
   content_topics: defineJob({ payload: contentTopicsPayload, run: runContentTopics, visibilityTimeoutSeconds: 300, maxAttempts: 1 }),
+  // Content calendar: every 15 minutes, reminds once about planned posts that are due (no AI, never posts).
+  calendar_remind: defineJob({ payload: calendarRemindPayload, run: runCalendarRemind, visibilityTimeoutSeconds: 120, maxAttempts: 1 }),
+  // An AI content plan: one call per click, then one content_generate per slot.
+  content_plan: defineJob({ payload: contentPlanPayload, run: runContentPlan, visibilityTimeoutSeconds: 600, maxAttempts: 1 }),
+  // Social post images: the picture is an AI call (once per click); rendering is local and may retry once.
+  content_image_image: defineJob({ payload: contentImagePayload, run: runContentImageDraw, visibilityTimeoutSeconds: 300, maxAttempts: 1 }),
+  content_image_render: defineJob({ payload: contentImagePayload, run: runContentImageRender, visibilityTimeoutSeconds: 300, maxAttempts: 2 }),
   // A full scan of 5,000 pages takes a few hours; quitting mid-scan resumes it (the lease expires, done pages are skipped).
   site_scan: defineJob({ payload: siteScanPayload, run: runSiteScan, visibilityTimeoutSeconds: 4 * 3600, maxAttempts: 1 }),
   // Its own queue, so Check a page never waits behind a full scan.
@@ -110,6 +124,8 @@ export const jobs = {
   // Up to 50 images, one call each.
   a11y_alt_review: defineJob({ payload: altPayload, run: runAltReview, visibilityTimeoutSeconds: 1800, maxAttempts: 1 }),
   a11y_summary: defineJob({ payload: summaryPayload, run: runSummary, visibilityTimeoutSeconds: 300, maxAttempts: 1 }),
+  // Up to 25 issues in one call, so a longer answer than a single fix.
+  a11y_fix_plan: defineJob({ payload: planPayload, run: runFixPlan, visibilityTimeoutSeconds: 600, maxAttempts: 1 }),
   // After full scans (A5): the site's PDFs and external links, one request a second per host.
   site_content_check: defineJob({ payload: contentPayload, run: runContentCheck, visibilityTimeoutSeconds: 3600, maxAttempts: 1 }),
   // Hourly: queues full scans for sites whose last one is older than their interval.
@@ -141,6 +157,11 @@ export const jobs = {
   agent_check: defineJob({ payload: agentCheckPayload, run: runAgentCheck, visibilityTimeoutSeconds: 300, maxAttempts: 1 }),
   // Reads up to 30 pages AI answers cited, politely; after each AI visibility run and on Check now.
   offsite_check: defineJob({ payload: offsiteCheckPayload, run: runOffsiteCheck, visibilityTimeoutSeconds: 900, maxAttempts: 1 }),
+  // Competitor benchmarks: public profile numbers, paced (Reddit ~1 request/minute); daily and on Check now.
+  competitor_sync: defineJob({ payload: competitorSyncPayload, run: (ctx, p) => runCompetitorSync(ctx, p), visibilityTimeoutSeconds: 1800, maxAttempts: 1 }),
+  // Competitor watch: web research on one competitor (the Research button), never retried; and the activity digest.
+  competitor_research: defineJob({ payload: competitorResearchPayload, run: runCompetitorResearch, visibilityTimeoutSeconds: 1800, maxAttempts: 1 }),
+  competitor_digest: defineJob({ payload: competitorDigestPayload, run: runCompetitorDigest, visibilityTimeoutSeconds: 900, maxAttempts: 1 }),
 } satisfies Record<string, Job>;
 
 export type QueueName = keyof typeof jobs;

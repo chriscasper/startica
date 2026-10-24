@@ -13,7 +13,7 @@ Prompts sit next to the feature that uses them, in `packages/core/src/`:
 | File | Prompt version constants | Used by |
 |---|---|---|
 | `intel/prompts.ts` | `RESEARCH_PROMPT_VERSION` (`intel-research@2`), `SYNTHESIS_PROMPT_VERSION` (`intel-synthesis@4`) | `intel_build` |
-| `distribution/prompts.ts` | `SCORE_PROMPT_VERSION` (`opportunity-score@1`), `DRAFT_PROMPT_VERSION` (`reply-draft@2`) | `opportunity_score`, `draft_generate` |
+| `distribution/prompts.ts` | `SCORE_PROMPT_VERSION` (`opportunity-score@2`), `DRAFT_PROMPT_VERSION` (`reply-draft@2`) | `opportunity_score`, `draft_generate` |
 | `content/prompts.ts` | `VOICE_PROMPT_VERSION` (`voice-guide@1`), `CONTENT_PROMPT_VERSION` (`content-write@2`), `TOPICS_PROMPT_VERSION` (`content-topics@2`) | `voice_profile_build`, `content_generate`, `content_topics` |
 | `content/campaign.ts` | `CAMPAIGN_PROMPT_VERSION` (`email-campaign@1`) | `content_generate` (Email campaign format) |
 | `growth/roadmap.ts` | `ROADMAP_PROMPT_VERSION` (`roadmap-plan@3`) | `roadmap_plan` |
@@ -26,7 +26,7 @@ The versions above are the ones at the time of writing; the source is authoritat
 A prompt file typically exports three things: the version string, a function that builds the system prompt from stable context (the product, voice profile, community rules), and the Zod schema for the output. For example, from `distribution/prompts.ts`:
 
 ```ts
-export const SCORE_PROMPT_VERSION = "opportunity-score@1";
+export const SCORE_PROMPT_VERSION = "opportunity-score@2";
 
 export function scoreSystem(productContext: string): string {
   // …
@@ -37,6 +37,7 @@ export const scoreOutput = z.object({
   intent: z.number().describe("0 to 1"),
   reasoning: z.string(),
   angle: z.string(),
+  sentiment: z.enum(sentiments).describe("positive, neutral, negative or mixed"),
 });
 ```
 

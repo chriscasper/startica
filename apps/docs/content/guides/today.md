@@ -49,6 +49,8 @@ Each move has a badge for its kind:
 | Content | A nudge to post in your saved voice |
 | Ads | An ad to stop, scale or rewrite, from a campaign's [results](/ads/results#on-today-and-the-roadmap) |
 | Analytics | The first "Try next" suggestion from the [weekly analytics summary](/guides/analytics#weekly-ai-summary) |
+| Replies | New [replies to your posts](/guides/replies) |
+| Listening | A [listening spike](/guides/listening-trends#spikes): a keyword or community much busier than usual |
 | Yours | Moves you added yourself, here or with **Today** on an [SEO & GEO opportunity](/seo/opportunities#add-to-today) |
 
 ## How the list is ranked
@@ -72,6 +74,8 @@ Startica checks the rules below in order and adds a move for each one that appli
 | 13 | Answer the open questions in the brief | The brief has open questions and you haven't written any owner notes. |
 | 14 | Generate the growth roadmap | The product has a brief but no roadmap items yet. |
 | 15 | Connect analytics (Google, Stripe or the product database) | No connection is working, and no roadmap step already mentions connecting analytics. |
+
+Two listening moves come right before row 1 (and after any [content calendar](/guides/content-studio) moves for today): **Answer N new replies to your posts** when [replies to your posts](/guides/replies) are waiting (**Go** opens the Inbox's Replies tab), and **Conversations about … jumped today** (or yesterday, or this week) for the strongest [listening spike](/guides/listening-trends#spikes) (**Go** opens Trends). A spike's keyword or community is offered at most once a week.
 
 The **Ads** move (row 7) is the single most pressing ad suggestion across the product's campaigns marked **Handed off** or **Running**, a stop first, then a scale, then a rewrite. Its **Go** opens the campaign's **Results** tab. See [What to do next](/ads/results#what-to-do-next).
 

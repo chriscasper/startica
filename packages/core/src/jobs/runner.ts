@@ -28,6 +28,12 @@ export const SCHEDULES: { name: string; cron: string; queue: QueueName; when: st
   { name: "site-scans", cron: "37 * * * *", queue: "site_scan_due", when: "every hour" }, // hourly
   // Only for products with "Run every week" on (AI visibility costs money).
   { name: "visibility", cron: "30 9 * * 1", queue: "ai_visibility_run", when: "every Monday at 09:30" }, // weekly, Monday 09:30
+  // Content calendar reminders: due planned posts get one desktop notification and a Today move.
+  { name: "calendar", cron: "*/15 * * * *", queue: "calendar_remind", when: "every 15 minutes" }, // every 15 minutes
+  // Only for products with the weekly competitor digest on (Intel → Following), after the 05:23 read.
+  { name: "competitor-digest", cron: "30 8 * * 1", queue: "competitor_digest", when: "every Monday at 08:30" }, // weekly, Monday 08:30
+  // Public numbers and posts of followed accounts (Intel → Benchmarks and Following), at a quiet hour.
+  { name: "competitors", cron: "23 5 * * *", queue: "competitor_sync", when: "every day at 05:23" }, // daily, 05:23
 ];
 
 type Log = (...args: unknown[]) => void;

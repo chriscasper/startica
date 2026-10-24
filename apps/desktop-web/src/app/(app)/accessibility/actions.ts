@@ -8,6 +8,7 @@ import { confirmOwnership, createSite, deleteSite, groupPageUrls, ownSite, siteI
 import { a11yIssueGroups, a11yOccurrences, sitePages } from "@startica/db/schema";
 import { hasAiKey } from "@startica/core/ai/client";
 import { requestAltReview, requestFix, requestReviewHelp, requestSummary } from "@startica/core/a11y/ai";
+import { deleteFixPlan, requestFixPlan, retryFixPlan } from "@startica/core/a11y/fix-plan";
 import { addRule, ignoreWord, removeRule, ruleInput, setReadabilityTarget } from "@startica/core/a11y/content";
 import { queueContentCheck } from "@startica/core/a11y/documents";
 import { criterionToRoadmap, reviewInput as manualReviewInput, saveCriterionReview, saveStatementInput, statementInput } from "@startica/core/a11y/manual";
@@ -193,6 +194,32 @@ export async function summarize(siteId: string): Promise<ActionResult> {
     const workspace = await getWorkspace();
     await requestSummary(workspace.id, (await ownSite(workspace.id, id.parse(siteId))).id);
   });
+}
+
+/** One plan for the issues picked on the Issues list; returns the plan's id to open. */
+export async function writeFixPlan(siteId: string, groupIds: string[], guidance = ""): Promise<{ error: string | null; planId?: string }> {
+  try {
+    await aiReady();
+    const workspace = await getWorkspace();
+    const s = await ownSite(workspace.id, id.parse(siteId));
+    const planId = await requestFixPlan(workspace.id, s.id, z.array(id).parse(groupIds), guidance.slice(0, 500));
+    refresh();
+    return { error: null, planId };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function rewriteFixPlan(planId: string, formData?: FormData): Promise<ActionResult> {
+  return mutate(async () => {
+    await aiReady();
+    const guidance = formData ? String(formData.get("guidance") ?? "").slice(0, 500) : undefined;
+    await retryFixPlan((await getWorkspace()).id, id.parse(planId), guidance);
+  });
+}
+
+export async function removeFixPlan(planId: string): Promise<ActionResult> {
+  return mutate(async () => deleteFixPlan((await getWorkspace()).id, id.parse(planId)));
 }
 
 // --- A4: manual checklist, statement, report (ARCHITECTURE.md section 9.5)

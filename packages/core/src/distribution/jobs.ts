@@ -22,10 +22,13 @@ import type { RawConversation } from "../channels/types.ts";
 import { loadProductContext, type ProductContext } from "./context.ts";
 import { findNearDuplicate, fingerprint } from "./fingerprint.ts";
 import { listeningState } from "./listening.ts";
+import { storeReplies } from "./replies.ts";
+import { loadMatchers, matchConversation, refreshListeningMatches, type Matchers } from "./matching.ts";
 import { forumBase } from "../channels/discourse.ts";
 import { parseTagCommunity } from "../channels/mastodon.ts";
 import { DRAFT_PROMPT_VERSION, draftOutput, draftSystem, SCORE_PROMPT_VERSION, scoreOutput, scoreSystem } from "./prompts.ts";
 import { utmUrl } from "./utm.ts";
+import { recordVersion } from "../chat/versions.ts";
 
 const LOOKBACK_HOURS = 26; // hourly scans overlap; the unique key dedupes
 const MAX_AGE_DAYS = 7; // older threads have usually gone quiet (ARCHITECTURE.md 11.1)
@@ -44,11 +47,14 @@ export async function storeConversation(opts: {
   workspaceId: string;
   productId: string;
   conversation: RawConversation;
-  origin: "listening" | "manual";
+  origin: "listening" | "manual" | "reply";
   matchedOn: string | null;
+  /** The product's keywords, name and competitors (loaded when not given; pass them when storing many). */
+  matchers?: Matchers;
 }): Promise<{ opportunityId: string; isNew: boolean }> {
   const c = opts.conversation;
   const fp = fingerprint(c.title, c.body);
+  const matches = matchConversation(c, opts.matchers ?? (await loadMatchers(opts.productId)));
   return transaction(async (db) => {
     const [conv] = await db
       .insert(conversations)
@@ -83,7 +89,7 @@ export async function storeConversation(opts: {
 
     const [inserted] = await db
       .insert(opportunities)
-      .values({ workspaceId: opts.workspaceId, productId: opts.productId, conversationId: conv!.id, matchedOn: opts.matchedOn })
+      .values({ workspaceId: opts.workspaceId, productId: opts.productId, conversationId: conv!.id, matchedOn: opts.matchedOn, ...matches })
       .onConflictDoNothing()
       .returning({ id: opportunities.id });
     if (inserted) return { opportunityId: inserted.id, isNew: true };
@@ -92,6 +98,8 @@ export async function storeConversation(opts: {
       .select({ id: opportunities.id })
       .from(opportunities)
       .where(and(eq(opportunities.productId, opts.productId), eq(opportunities.conversationId, conv!.id)));
+    // A pasted link may bring the full text: match it again.
+    if (opts.origin === "manual" && c.body) await db.update(opportunities).set(matches).where(eq(opportunities.id, existing!.id));
     return { opportunityId: existing!.id, isNew: false };
   });
 }
@@ -128,6 +136,9 @@ export async function runListenScan(ctx: AiContext, payload: z.infer<typeof list
       .from(keywords)
       .where(and(eq(keywords.productId, product.id), inArray(keywords.useFor, ["listening", "both"])))
       .orderBy(desc(keywords.source), asc(keywords.createdAt)); // owner's keywords first
+    // Fill or refresh keyword and mention matches (listening trends), then reuse the matchers for this scan.
+    await refreshListeningMatches(product.id);
+    const matchers = await loadMatchers(product.id);
     const watched = await db
       .select({ channel: communities.channel, name: communities.name, url: communities.url })
       .from(communities)
@@ -161,6 +172,7 @@ export async function runListenScan(ctx: AiContext, payload: z.infer<typeof list
             conversation,
             origin: "listening",
             matchedOn: adapter.channel,
+            matchers,
           });
           if (isNew) newIds.push(opportunityId);
         }
@@ -334,6 +346,7 @@ export async function runOpportunityScore(ctx: AiContext, payload: z.infer<typeo
         intent,
         reasoning: score.reasoning,
         angle: score.angle,
+        sentiment: score.sentiment,
         status: qualifies ? "drafting" : "archived",
         scoredAt: new Date(),
       })
@@ -387,63 +400,109 @@ export const draftPayload = z.object({
   guidance: z.string().max(1000).optional(),
 });
 
-export async function runDraftGenerate(ctx: AiContext, payload: z.infer<typeof draftPayload>) {
+/**
+ * A reply draft as Refine and Versions keep it (ARCHITECTURE.md 5.1). `link` is the product link a
+ * mention uses; `createdAt` dates a draft written before versions were kept.
+ */
+export type ReplyDraftValue = { body: string; mentionsProduct: boolean; rationale: string | null; link: string | null; source: "ai" | "owner"; createdAt?: string };
+
+export const replyDraftValue = (d: typeof drafts.$inferSelect): ReplyDraftValue => ({
+  body: d.body,
+  mentionsProduct: d.mentionsProduct,
+  rationale: d.rationale,
+  link: d.utmUrl,
+  source: d.source,
+  createdAt: d.createdAt.toISOString(),
+});
+
+/** The owner's own edit of a reply draft: a new version that keeps the link and the mention (kept under Versions too). */
+export async function saveOwnerDraft(workspaceId: string, opportunityId: string, body: string): Promise<void> {
+  const text = body.trim();
+  if (!text) throw new Error("The draft is empty");
+  const latest = await transaction(async (tx) => {
+    const [row] = await tx
+      .select()
+      .from(drafts)
+      .where(and(eq(drafts.opportunityId, opportunityId), eq(drafts.workspaceId, workspaceId)))
+      .orderBy(desc(drafts.version))
+      .limit(1);
+    await tx.insert(drafts).values({
+      workspaceId,
+      opportunityId,
+      version: (row?.version ?? 0) + 1,
+      body: text,
+      mentionsProduct: row?.mentionsProduct ?? false,
+      utmUrl: row?.utmUrl ?? null,
+      rationale: "Edited by you.",
+      source: "owner",
+    });
+    return row ?? null;
+  });
+  const value: ReplyDraftValue = { body: text, mentionsProduct: latest?.mentionsProduct ?? false, rationale: "Edited by you.", link: latest?.utmUrl ?? null, source: "owner" };
+  await recordVersion({ workspaceId, kind: "reply_draft", subjectId: opportunityId }, value, "edited", { previous: latest ? replyDraftValue(latest) : null });
+}
+
+/**
+ * What a reply is drafted from: the conversation, the community's rules and recent replies there,
+ * the suggested angle and the product link (tagged with `draftId`). Also the Refine chat's context.
+ */
+export async function draftContext(workspaceId: string, opportunityId: string, draftId: string) {
   const db = getDb();
   const [row] = await db
     .select(conversationFields)
     .from(opportunities)
     .innerJoin(conversations, eq(conversations.id, opportunities.conversationId))
-    .where(and(eq(opportunities.id, payload.opportunityId), eq(opportunities.workspaceId, payload.workspaceId)));
-  if (!row) throw new Error(`Opportunity ${payload.opportunityId} not found`);
+    .where(and(eq(opportunities.id, opportunityId), eq(opportunities.workspaceId, workspaceId)));
+  if (!row) throw new Error(`Opportunity ${opportunityId} not found`);
+  const product = await loadProductContext(row.productId);
 
+  const communityName = row.channel === "reddit" ? (row.community?.replace(/^r\//i, "") ?? null) : row.community;
+  const candidates = await db
+    .select({ name: communities.name, url: communities.url, promoRules: communities.promoRules })
+    .from(communities)
+    .where(and(eq(communities.productId, row.productId), eq(communities.channel, row.channel)));
+  const community = matchCommunity(row.channel, { community: communityName, url: row.url }, candidates);
+  const [promo] = await db
+    .select({
+      total: sql<number>`count(*)`,
+      mentions: sql<number>`coalesce(sum(${publications.mentionsProduct}), 0)`,
+    })
+    .from(publications)
+    .where(
+      and(
+        eq(publications.productId, row.productId),
+        eq(publications.channel, row.channel),
+        row.community === null ? isNull(publications.community) : eq(publications.community, row.community),
+        gt(publications.postedAt, daysAgo(PROMO_WINDOW_DAYS)),
+      ),
+    );
+
+  const link = product.url ? utmUrl(product.url, { channel: row.channel as RawConversation["channel"], community: communityName, draftId }) : null;
+  const content = [
+    `<conversation url="${row.url}">\n${conversationText(row)}\n</conversation>`,
+    `<community>\n${row.community ?? row.channel}\nSelf-promotion rules: ${community?.promoRules || "unknown"}\nRecent replies there: ${promo?.total ?? 0}, of which ${promo?.mentions ?? 0} mentioned the product (last ${PROMO_WINDOW_DAYS} days).\n</community>`,
+    row.angle && `<suggested_angle>${row.angle}</suggested_angle>`,
+    link ? `<link>${link}</link>` : "<link>(no product link available; don't link)</link>",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  return { row, product, link, content };
+}
+
+export async function runDraftGenerate(ctx: AiContext, payload: z.infer<typeof draftPayload>) {
+  const db = getDb();
+  const draftId = randomUUID();
+  const where = and(eq(opportunities.id, payload.opportunityId), eq(opportunities.workspaceId, payload.workspaceId));
   try {
-    await db.update(opportunities).set({ status: "drafting", error: null }).where(eq(opportunities.id, row.id));
-    const product = await loadProductContext(row.productId);
-
-    const communityName = row.channel === "reddit" ? (row.community?.replace(/^r\//i, "") ?? null) : row.community;
-    const candidates = await db
-      .select({ name: communities.name, url: communities.url, promoRules: communities.promoRules })
-      .from(communities)
-      .where(and(eq(communities.productId, row.productId), eq(communities.channel, row.channel)));
-    const community = matchCommunity(row.channel, { community: communityName, url: row.url }, candidates);
-    const [promo] = await db
-      .select({
-        total: sql<number>`count(*)`,
-        mentions: sql<number>`coalesce(sum(${publications.mentionsProduct}), 0)`,
-      })
-      .from(publications)
-      .where(
-        and(
-          eq(publications.productId, row.productId),
-          eq(publications.channel, row.channel),
-          row.community === null ? isNull(publications.community) : eq(publications.community, row.community),
-          gt(publications.postedAt, daysAgo(PROMO_WINDOW_DAYS)),
-        ),
-      );
-
-    const draftId = randomUUID();
-    const link = product.url
-      ? utmUrl(product.url, { channel: row.channel as RawConversation["channel"], community: communityName, draftId })
-      : null;
+    await db.update(opportunities).set({ status: "drafting", error: null }).where(where);
+    const { row, product, link, content } = await draftContext(payload.workspaceId, payload.opportunityId, draftId);
+    const [previous] = await db.select().from(drafts).where(eq(drafts.opportunityId, row.id)).orderBy(desc(drafts.version)).limit(1);
 
     const draft = await runStructured(ctx, {
       task: "draft",
       promptVersion: DRAFT_PROMPT_VERSION,
       system: draftSystem(product.text),
-      messages: [
-        {
-          role: "user",
-          content: [
-            `<conversation url="${row.url}">\n${conversationText(row)}\n</conversation>`,
-            `<community>\n${row.community ?? row.channel}\nSelf-promotion rules: ${community?.promoRules || "unknown"}\nRecent replies there: ${promo?.total ?? 0}, of which ${promo?.mentions ?? 0} mentioned the product (last ${PROMO_WINDOW_DAYS} days).\n</community>`,
-            row.angle && `<suggested_angle>${row.angle}</suggested_angle>`,
-            link ? `<link>${link}</link>` : "<link>(no product link available; don't link)</link>",
-            payload.guidance && `<owner_guidance>${payload.guidance}</owner_guidance>`,
-          ]
-            .filter(Boolean)
-            .join("\n\n"),
-        },
-      ],
+      messages: [{ role: "user", content: [content, payload.guidance && `<owner_guidance>${payload.guidance}</owner_guidance>`].filter(Boolean).join("\n\n") }],
       schema: draftOutput,
     });
 
@@ -462,12 +521,18 @@ export async function runDraftGenerate(ctx: AiContext, payload: z.infer<typeof d
       });
       await tx.update(opportunities).set({ status: "drafted" }).where(eq(opportunities.id, row.id));
     });
+    await recordVersion(
+      { workspaceId: payload.workspaceId, kind: "reply_draft", subjectId: row.id },
+      { body: draft.reply, mentionsProduct: draft.mentions_product, rationale: draft.rationale, link, source: "ai" } satisfies ReplyDraftValue,
+      "suggested",
+      { previous: previous ? replyDraftValue(previous) : null },
+    );
     return { draftId, mentionsProduct: draft.mentions_product };
   } catch (error) {
     await db
       .update(opportunities)
       .set({ status: "failed", error: error instanceof Error ? error.message : String(error) })
-      .where(eq(opportunities.id, row.id));
+      .where(where);
     throw error;
   }
 }
@@ -476,17 +541,17 @@ export async function runDraftGenerate(ctx: AiContext, payload: z.infer<typeof d
 
 export const engagementPayload = z.object({ workspaceId: z.guid() });
 
-export async function runEngagementSync(_ctx: AiContext, payload: z.infer<typeof engagementPayload>) {
+export async function runEngagementSync(ctx: AiContext, payload: z.infer<typeof engagementPayload>) {
   const db = getDb();
   const since = daysAgo(ENGAGEMENT_DAYS);
   const [pubs, pieces] = await Promise.all([
     db
-      .select({ id: publications.id, url: publications.url })
+      .select({ id: publications.id, productId: publications.productId, url: publications.url })
       .from(publications)
       .where(and(eq(publications.workspaceId, payload.workspaceId), isNotNull(publications.url), gt(publications.postedAt, since))),
     // Content Studio pieces posted with a link (ARCHITECTURE.md section 3, Content Studio: tracked like Inbox replies).
     db
-      .select({ id: contentPieces.id, url: contentPieces.postedUrl })
+      .select({ id: contentPieces.id, productId: contentPieces.productId, url: contentPieces.postedUrl })
       .from(contentPieces)
       .where(
         and(
@@ -498,20 +563,34 @@ export async function runEngagementSync(_ctx: AiContext, payload: z.infer<typeof
       ),
   ]);
 
-  // The link decides the channel: a "blog" piece may well have been posted on Reddit.
-  const engagementOf = (url: string) => adapters[channelFromUrl(url)]?.fetchEngagement?.(url).catch(() => null) ?? Promise.resolve(null);
+  // The link decides the channel: a "blog" piece may well have been posted on Reddit. Where the
+  // channel reads replies, one read gives both the engagement and the replies (Reddit allows
+  // about one feed a minute).
+  let replies = 0;
+  const read = async (url: string, productId: string, source: { publicationId: string } | { pieceId: string }) => {
+    ctx.signal?.throwIfAborted();
+    const channel = channelFromUrl(url);
+    const adapter = adapters[channel];
+    if (adapter?.fetchReplies) {
+      const thread = await adapter.fetchReplies(url).catch(() => null);
+      if (!thread) return null;
+      replies += await storeReplies({ workspaceId: payload.workspaceId, productId, channel, source, thread });
+      return thread.engagement;
+    }
+    return adapter?.fetchEngagement?.(url).catch(() => null) ?? null;
+  };
   let captured = 0;
   for (const pub of pubs) {
-    const engagement = await engagementOf(pub.url!);
+    const engagement = await read(pub.url!, pub.productId, { publicationId: pub.id });
     if (!engagement) continue;
     await db.insert(engagementSnapshots).values({ workspaceId: payload.workspaceId, publicationId: pub.id, ...engagement });
     captured++;
   }
   for (const piece of pieces) {
-    const engagement = await engagementOf(piece.url!);
+    const engagement = await read(piece.url!, piece.productId, { pieceId: piece.id });
     if (!engagement) continue;
     await db.insert(contentSnapshots).values({ workspaceId: payload.workspaceId, pieceId: piece.id, ...engagement });
     captured++;
   }
-  return { publications: pubs.length, pieces: pieces.length, captured };
+  return { publications: pubs.length, pieces: pieces.length, captured, replies };
 }

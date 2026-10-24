@@ -126,6 +126,13 @@ export function toAdCopy(platform: AdPlatform, out: AnyAdOutput): AdCopy {
   return copy;
 }
 
+/** Stored copy in the model's output shape (the inverse of toAdCopy; missing fields are empty). */
+export function fromAdCopy(platform: AdPlatform, copy: AdCopy): AnyAdOutput {
+  if (platform === "google") return { headlines: copy.headlines ?? [], descriptions: copy.descriptions ?? [], path1: copy.path1 ?? "", path2: copy.path2 ?? "" };
+  if (platform === "meta") return { primary_text: copy.primaryText ?? "", headline: copy.headline ?? "", description: copy.description ?? "", call_to_action: copy.callToAction ?? "" };
+  return { title: copy.title ?? "", body: copy.body ?? "", call_to_action: copy.callToAction ?? "" };
+}
+
 export function toTargeting(platform: AdPlatform, out: AnyAdOutput): AdTargeting {
   const t: AdTargeting = { locations: list(out.locations) };
   if (platform === "google") {

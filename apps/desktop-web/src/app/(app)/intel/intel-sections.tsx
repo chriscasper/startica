@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, type ReactNode } from "react";
+import Link from "next/link";
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { communityProblem } from "@startica/core/channels/formats";
@@ -46,6 +47,10 @@ export type Competitor = {
   strengths: string[];
   weaknesses: string[];
   source: Source;
+  /** Competitor watch: the research's state, and posts not seen yet. */
+  researched: string | null;
+  researching: boolean;
+  unseen: number;
 };
 export type Keyword = { id: string; keyword: string; intent: string; use_for: string; source: Source };
 export type Community = {
@@ -285,16 +290,19 @@ const competitorFields: Field[] = [
   { name: "weaknesses", label: "Weaknesses", type: "lines" },
 ];
 
-export function CompetitorsSection({ productId, competitors }: { productId: string; competitors: Competitor[] }) {
+export function CompetitorsSection({ productId, competitors, canResearch }: { productId: string; competitors: Competitor[]; canResearch: boolean }) {
   return (
     <div className="grid gap-4">
-      <div>
+      <div className="flex flex-wrap items-center gap-3">
         <FormDialog
           trigger={addTrigger("Add competitor")}
           title="Add competitor"
-          fields={competitorFields}
+          description="Only the name is needed. With research on, Startica finds the rest on the web: pricing, features, recent changes, the people worth following and its blog."
+          fields={canResearch ? [...competitorFields, { name: "research", label: "Research it in depth now (about $0.30 to $0.80)", type: "checkbox" }] : competitorFields}
+          values={canResearch ? { research: "on" } : undefined}
           action={(fd) => saveCompetitor(productId, null, fd)}
         />
+        <span className="text-xs text-muted-foreground">Open a competitor for its in-depth profile, the people at it, and what they post.</span>
       </div>
       {competitors.length === 0 ? (
         <EmptyState>No competitors yet.</EmptyState>
@@ -315,15 +323,23 @@ export function CompetitorsSection({ productId, competitors }: { productId: stri
                 {competitors.map((c) => (
                   <TableRow key={c.id} className="align-top">
                     <TableCell className="font-medium whitespace-normal">
-                      <div className="flex items-center gap-2">
-                        {c.url ? (
-                          <a href={c.url} target="_blank" rel="noreferrer" className="underline-offset-4 hover:underline">
-                            {c.name}
-                          </a>
-                        ) : (
-                          c.name
-                        )}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link href={`/intel/competitors/${c.id}`} className="underline-offset-4 hover:underline">
+                          {c.name}
+                        </Link>
                         <SourceBadge source={c.source} />
+                        {c.unseen > 0 && <Badge>{c.unseen} new</Badge>}
+                      </div>
+                      <div className="mt-1 text-xs font-normal text-muted-foreground">
+                        {c.researching ? "Researching…" : c.researched ? `Researched ${c.researched}` : "Not researched yet"}
+                        {c.url && (
+                          <>
+                            {" · "}
+                            <a href={c.url} target="_blank" rel="noreferrer" className="underline-offset-4 hover:underline">
+                              website
+                            </a>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="max-w-xs text-sm whitespace-normal">{c.positioning}</TableCell>
@@ -339,7 +355,7 @@ export function CompetitorsSection({ productId, competitors }: { productId: stri
                           trigger={editTrigger(c.name)}
                           title="Edit competitor"
                           fields={competitorFields}
-                          values={c}
+                          values={{ name: c.name, url: c.url, positioning: c.positioning, strengths: c.strengths, weaknesses: c.weaknesses }}
                           action={(fd) => saveCompetitor(productId, c.id, fd)}
                         />
                         <DeleteButton label={c.name} onDelete={() => deleteCompetitor(c.id)} />

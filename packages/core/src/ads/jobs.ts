@@ -1,9 +1,10 @@
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, transaction } from "@startica/db/client";
-import { adCampaigns, adGroups, ads, communities, competitors, keywords, type AdPlatform } from "@startica/db/schema";
+import { adCampaigns, adGroups, ads, communities, competitors, keywords, type AdCopy, type AdPlatform } from "@startica/db/schema";
 import { runStructured, type AiContext } from "../ai/client.ts";
 import { loadProductContext } from "../distribution/context.ts";
+import { recordVersion } from "../chat/versions.ts";
 import { checkAdCopy } from "./checks.ts";
 import { AD_PLATFORMS } from "./platforms.ts";
 import {
@@ -131,20 +132,51 @@ export async function runAdPlan(ctx: AiContext, payload: z.infer<typeof adPlanPa
 
 export const adCopyPayload = z.object({ workspaceId: z.guid(), adId: z.guid(), guidance: z.string().max(2000).default("") });
 
-export async function runAdCopy(ctx: AiContext, payload: z.infer<typeof adCopyPayload>) {
-  const db = getDb();
-  const [row] = await db
+/** An ad's copy as Refine and Versions keep it (ARCHITECTURE.md 5.1). */
+export type AdCopyValue = { platform: AdPlatform; copy: AdCopy; source: "ai" | "owner"; createdAt?: string };
+
+/** An ad with its group and campaign, checked against the workspace. */
+export async function adWithCampaign(workspaceId: string, adId: string) {
+  const [row] = await getDb()
     .select({ ad: ads, group: adGroups, campaign: adCampaigns })
     .from(ads)
     .innerJoin(adGroups, eq(adGroups.id, ads.groupId))
     .innerJoin(adCampaigns, eq(adCampaigns.id, adGroups.campaignId))
-    .where(eq(ads.id, payload.adId));
-  if (!row) return { skipped: "ad deleted" };
+    .where(and(eq(ads.id, adId), eq(ads.workspaceId, workspaceId)));
+  return row ?? null;
+}
+
+/** The copy's problems as prompt lines ("headlines 3: …"). */
+export function flagLines(platform: AdPlatform, copy: AdCopy, competitors: string[]): string[] {
+  return checkAdCopy(platform, copy, competitors).map((f) => `${f.field}${f.index != null ? ` ${f.index + 1}` : ""}: ${f.message}`);
+}
+
+/** What an ad is rewritten from: the product, the campaign and group, the group's other ads. Also the Refine chat's context. */
+export async function adCopyContext(row: NonNullable<Awaited<ReturnType<typeof adWithCampaign>>>): Promise<string> {
   const { ad, group, campaign } = row;
+  const product = await loadProductContext(campaign.productId);
+  const siblings = await getDb().select({ id: ads.id, copy: ads.copy }).from(ads).where(eq(ads.groupId, group.id)).orderBy(asc(ads.createdAt));
+  return [
+    `<product>\n${product.text}\n</product>`,
+    `<campaign>\nGoal: ${campaign.goal}\nLanding page: ${campaign.landingUrl}\nAd group: ${group.name}. Angle: ${group.angle ?? ""}\n</campaign>`,
+    siblings.length > 1
+      ? `<other_ads_in_group>\n${siblings
+          .filter((s) => s.id !== ad.id)
+          .map((s) => adCopyText(s.copy))
+          .join("\n---\n")}\n</other_ads_in_group>`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export async function runAdCopy(ctx: AiContext, payload: z.infer<typeof adCopyPayload>) {
+  const db = getDb();
+  const row = await adWithCampaign(payload.workspaceId, payload.adId);
+  if (!row) return { skipped: "ad deleted" };
+  const { ad, campaign } = row;
   try {
-    const product = await loadProductContext(campaign.productId);
-    const siblings = await db.select({ id: ads.id, copy: ads.copy }).from(ads).where(eq(ads.groupId, group.id)).orderBy(asc(ads.createdAt));
-    const flags = checkAdCopy(campaign.platform, ad.copy, await competitorNames(campaign.productId));
+    const problems = flagLines(campaign.platform, ad.copy, await competitorNames(campaign.productId));
     const out = await runStructured(ctx, {
       task: "draft",
       promptVersion: AD_COPY_PROMPT_VERSION,
@@ -153,16 +185,9 @@ export async function runAdCopy(ctx: AiContext, payload: z.infer<typeof adCopyPa
         {
           role: "user",
           content: [
-            `<product>\n${product.text}\n</product>`,
-            `<campaign>\nGoal: ${campaign.goal}\nLanding page: ${campaign.landingUrl}\nAd group: ${group.name}. Angle: ${group.angle ?? ""}\n</campaign>`,
-            siblings.length > 1
-              ? `<other_ads_in_group>\n${siblings
-                  .filter((s) => s.id !== ad.id)
-                  .map((s) => adCopyText(s.copy))
-                  .join("\n---\n")}\n</other_ads_in_group>`
-              : "",
+            await adCopyContext(row),
             `<ad>\n${adCopyText(ad.copy)}\n</ad>`,
-            flags.length ? `<problems>\n${flags.map((f) => `- ${f.field}${f.index != null ? ` ${f.index + 1}` : ""}: ${f.message}`).join("\n")}\n</problems>` : "",
+            problems.length ? `<problems>\n${problems.map((p) => `- ${p}`).join("\n")}\n</problems>` : "",
             `<guidance>\n${payload.guidance.trim() || "Make it sharper and more specific, and fix any problems."}\n</guidance>`,
           ]
             .filter(Boolean)
@@ -171,7 +196,14 @@ export async function runAdCopy(ctx: AiContext, payload: z.infer<typeof adCopyPa
       ],
       schema: adSchema(campaign.platform),
     });
-    await db.update(ads).set({ copy: toAdCopy(campaign.platform, out), source: "ai", status: "ready", error: null }).where(eq(ads.id, ad.id));
+    const copy = toAdCopy(campaign.platform, out);
+    await db.update(ads).set({ copy, source: "ai", status: "ready", error: null }).where(eq(ads.id, ad.id));
+    await recordVersion(
+      { workspaceId: payload.workspaceId, kind: "ad_copy", subjectId: ad.id },
+      { platform: campaign.platform, copy, source: "ai" } satisfies AdCopyValue,
+      "suggested",
+      { previous: { platform: campaign.platform, copy: ad.copy, source: ad.source, createdAt: ad.updatedAt.toISOString() } satisfies AdCopyValue },
+    );
     return { rewritten: ad.id };
   } catch (err) {
     await db.update(ads).set({ status: "failed", error: ctx.signal?.aborted ? "Stopped by you" : message(err) }).where(eq(ads.id, ad.id));

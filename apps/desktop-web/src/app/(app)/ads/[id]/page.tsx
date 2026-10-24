@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { CircleAlertIcon, DownloadIcon, Loader2Icon, TriangleAlertIcon } from "lucide-react";
+import { hasAiKey } from "@startica/core/ai/client";
+import { versionsToShowFor } from "@startica/core/chat/threads";
 import { adUrl, type AdFlag } from "@startica/core/ads/checks";
 import { keywordNotation, loadCampaign, type CampaignAd, type CampaignDetail } from "@startica/core/ads/campaigns";
 import { campaignBrief, dailyBudget, HANDOFF_STEPS } from "@startica/core/ads/exports";
@@ -14,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getWorkspace } from "@/lib/dal";
+import { desktopApp } from "@/lib/desktop";
 import { AddAdButton, AdButtons, CampaignControls, CopyButton, EditGroupButton, PLATFORM_LABEL, STATUS_LABEL } from "../ads-ui";
 import { CampaignNav } from "../campaign-nav";
 
@@ -142,6 +145,9 @@ async function Campaign({ params }: { params: PageProps<"/ads/[id]">["params"] }
   const { id } = await params;
   const workspace = await getWorkspace();
   const detail = /^[0-9a-f-]{36}$/i.test(id) ? await loadCampaign(workspace.id, id) : null;
+  // Refine (ARCHITECTURE.md 5.1): chats about an ad's copy, and its versions.
+  const aiReady = !desktopApp().demo && (await hasAiKey());
+  const versions = detail ? await versionsToShowFor(workspace.id, "ad_copy", detail.groups.flatMap((g) => g.ads.map((a) => a.id))) : {};
   if (!detail) {
     return (
       <>
@@ -235,7 +241,7 @@ async function Campaign({ params }: { params: PageProps<"/ads/[id]">["params"] }
                       <Badge variant="outline">{a.source === "ai" ? "AI" : "You"}</Badge>
                       {a.status === "failed" && <Badge variant="destructive">Rewrite failed</Badge>}
                     </div>
-                    <AdButtons platform={campaign.platform} ctas={spec.callsToAction ?? []} ad={{ id: a.id, copy: a.copy, status: a.status }} />
+                    <AdButtons platform={campaign.platform} ctas={spec.callsToAction ?? []} ad={{ id: a.id, copy: a.copy, status: a.status }} aiReady={aiReady} versions={versions[a.id] ?? []} />
                   </div>
                   {a.status === "failed" && a.error && <p className="text-xs text-destructive">{a.error}</p>}
                   <AdCopyView platform={campaign.platform} ad={a} link={adUrl(campaign.landingUrl, campaign.platform, campaign.utmCampaign, a.id)} />

@@ -8,6 +8,7 @@ import { startRunner, type Runner } from "@startica/core/jobs/runner";
 import { productCount, seedDemo } from "@startica/core/demo/seed";
 import { setSetupFlags } from "@startica/core/setup/status";
 import { recordPostingResult } from "@startica/core/posting/record";
+import { setNotifier } from "@startica/core/content/calendar";
 import type { PostingTarget } from "@startica/core/posting/requests";
 import { startScanner } from "./scanner";
 
@@ -31,7 +32,11 @@ export function start(): Promise<Runner | null> {
       if (moved) console.log(`[startica] moved ${moved} secret(s) from the dev key file to the OS keychain`);
     }
     const workspace = await ensureWorkspace();
-    if (process.env.STARTICA_ELECTRON) listenForPostingResults();
+    if (process.env.STARTICA_ELECTRON) {
+      listenForPostingResults();
+      // Content calendar reminders show as desktop notifications; clicking one opens `href` (main.mjs).
+      setNotifier((n) => process.send?.({ type: "notify", title: n.title, body: n.body, href: n.href }));
+    }
     await startScanner();
     // Demo mode (its own data folder): fill it with the sample product once; nothing
     // reaches out from the demo, so no scans, AI or other jobs run there.

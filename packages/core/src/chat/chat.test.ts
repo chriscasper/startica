@@ -2,9 +2,9 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { closeDatabase, getDb, migrateDatabase, openDatabase } from "@startica/db/client";
-import { a11yIssueGroups, chatMessages, chatThreads, jobs, securityFindings } from "@startica/db/schema";
+import { a11yIssueGroups, adCampaigns, adGroups, ads, chatMessages, chatThreads, contentPieces, drafts, jobs, opportunities, securityFindings } from "@startica/db/schema";
 import { seedDemo } from "../demo/seed.ts";
 
 // Replies come from a fake runChat that streams its text and may return a revision.
@@ -35,6 +35,10 @@ const { runSecurityExplain } = await import("../security/ai.ts");
 const { applyRevision, chatSnapshot, earlierChat, restoreVersion, retryReply, sendChatMessage, setChatWebSearch, startOver } = await import("./threads.ts");
 const { chatHistory, runChatReply } = await import("./jobs.ts");
 const { listVersions } = await import("./versions.ts");
+const { saveOwnerDraft } = await import("../distribution/jobs.ts");
+const { saveOwnerPiece } = await import("../content/jobs.ts");
+const { saveAd } = await import("../ads/campaigns.ts");
+const { CHAT_SUBJECTS } = await import("./subjects.ts");
 
 let workspaceId = "";
 let findingId = "";
@@ -60,7 +64,7 @@ const revision = { summary: "No CSP on Next.js.", steps: ["Add headers() to next
 
 describe("refining a security fix in a chat", () => {
   it("can't start before there's a suggestion", async () => {
-    await expect(sendChatMessage(workspaceId, "security_help", findingId, "Shorter please")).rejects.toThrow(/ask for them first/);
+    await expect(sendChatMessage(workspaceId, "security_help", findingId, "Shorter please")).rejects.toThrow(/ask for the fix steps first/);
   });
 
   it("keeps every suggestion as a version", async () => {
@@ -180,6 +184,98 @@ describe("refining an accessibility fix", () => {
     const [after] = await getDb().select().from(a11yIssueGroups).where(eq(a11yIssueGroups.id, group!.id));
     expect(after!.aiFix).toMatchObject({ html: '<img src="a.png" alt="Fieldnote">', confidence: "high", guidance: null });
     expect((await listVersions({ workspaceId, kind: "a11y_fix", subjectId: group!.id })).map((v) => v.source)).toEqual(["chat", "suggested"]);
+  });
+});
+
+describe("refining writing", () => {
+  it("revises an Inbox reply draft as a new draft version, next to the owner's edits", async () => {
+    const [opp] = await getDb().select().from(opportunities).where(eq(opportunities.status, "drafted")).limit(1);
+    const latest = async () => (await getDb().select().from(drafts).where(eq(drafts.opportunityId, opp!.id)).orderBy(desc(drafts.version)).limit(1))[0]!;
+    const before = await latest();
+
+    const { messageId } = await sendChatMessage(workspaceId, "reply_draft", opp!.id, "Mention the free plan, they asked about price.");
+    ai.reply = { text: "Added the free plan.", proposal: { reply: "There's a free plan, full disclosure: I built it.", mentions_product: true, rationale: "They asked about price." }, proposalError: null };
+    await reply(messageId);
+    const call = ai.calls.at(-1)!;
+    expect(call.system).toMatch(/You write replies to online conversations/);
+    expect(call.system).toContain("<conversation url=");
+    expect(call.system).toContain(`"reply": ${JSON.stringify(before.body)}`);
+
+    await applyRevision(workspaceId, messageId);
+    const after = await latest();
+    expect(after).toMatchObject({ version: before.version + 1, body: "There's a free plan, full disclosure: I built it.", mentionsProduct: true, source: "ai" });
+    expect(after.utmUrl).toMatch(/utm_source=/);
+
+    await saveOwnerDraft(workspaceId, opp!.id, "My own words.");
+    const versions = await listVersions({ workspaceId, kind: "reply_draft", subjectId: opp!.id });
+    expect(versions.map((v) => [v.source, v.current])).toEqual([
+      ["edited", true],
+      ["chat", false],
+      ["suggested", false],
+    ]);
+    // Restoring the first draft writes it again as the newest version.
+    await restoreVersion(workspaceId, versions[2]!.id);
+    expect(await latest()).toMatchObject({ version: before.version + 3, body: before.body, mentionsProduct: before.mentionsProduct });
+  });
+
+  it("revises a Content Studio piece and refuses one that's posted", async () => {
+    const [piece] = await getDb().select().from(contentPieces).where(eq(contentPieces.status, "draft")).limit(1);
+    await saveOwnerPiece(piece!, { title: piece!.title, body: `${piece!.body}\n\nEdited.` });
+    const { messageId } = await sendChatMessage(workspaceId, "content_piece", piece!.id, "Shorter, no product.");
+    ai.reply = { text: "Cut it down.", proposal: { title: "Shorter", body: "Short body.", mentions_product: false, rationale: "Plain and short." }, proposalError: null };
+    await reply(messageId);
+    expect(ai.calls.at(-1)!.system).toContain(`<channel name="${piece!.channel}"`);
+    await applyRevision(workspaceId, messageId);
+    const [after] = await getDb().select().from(contentPieces).where(eq(contentPieces.id, piece!.id));
+    expect(after).toMatchObject({ title: "Shorter", body: "Short body.", utmUrl: null, status: "draft" });
+    expect((await listVersions({ workspaceId, kind: "content_piece", subjectId: piece!.id })).map((v) => v.source)).toEqual(["chat", "edited", "suggested"]);
+
+    await getDb().update(contentPieces).set({ status: "posted" }).where(eq(contentPieces.id, piece!.id));
+    const posted = await sendChatMessage(workspaceId, "content_piece", piece!.id, "Again?");
+    ai.reply = { text: "Sure.", proposal: { title: "", body: "Other.", mentions_product: false, rationale: "." }, proposalError: null };
+    await reply(posted.messageId);
+    await expect(applyRevision(workspaceId, posted.messageId)).rejects.toThrow(/posted/);
+    await startOver(workspaceId, "content_piece", piece!.id);
+    await getDb().update(contentPieces).set({ status: "draft" }).where(eq(contentPieces.id, piece!.id));
+  });
+
+  it("revises an email campaign as its separate emails", () => {
+    const subject = CHAT_SUBJECTS.content_piece;
+    const current = { format: "campaign" as const, title: "Welcome", body: "## Email 1 · Day 0\nSubject: Hi\nPreview: Start here\n\nHello.", rationale: "Warm.", mentionsProduct: false, link: null };
+    expect(subject.toRevision(current)).toEqual({ title: "Welcome", mentions_product: false, rationale: "Warm.", emails: [{ subject: "Hi", preview: "Start here", send_day: 0, body: "Hello." }] });
+    const emails = [
+      { subject: "Hi", preview: "Start here", send_day: 0, body: "Hello." },
+      { subject: "Tip", preview: "One thing", send_day: 3, body: "Try this." },
+    ];
+    expect(subject.toStored({ title: "Welcome", emails, mentions_product: false, rationale: "Two now." }, "m", current)).toMatchObject({ format: "campaign", body: "## Email 1 · Day 0\nSubject: Hi\nPreview: Start here\n\nHello.\n\n## Email 2 · Day 3\nSubject: Tip\nPreview: One thing\n\nTry this." });
+  });
+
+  it("revises an ad in its platform's shape and lists the checks' problems under the reply", async () => {
+    const [row] = await getDb()
+      .select({ ad: ads })
+      .from(ads)
+      .innerJoin(adGroups, eq(adGroups.id, ads.groupId))
+      .innerJoin(adCampaigns, eq(adCampaigns.id, adGroups.campaignId))
+      .where(eq(adCampaigns.platform, "google"))
+      .limit(1);
+    const ad = row!.ad;
+    const headlines = ["A headline that is far too long to fit in thirty", ...Array.from({ length: 9 }, (_, i) => `Short headline ${i + 1}`)];
+    const { messageId } = await sendChatMessage(workspaceId, "ad_copy", ad.id, "Lead with offline mode.");
+    ai.reply = { text: "Led with offline mode.", proposal: { headlines, descriptions: ["One.", "Two.", "Three.", "Four."], path1: "offline", path2: "" }, proposalError: null };
+    await reply(messageId);
+    expect(ai.calls.at(-1)!.system).toContain('"headlines": [');
+    const [msg] = await getDb().select().from(chatMessages).where(eq(chatMessages.id, messageId));
+    expect(msg!.body).toMatch(/Startica's checks on this revision:\*\*\n- headlines 1:/);
+
+    await applyRevision(workspaceId, messageId);
+    const [after] = await getDb().select().from(ads).where(eq(ads.id, ad.id));
+    expect(after).toMatchObject({ copy: { headlines, path1: "offline" }, source: "ai" });
+    expect(after!.copy).not.toHaveProperty("path2");
+
+    await saveAd(workspaceId, ad.id, ad.copy);
+    const versions = await listVersions({ workspaceId, kind: "ad_copy", subjectId: ad.id });
+    expect(versions.map((v) => v.source)).toEqual(["edited", "chat", "suggested"]);
+    expect(versions[0]!.value).toMatchObject({ platform: "google", source: "owner" });
   });
 });
 

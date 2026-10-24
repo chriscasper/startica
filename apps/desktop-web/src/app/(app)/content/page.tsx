@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { and, count, desc, eq, inArray } from "drizzle-orm";
+import { hasAiKey } from "@startica/core/ai/client";
+import { versionsToShowFor } from "@startica/core/chat/threads";
+import { loadBestTimes } from "@startica/core/content/best-time";
 import { topicsSettingKey } from "@startica/core/content/jobs";
 import { webSource } from "@startica/core/metrics/web";
 import { utmContentOf } from "@startica/core/distribution/utm";
@@ -12,7 +15,9 @@ import { LiveRefresh } from "@/components/app/live-refresh";
 import { PageHeader } from "@/components/app/page-header";
 import { PageSkeleton } from "@/components/app/page-skeleton";
 import { cn } from "@/lib/utils";
-import { db, getActiveProduct } from "@/lib/dal";
+import { db, getActiveProduct, getWorkspace } from "@/lib/dal";
+import { desktopApp } from "@/lib/desktop";
+import { planHint } from "@/lib/plan-hints";
 import { assistedPostingAvailable, postingContext } from "@/lib/posting";
 import { CreatePanel, LibraryPanel, VoicesPanel, type PieceView, type ProfileView, type SourceView, type TopicView } from "./content-studio";
 
@@ -116,6 +121,19 @@ async function ContentStudio({ searchParams }: { searchParams: PageProps<"/conte
   const profileNames = new Map(profiles.map((p) => [p.id, p.name]));
   const posting = assistedPostingAvailable();
   const context = posting ? await postingContext(product.id) : {};
+  const [times, imageCounts] = await Promise.all([
+    loadBestTimes(product.id),
+    pieces.length
+      ? d
+          .select({ pieceId: schema.contentImages.pieceId, n: count() })
+          .from(schema.contentImages)
+          .where(inArray(schema.contentImages.pieceId, pieces.map((p) => p.id)))
+          .groupBy(schema.contentImages.pieceId)
+      : [],
+  ]);
+  // Refine (ARCHITECTURE.md 5.1): chats about a piece, and its versions.
+  const aiReady = !desktopApp().demo && (await hasAiKey());
+  const versions = await versionsToShowFor((await getWorkspace()).id, "content_piece", pieces.map((p) => p.id));
   const pieceViews: PieceView[] = pieces.map((p) => ({
     id: p.id,
     channel: p.channel,
@@ -140,13 +158,20 @@ async function ContentStudio({ searchParams }: { searchParams: PageProps<"/conte
         : null,
     notes: p.notes,
     canPost: posting && pieceRequest(p, context) !== null,
+    plannedAt: p.plannedAt?.getTime() ?? null,
+    planWhy: p.planWhy,
+    hint: p.status === "posted" ? null : planHint(times, p.channel),
+    images: imageCounts.find((c) => c.pieceId === p.id)?.n ?? 0,
+    updated: p.updatedAt.getTime(),
+    aiReady,
+    versions: versions[p.id] ?? [],
     created: p.createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
   }));
   const drafting = pieceViews.filter((p) => p.status === "drafting").length;
 
   return (
     <>
-      <LiveRefresh tables={["content_pieces", "content_snapshots", "voice_profiles", "voice_samples", "voice_sources", "jobs"]} />
+      <LiveRefresh tables={["content_pieces", "content_images", "content_snapshots", "voice_profiles", "voice_samples", "voice_sources", "jobs"]} />
       <nav className="flex w-fit flex-wrap gap-1 rounded-lg bg-muted p-1 text-sm" aria-label="Content Studio views">
         {(Object.keys(TABS) as Tab[]).map((key) => (
           <Link
@@ -162,6 +187,9 @@ async function ContentStudio({ searchParams }: { searchParams: PageProps<"/conte
             {key === "voices" && ` (${profileViews.filter((p) => p.status === "ready").length})`}
           </Link>
         ))}
+        <Link href="/content/calendar" className="rounded-md px-3 py-1 text-muted-foreground transition-colors hover:text-foreground">
+          Calendar
+        </Link>
       </nav>
       {tab === "create" && (
         <CreatePanel

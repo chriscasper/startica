@@ -23,18 +23,25 @@ import { RevisionView } from "./revision-view";
 const STARTERS: Record<ChatSubjectKind, string[]> = {
   security_help: ["Why does this matter for my site?", "Make the steps shorter", "We host on a different platform: here's what we use…", "Will this break anything?"],
   a11y_fix: ["Who does this affect, and how?", "It's a React component: show the JSX", "Explain the fix more simply", "What should the alt text say?"],
+  reply_draft: ["Make it shorter and more casual", "Don't mention the product", "Is mentioning the product OK here?", "Answer their actual question first"],
+  content_piece: ["Make the opening stronger", "Cut it by a third", "Less salesy, more of a story", "Would this work on this channel?"],
+  ad_copy: ["Make the headlines more specific", "Write it for a different audience: …", "Why would someone click this?", "Fix the problems Startica found"],
 };
 
 const WATCHED = new Set(["chat_messages", "chat_threads", "ai_runs"]);
 
-export function RefineButton({ kind, subjectId, disabled }: { kind: ChatSubjectKind; subjectId: string; disabled?: boolean }) {
+/** `why` says why it's disabled (a tooltip). */
+export function RefineButton({ kind, subjectId, disabled, why, variant = "outline" }: { kind: ChatSubjectKind; subjectId: string; disabled?: boolean; why?: string; variant?: "outline" | "ghost" }) {
   const [open, setOpen] = useState(false);
   return (
     <Sheet open={open} onOpenChange={setOpen} modal={false} disablePointerDismissal>
-      <Button size="sm" variant="outline" disabled={disabled} onClick={() => setOpen(true)}>
-        <MessageSquareTextIcon />
-        Refine
-      </Button>
+      {/* A disabled button gets no pointer events, so the reason sits on a wrapper. */}
+      <span className="inline-flex" title={disabled ? why : undefined}>
+        <Button size="sm" variant={variant} disabled={disabled} onClick={() => setOpen(true)}>
+          <MessageSquareTextIcon />
+          Refine
+        </Button>
+      </span>
       <SheetContent showOverlay={false} className="w-full gap-0 data-[side=right]:sm:max-w-lg">
         {open && <RefineChat kind={kind} subjectId={subjectId} />}
       </SheetContent>
@@ -170,7 +177,7 @@ function RefineChat({ kind, subjectId }: { kind: ChatSubjectKind; subjectId: str
               </p>
             )}
             <p className="text-muted-foreground">
-              Ask about the {noun}, push back, or tell it about your setup. When it changes them, you&apos;ll see the revised {noun} with an Apply button: nothing changes until you apply.
+              Ask about the {noun}, push back, or tell it about your setup. When it suggests a change, you&apos;ll see the revised {noun} with an Apply button: nothing changes until you apply.
             </p>
             <div className="flex flex-col items-start gap-1.5">
               {STARTERS[kind].map((s) => (
@@ -195,7 +202,7 @@ function RefineChat({ kind, subjectId }: { kind: ChatSubjectKind; subjectId: str
                   () => applyRefineRevision(m.id),
                   () => {
                     setApplied(true);
-                    toast.success(`Applied. The previous ${noun} are under Versions.`);
+                    toast.success("Applied. Earlier versions are under Versions.");
                   },
                 )
               }

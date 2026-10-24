@@ -10,10 +10,14 @@ import { evalPath, readEvalFile } from "../ai/evals/score/cases.ts";
 import { loadProductContext } from "../distribution/context.ts";
 import { importKey } from "../security/ai.ts";
 import { citedDomains } from "../offsite/domains.ts";
+import { listeningTrends } from "../distribution/trends.ts";
 import { aiAndOrganicTraffic } from "../search/ai-referrals.ts";
 import { periods, topKeys } from "../search/report.ts";
 import { DEMO_OPPORTUNITIES, DEMO_PRODUCT } from "./fieldnote.ts";
 import { clearProductData, productCount, seedDemo } from "./seed.ts";
+import { hintFor, loadBestTimes } from "../content/best-time.ts";
+import { competitorCandidates, loadActivity } from "../competitors/activity.ts";
+import { loadBenchmarks } from "../benchmarks/report.ts";
 
 beforeAll(async () => {
   openDatabase(join(mkdtempSync(join(tmpdir(), "startica-demo-")), "test.db"));
@@ -29,7 +33,7 @@ describe("seedDemo", () => {
 
     const db = getDb();
     const opps = await db.select().from(s.opportunities).where(eq(s.opportunities.productId, productId));
-    expect(opps).toHaveLength(DEMO_OPPORTUNITIES.length);
+    expect(opps).toHaveLength(DEMO_OPPORTUNITIES.length + counts["listening history"]!);
     expect(new Set(opps.map((o) => o.status))).toEqual(new Set(["drafted", "posted", "archived", "dismissed"]));
     expect(opps.filter((o) => o.duplicateOfId)).toHaveLength(1);
 
@@ -38,12 +42,32 @@ describe("seedDemo", () => {
     expect(counts["ai runs"]).toBeGreaterThan(0);
     expect(counts["accessibility pages"]).toBe(7);
     expect(counts["ad campaigns"]).toBe(2);
+    // Content calendar: a plan for the coming week, a planned reply, and enough Bluesky history for a best-time hint.
+    expect(counts["calendar pieces"]).toBe(13);
+    const [plan] = await db.select().from(s.contentPlans).where(eq(s.contentPlans.productId, productId));
+    expect(plan).toMatchObject({ status: "ready", postsPerWeek: 3 });
+    expect(plan!.items.every((i) => i.pieceId)).toBe(true);
+    expect(opps.filter((o) => o.plannedAt)).toHaveLength(1);
+    expect(hintFor(await loadBestTimes(productId, new Date("2026-10-09T12:00:00Z")), "bluesky")).toMatchObject({ enough: true, source: "engagement", hours: [9] });
     expect(counts["search rows"]).toBeGreaterThan(90 * 10);
     expect(counts["AI visibility questions"]).toBe(12);
     expect(counts["agent readiness checks"]).toBe(2);
     expect(counts["off-site pages read"]).toBeGreaterThan(10);
     const offsite = await citedDomains(productId);
     expect(offsite.domains.find((d) => d.domain === "reviews.example")).toMatchObject({ youAppear: false, competitorsThere: ["TerraJot", "Quadrat"] });
+    // Intel → Following: a researched competitor, people, new posts and a digest; people's accounts stay out of Benchmarks.
+    expect(counts["competitor posts"]).toBe(5);
+    const activity = await loadActivity(productId);
+    expect(activity.filter((p) => !p.seen).map((p) => p.person ?? p.competitor)).toEqual(["Morgan Fieldhouse", "TerraJot", "Morgan Fieldhouse"]);
+    expect((await competitorCandidates(productId))[0]).toMatchObject({ title: "Read this week's competitor digest" });
+    expect((await loadBenchmarks(productId)).accounts.some((a) => a.handle === "morgan.terrajot.example")).toBe(false);
+    // Inbox → Trends and Replies have something to show.
+    const trends = await listeningTrends(productId, 30, new Date("2026-10-09T12:00:00Z"));
+    expect(trends.spikes.map((sp) => sp.label)).toContain("offline note taking");
+    expect(trends.shareOfVoice.find((v) => v.id === null)!.mentions).toBeGreaterThan(0);
+    expect(trends.shareOfVoice.filter((v) => v.mentions > 0).length).toBeGreaterThan(2);
+    expect(trends.sentiment.scored).toBeGreaterThan(30);
+    expect(counts["replies to your posts"]).toBe(4);
     expect(await db.select().from(s.jobs).where(eq(s.jobs.queue, "agent_check"))).toEqual([]);
     expect((await db.select().from(s.agentChecks)).map((c) => c.score).sort()).toEqual([73, 79]);
     const visibilityRuns = await db.select().from(s.aiVisibilityRuns).orderBy(s.aiVisibilityRuns.startedAt);

@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { db, getWorkspace } from "@/lib/dal";
 import { ActivityFeed, CompanyAccounts, PeopleSection, ResearchButton } from "../../competitor-ui";
-import { activityViews, aiBlocked, linkView, peopleAndAccounts } from "../../competitor-views";
+import { activityViews, aiBlocked, linkView, nextResearchLine, peopleAndAccounts } from "../../competitor-views";
 
 export const metadata: Metadata = { title: "Competitor" };
 
@@ -52,10 +52,11 @@ async function Competitor({ params }: { params: PageProps<"/intel/competitors/[i
       </>
     );
   }
-  const [{ people, company }, activity, blocked, [researching]] = await Promise.all([
+  const [{ people, company }, activity, blocked, next, [researching]] = await Promise.all([
     peopleAndAccounts(c.id),
     activityViews(c.productId, c.id),
     aiBlocked(),
+    nextResearchLine(c.productId, c.profiledAt),
     d
       .select({ id: schema.jobs.id })
       .from(schema.jobs)
@@ -84,7 +85,12 @@ async function Competitor({ params }: { params: PageProps<"/intel/competitors/[i
           )}
         </div>
         <div className="flex items-center gap-3">
-          {c.profiledAt && c.profileStatus !== "working" && <span className="text-xs text-muted-foreground">Researched {c.profiledAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>}
+          {c.profiledAt && c.profileStatus !== "working" && (
+            <span className="text-xs text-muted-foreground">
+              Researched {c.profiledAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              {next && ` · ${next}`}
+            </span>
+          )}
           <ResearchButton competitorId={c.id} again={Boolean(p)} working={working} why={blocked} />
         </div>
       </div>
@@ -231,7 +237,7 @@ async function Competitor({ params }: { params: PageProps<"/intel/competitors/[i
         <Card>
           <CardHeader>
             <CardTitle>People</CardTitle>
-            <CardDescription>Founders and the people who speak for {c.name}. Follow them to see what they post here.</CardDescription>
+            <CardDescription>Founders and the people who speak for {c.name}. Follow them to see what they post, with a brief on each.</CardDescription>
           </CardHeader>
           <CardContent>
             <PeopleSection competitorId={c.id} people={people} />
@@ -240,7 +246,9 @@ async function Competitor({ params }: { params: PageProps<"/intel/competitors/[i
         <Card>
           <CardHeader>
             <CardTitle>Its accounts and blog</CardTitle>
-            <CardDescription>The company&apos;s own profiles and feeds. Bluesky, Mastodon, Reddit and Hacker News accounts also show in Benchmarks.</CardDescription>
+            <CardDescription>
+              The company&apos;s own profiles, feeds and pages, each with a brief. Watched pages show what changed; LinkedIn and X are briefed from web search. Bluesky, Mastodon, Reddit and Hacker News accounts also show in Benchmarks.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <CompanyAccounts competitorId={c.id} accounts={company} suggestions={suggestions} />
@@ -251,7 +259,7 @@ async function Competitor({ params }: { params: PageProps<"/intel/competitors/[i
       <Card>
         <CardHeader>
           <CardTitle>Activity</CardTitle>
-          <CardDescription>What {c.name} and the people you follow there posted, newest first. Read every morning at 05:23 while Startica is open.</CardDescription>
+          <CardDescription>What {c.name} and the people you follow there posted, and what changed on its watched pages, newest first. Read as often as Intel → Following → Settings says (daily by default) while Startica is open.</CardDescription>
           {activity.some((a) => !a.seen) && (
             <CardAction>
               <Badge>{activity.filter((a) => !a.seen).length} new</Badge>

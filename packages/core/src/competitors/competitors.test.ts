@@ -6,7 +6,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { eq } from "drizzle-orm";
 import { ensureWorkspace } from "@startica/db/bootstrap";
 import { closeDatabase, getDb, migrateDatabase, openDatabase } from "@startica/db/client";
-import { competitorAccounts, competitorDigests, competitorPeople, competitorPosts, competitors, competitorSnapshots, products } from "@startica/db/schema";
+import { competitorAccounts, competitorPeople, competitorPosts, competitors, competitorSnapshots, products } from "@startica/db/schema";
 
 // AI calls come from fakes: research notes, then the structured profile or digest.
 const ai = vi.hoisted(() => ({ notes: "Notes.", structured: null as unknown, calls: [] as { system: string; content: string }[] }));
@@ -31,7 +31,8 @@ const { runCompetitorSync, storePosts } = await import("../benchmarks/accounts.t
 const { loadBenchmarks } = await import("../benchmarks/report.ts");
 const { runCompetitorResearch } = await import("./research.ts");
 const { addPerson, followCompanyLink, followPerson, ignorePerson, linkKind, parseLinks, updatePerson } = await import("./people.ts");
-const { competitorCandidates, digestMaterial, loadActivity, markActivitySeen, markDigestSeen, runCompetitorDigest, setWeeklyDigest, unseenCounts } = await import("./activity.ts");
+const { loadActivity, unseenCounts } = await import("./activity.ts");
+const { competitorCandidates } = await import("./briefs.ts");
 
 const RSS = `<?xml version="1.0"?><rss version="2.0"><channel><title>TerraJot blog</title>
 <item><title>Offline maps are here</title><link>https://terrajot.example/blog/offline</link><guid>tj-1</guid><pubDate>Tue, 20 Oct 2026 09:00:00 GMT</pubDate><description><![CDATA[<p>Download a region &amp; go.</p>]]></description></item>
@@ -191,14 +192,15 @@ describe("with a database", () => {
     expect((await getDb().select().from(competitors).where(eq(competitors.id, competitorId)))[0]!.profile!.changes).toEqual(["Pro went from $5 to $6"]);
   });
 
-  it("follows a person's readable links only, and stops when ignored", async () => {
+  it("follows every link a person has, LinkedIn through web search, and stops when ignored", async () => {
     const [person] = await getDb().select().from(competitorPeople).where(eq(competitorPeople.competitorId, competitorId));
     expect(await followPerson(workspaceId, person!.id)).toEqual([]);
     const accounts = await getDb().select().from(competitorAccounts).where(eq(competitorAccounts.personId, person!.id));
     expect(accounts.map((a) => [a.channel, a.handle]).sort()).toEqual([
       ["bluesky", "avery.example"],
       ["rss", "https://avery.example/feed.xml"],
-    ]); // LinkedIn stays a link
+      ["search", "https://www.linkedin.com/in/avery-example"],
+    ]); // LinkedIn is never fetched: briefed from web search
     expect(await followPerson(workspaceId, person!.id)).toEqual([]); // twice is fine
 
     await ignorePerson(workspaceId, person!.id);
@@ -209,10 +211,16 @@ describe("with a database", () => {
   it("adds a person by hand and drops an account when its link is removed", async () => {
     const { id, problems } = await addPerson(workspaceId, competitorId, { name: "Sam Sample", role: "Head of growth", links: "https://social.example/@sam\nhttps://x.com/sam" });
     expect(problems).toEqual([]);
-    expect((await getDb().select().from(competitorAccounts).where(eq(competitorAccounts.personId, id))).map((a) => a.handle)).toEqual(["sam@social.example"]);
-    await updatePerson(workspaceId, id, { name: "Sam Sample", links: "https://x.com/sam" });
-    expect(await getDb().select().from(competitorAccounts).where(eq(competitorAccounts.personId, id))).toEqual([]);
-    await expect(followCompanyLink(workspaceId, competitorId, "https://www.linkedin.com/company/terrajot")).rejects.toThrow(/can't read LinkedIn/);
+    const handles = async () => (await getDb().select().from(competitorAccounts).where(eq(competitorAccounts.personId, id))).map((a) => `${a.channel} ${a.handle}`).sort();
+    expect(await handles()).toEqual(["mastodon sam@social.example", "search https://x.com/sam"]);
+    await updatePerson(workspaceId, id, { name: "Sam Sample", links: "https://x.com/sam\nhttps://github.com/sam-example" });
+    expect(await handles()).toEqual(["page https://github.com/sam-example", "search https://x.com/sam"]);
+
+    // The company's links: LinkedIn through web search, a pricing page watched, a homepage or blog through its feed.
+    const channelOf = async (accountId: string) => (await getDb().select().from(competitorAccounts).where(eq(competitorAccounts.id, accountId)))[0]!.channel;
+    expect(await channelOf(await followCompanyLink(workspaceId, competitorId, "https://www.linkedin.com/company/terrajot"))).toBe("search");
+    expect(await channelOf(await followCompanyLink(workspaceId, competitorId, "terrajot.example/pricing"))).toBe("page");
+    expect(await channelOf(await followCompanyLink(workspaceId, competitorId, "https://terrajot.example/"))).toBe("rss");
   });
 
   it("stores posts: the first read is seen, later ones are new; benchmarks leave people's accounts out", async () => {
@@ -244,32 +252,6 @@ describe("with a database", () => {
     ]);
     expect(await unseenCounts(productId)).toEqual({ [competitorId]: 1 });
     expect((await competitorCandidates(productId))[0]).toMatchObject({ kind: "competitors", title: "Catch up on a new post from TerraJot", href: "/intel?tab=following" });
-  });
-
-  it("summarizes the week, keeping only links it was given, and offers it on Today until read", async () => {
-    vi.useFakeTimers({ now, toFake: ["Date"] });
-    const material = await digestMaterial(productId, new Date("2026-10-14T12:00:00Z"), now);
-    expect(material.posts).toBe(2);
-    expect(material.text).toContain('by="Riley Placeholder of TerraJot"');
-    ai.structured = {
-      headline: "TerraJot shipped offline maps.",
-      items: [{ competitor: "TerraJot", what: "Offline maps launched.", why_it_matters: "Your hikers asked for it.", urls: ["https://terrajot.example/blog/offline", "https://made-up.example"] }],
-      suggestions: ["Write a comparison post", " "],
-      quiet: [],
-    };
-    await runCompetitorDigest({ workspaceId }, { workspaceId, productId });
-    const [digest] = await getDb().select().from(competitorDigests).where(eq(competitorDigests.productId, productId));
-    expect(digest).toMatchObject({ status: "ready", posts: 2, digest: { items: [{ urls: ["https://terrajot.example/blog/offline"] }], suggestions: ["Write a comparison post"] } });
-    expect((await competitorCandidates(productId))[0]).toMatchObject({ title: "Read this week's competitor digest", refId: `digest:${digest!.id}` });
-    await markDigestSeen(workspaceId, digest!.id);
-    await markActivitySeen(workspaceId, productId, competitorId);
-    expect(await competitorCandidates(productId)).toEqual([]);
-
-    // The weekly schedule only runs where it's switched on.
-    expect(await runCompetitorDigest({ workspaceId }, { workspaceId })).toEqual({});
-    await setWeeklyDigest(productId, true);
-    expect(await runCompetitorDigest({ workspaceId }, { workspaceId })).toEqual({ [productId]: "already summarized this week" });
-    vi.useRealTimers();
   });
 
   it("keeps posts when someone is ignored only for that person", async () => {

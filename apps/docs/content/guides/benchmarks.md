@@ -47,7 +47,7 @@ The six strongest are shown.
 
 ## When checks happen
 
-The `competitor_sync` job reads every account once a day at 05:23 and when you click **Check now**. It waits a moment between accounts, and Reddit's public feeds allow about one request a minute, so a check with several Reddit accounts takes a few minutes. Each account is read on its own: if one fails (a renamed handle, a server that's down), the error shows next to that account and the others still update. A second check on the same day replaces that day's numbers. See [Background jobs](/reference/jobs).
+The `competitor_sync` job reads every account once a day (or as often as **Intel → Following → Settings** says) and when you click **Check now**. It waits a moment between accounts, and Reddit's public feeds allow about one request a minute, so a check with several Reddit accounts takes a few minutes. Each account is read on its own: if one fails (a renamed handle, a server that's down), the error shows next to that account and the others still update. A second check on the same day replaces that day's numbers. See [Background jobs](/reference/jobs).
 
 Requests go to `public.api.bsky.app` (Bluesky), the account's own Mastodon server, `hn.algolia.com` (Hacker News) and `www.reddit.com` (the user's public feed). Nothing is posted and no account is needed. The same read also keeps each competitor account's recent posts for its [activity feed](/guides/competitor-watch#activity), with no extra requests.
 

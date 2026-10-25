@@ -16,7 +16,8 @@ import { periods, topKeys } from "../search/report.ts";
 import { DEMO_OPPORTUNITIES, DEMO_PRODUCT } from "./fieldnote.ts";
 import { clearProductData, productCount, seedDemo } from "./seed.ts";
 import { hintFor, loadBestTimes } from "../content/best-time.ts";
-import { competitorCandidates, loadActivity } from "../competitors/activity.ts";
+import { loadActivity } from "../competitors/activity.ts";
+import { competitorCandidates } from "../competitors/briefs.ts";
 import { loadBenchmarks } from "../benchmarks/report.ts";
 
 beforeAll(async () => {
@@ -55,11 +56,12 @@ describe("seedDemo", () => {
     expect(counts["off-site pages read"]).toBeGreaterThan(10);
     const offsite = await citedDomains(productId);
     expect(offsite.domains.find((d) => d.domain === "reviews.example")).toMatchObject({ youAppear: false, competitorsThere: ["TerraJot", "Quadrat"] });
-    // Intel → Following: a researched competitor, people, new posts and a digest; people's accounts stay out of Benchmarks.
-    expect(counts["competitor posts"]).toBe(5);
+    // Intel → Following: a researched competitor, people, new posts, a page change and briefs; people's accounts stay out of Benchmarks.
+    expect(counts["competitor posts"]).toBe(6);
     const activity = await loadActivity(productId);
-    expect(activity.filter((p) => !p.seen).map((p) => p.person ?? p.competitor)).toEqual(["Morgan Fieldhouse", "TerraJot", "Morgan Fieldhouse"]);
-    expect((await competitorCandidates(productId))[0]).toMatchObject({ title: "Read this week's competitor digest" });
+    expect(activity.filter((p) => !p.seen).map((p) => p.person ?? p.competitor)).toEqual(["TerraJot", "Morgan Fieldhouse", "TerraJot", "Morgan Fieldhouse"]);
+    expect(activity.find((p) => p.kind === "change")).toMatchObject({ relevance: "high", title: "Changed: TerraJot pricing" });
+    expect((await competitorCandidates(productId, new Date("2026-10-09T12:00:00Z")))[0]).toMatchObject({ title: "Read today's competitor brief" });
     expect((await loadBenchmarks(productId)).accounts.some((a) => a.handle === "morgan.terrajot.example")).toBe(false);
     // Inbox → Trends and Replies have something to show.
     const trends = await listeningTrends(productId, 30, new Date("2026-10-09T12:00:00Z"));

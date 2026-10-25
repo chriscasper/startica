@@ -183,6 +183,13 @@
       "when": 1792826126584,
       "tag": "0025_competitor_watch",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1792895918026,
+      "tag": "0026_competitor_briefs",
+      "breakpoints": true
     }
   ]
 }

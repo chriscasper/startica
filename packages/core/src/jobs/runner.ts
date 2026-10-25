@@ -30,10 +30,10 @@ export const SCHEDULES: { name: string; cron: string; queue: QueueName; when: st
   { name: "visibility", cron: "30 9 * * 1", queue: "ai_visibility_run", when: "every Monday at 09:30" }, // weekly, Monday 09:30
   // Content calendar reminders: due planned posts get one desktop notification and a Today move.
   { name: "calendar", cron: "*/15 * * * *", queue: "calendar_remind", when: "every 15 minutes" }, // every 15 minutes
-  // Only for products with the weekly competitor digest on (Intel → Following), after the 05:23 read.
-  { name: "competitor-digest", cron: "30 8 * * 1", queue: "competitor_digest", when: "every Monday at 08:30" }, // weekly, Monday 08:30
-  // Public numbers and posts of followed accounts (Intel → Benchmarks and Following), at a quiet hour.
-  { name: "competitors", cron: "23 5 * * *", queue: "competitor_sync", when: "every day at 05:23" }, // daily, 05:23
+  // Followed accounts and pages (Intel → Benchmarks and Following) for products whose read is due (daily by default); each read updates the briefs.
+  { name: "competitors", cron: "23 * * * *", queue: "competitor_sync", when: "every hour (each product as often as its settings say)" }, // hourly
+  // Competitor briefs: closes the periods that ended (also after the app was closed) and starts re-research that's due.
+  { name: "competitor-briefs", cron: "53 * * * *", queue: "competitor_digest", when: "every hour" }, // hourly
 ];
 
 type Log = (...args: unknown[]) => void;

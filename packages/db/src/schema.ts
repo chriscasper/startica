@@ -214,7 +214,10 @@ export const personas = sqliteTable(
   (t) => [index("personas_product_idx").on(t.productId)],
 );
 
-/** Kinds of link a competitor's person or account can have; only bluesky, mastodon, reddit, hackernews and rss are read. */
+/**
+ * Kinds of link a competitor's person or account can have. Bluesky, Mastodon, Reddit, Hacker News and feeds are read
+ * through their public APIs or feeds, LinkedIn and X only through web search, the rest as watched pages.
+ */
 export const personLinkKinds = ["linkedin", "x", "bluesky", "mastodon", "reddit", "hackernews", "rss", "github", "youtube", "website", "other"] as const;
 export type PersonLinkKind = (typeof personLinkKinds)[number];
 export type PersonLink = { kind: PersonLinkKind; url: string };
@@ -1678,14 +1681,34 @@ export const competitorPeople = sqliteTable(
     links: json<PersonLink[]>("links").notNull().default(sql`'[]'`),
     status: text("status", { enum: ["suggested", "following", "ignored"] }).notNull().default("following"),
     source: text("source", { enum: sources }).notNull().default("owner"),
+    /** Rolled up from their link briefs and posts while followed. */
+    brief: json<PersonBrief>("brief"),
+    briefedAt: timestamp("briefed_at"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [index("competitor_people_competitor_idx").on(t.competitorId)],
 );
 
-/** Channels whose public accounts can be followed ("x" is never read: no user lookups on X, section 3; "rss" is a blog or newsletter feed, posts only). */
-export const benchmarkChannels = ["bluesky", "mastodon", "reddit", "hackernews", "x", "rss"] as const;
+/**
+ * Channels whose public accounts can be followed ("x" is never read: no user lookups on X, section 3; "rss" is a blog or
+ * newsletter feed, posts only; "page" a watched web page, its changes as posts; "search" a LinkedIn or X link that is
+ * never fetched, only briefed from web search).
+ */
+export const benchmarkChannels = ["bluesky", "mastodon", "reddit", "hackernews", "x", "rss", "page", "search"] as const;
+
+/** What a followed link is and says (competitor_digest): written from its posts or page, or from web search for "search" links. */
+export type LinkBrief = {
+  summary: string;
+  covers: string[];
+  recent: string[];
+  lastChange: string;
+  from: "read" | "web_search";
+  urls: string[];
+};
+
+/** A followed person, from their link briefs and recent posts (competitor_digest). */
+export type PersonBrief = { summary: string; topics: string[]; hints: string[]; activity: string; urls: string[] };
 export type BenchmarkChannel = (typeof benchmarkChannels)[number];
 
 /**
@@ -1708,6 +1731,9 @@ export const competitorAccounts = sqliteTable(
     status: text("status", { enum: ["untested", "ok", "error"] }).notNull().default("untested"),
     lastError: text("last_error"),
     lastCheckedAt: timestamp("last_checked_at"),
+    /** What the link is and says; rewritten when new posts or changes arrive (web-search links at most weekly). */
+    brief: json<LinkBrief>("brief"),
+    briefedAt: timestamp("briefed_at"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -1760,11 +1786,15 @@ export const competitorPosts = sqliteTable(
     url: text("url").notNull(),
     title: text("title"),
     text: text("text").notNull().default(""),
-    kind: text("kind", { enum: ["post", "reply", "comment", "story", "article"] }).notNull().default("post"),
+    /** "change": a watched page changed; `text` holds what was added and removed. */
+    kind: text("kind", { enum: ["post", "reply", "comment", "story", "article", "change"] }).notNull().default("post"),
     postedAt: timestamp("posted_at"),
     /** Likes + reposts + replies, or points + comments; null where the source doesn't say. */
     engagement: integer("engagement"),
     seenAt: timestamp("seen_at"),
+    /** How much it matters for the product (score task); null until scored. */
+    relevance: text("relevance", { enum: ["high", "medium", "low"] }),
+    relevanceWhy: text("relevance_why"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -1776,9 +1806,17 @@ export type CompetitorDigest = {
   items: { competitor: string; what: string; whyItMatters: string; urls: string[] }[];
   suggestions: string[];
   quiet: string[];
+  /** What's new since the previous version of this period's brief (empty on the first). */
+  sinceLast?: string[];
 };
 
-/** The AI's summary of a week of competitor activity (competitor_digest; weekly when switched on). */
+export const briefPeriods = ["day", "week", "month", "year"] as const;
+export type BriefPeriod = (typeof briefPeriods)[number];
+
+/**
+ * A competitor brief for one day, week, month or year (competitor_digest). The current period's row is rewritten as new
+ * material arrives; `closed` once the period ended and its final version is written. Rows from before periods are weeks.
+ */
 export const competitorDigests = sqliteTable(
   "competitor_digests",
   {
@@ -1788,6 +1826,10 @@ export const competitorDigests = sqliteTable(
     status: text("status", { enum: ["working", "ready", "failed"] }).notNull().default("working"),
     since: timestamp("since").notNull(),
     until: timestamp("until").notNull(),
+    period: text("period", { enum: briefPeriods }).notNull().default("week"),
+    /** The period's first local day, YYYY-MM-DD (null on rows from before periods). */
+    periodStart: text("period_start"),
+    closed: integer("closed", { mode: "boolean" }).notNull().default(false),
     digest: json<CompetitorDigest>("digest"),
     posts: integer("posts").notNull().default(0),
     error: text("error"),
@@ -1796,7 +1838,26 @@ export const competitorDigests = sqliteTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("competitor_digests_product_idx").on(t.productId, t.createdAt)],
+  (t) => [index("competitor_digests_product_idx").on(t.productId, t.createdAt), index("competitor_digests_period_idx").on(t.productId, t.period, t.periodStart)],
+);
+
+/** The last read of a watched page ("page" accounts): what changes are measured against. One row per account. */
+export const competitorPages = sqliteTable(
+  "competitor_pages",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => competitorAccounts.id, { onDelete: "cascade" }),
+    hash: text("hash").notNull(),
+    title: text("title").notNull().default(""),
+    text: text("text").notNull().default(""),
+    fetchedAt: timestamp("fetched_at").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("competitor_pages_account_idx").on(t.accountId)],
 );
 
 // --- Search performance (ARCHITECTURE.md section 10.2) ----------------------------------------------

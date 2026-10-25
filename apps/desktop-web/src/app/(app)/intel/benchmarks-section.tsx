@@ -116,7 +116,7 @@ export function BenchmarksSection({ productId, data, running, demo }: { productI
         <CardHeader>
           <CardTitle>Benchmarks</CardTitle>
           <CardDescription>
-            Public numbers of competitors&apos; accounts next to yours: followers, how often they post and how much each post gets back. Read once a day at 05:23 from
+            Public numbers of competitors&apos; accounts next to yours: followers, how often they post and how much each post gets back. Read daily (or as often as Intel → Following → Settings says) from
             Bluesky, Mastodon, Reddit and Hacker News without an account. X isn&apos;t included: Startica doesn&apos;t look up accounts on X. A competitor with tracked
             accounts is kept when Intel is rebuilt.
           </CardDescription>

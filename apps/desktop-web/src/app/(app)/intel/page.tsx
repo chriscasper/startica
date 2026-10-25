@@ -48,8 +48,11 @@ export default function IntelPage(props: PageProps<"/intel">) {
 }
 
 async function IntelContent({ searchParams }: { searchParams: PageProps<"/intel">["searchParams"] }) {
-  const asked = (await searchParams).tab;
+  const params = await searchParams;
+  const asked = params.tab;
   const tab = TABS.find((t) => t === asked) ?? "brief";
+  const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : undefined);
+  const following = { brief: one(params.brief), briefId: one(params.briefId), relevant: params.relevant === "1" };
   const active = await getActiveProduct();
   if (!active) {
     return (
@@ -165,7 +168,8 @@ async function IntelContent({ searchParams }: { searchParams: PageProps<"/intel"
           <FollowingSection
             productId={p.id}
             competitors={competitors.map((c) => ({ id: c.id, name: c.name, followed: followed.get(c.id) ?? 0 }))}
-            digestRunning={watchJobs.some((j) => j.queue === "competitor_digest")}
+            briefRunning={watchJobs.some((j) => j.queue === "competitor_digest" && j.payload.productId === p.id)}
+            asked={following}
           />
         </TabsContent>
         <TabsContent value="communities" className="pt-4">

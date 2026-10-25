@@ -27,12 +27,14 @@ export type AccountNumbers = {
 
 /** Channels with numbers (Benchmarks charts them). */
 export const BENCHMARK_CHANNELS = ["bluesky", "mastodon", "reddit", "hackernews"] as const satisfies readonly BenchmarkChannel[];
-/** Channels Startica can read: the benchmarked ones and feeds (posts only). */
-export const FOLLOW_CHANNELS = [...BENCHMARK_CHANNELS, "rss"] as const satisfies readonly BenchmarkChannel[];
-export type SupportedChannel = (typeof FOLLOW_CHANNELS)[number];
+/** Channels Startica reads: the benchmarked ones, feeds (posts only) and watched pages (changes only). */
+export const FOLLOW_CHANNELS = [...BENCHMARK_CHANNELS, "rss", "page"] as const satisfies readonly BenchmarkChannel[];
+/** Channels that can be followed: the read ones, and LinkedIn or X links briefed from web search (never fetched). */
+export const WATCH_CHANNELS = [...FOLLOW_CHANNELS, "search"] as const satisfies readonly BenchmarkChannel[];
+export type SupportedChannel = (typeof WATCH_CHANNELS)[number];
 
 /** A recent public post of a followed account. */
-export type AccountPost = { externalId: string; url: string; title: string | null; text: string; kind: "post" | "reply" | "comment" | "story" | "article"; postedAt: Date | null; engagement: number | null };
+export type AccountPost = { externalId: string; url: string; title: string | null; text: string; kind: "post" | "reply" | "comment" | "story" | "article" | "change"; postedAt: Date | null; engagement: number | null };
 export type AccountRead = { numbers: AccountNumbers | null; posts: AccountPost[] };
 
 export const BENCHMARK_LABEL: Record<BenchmarkChannel, string> = {
@@ -42,6 +44,8 @@ export const BENCHMARK_LABEL: Record<BenchmarkChannel, string> = {
   hackernews: "Hacker News",
   x: "X",
   rss: "Blog or newsletter feed",
+  page: "Page",
+  search: "Via web search",
 };
 
 /** What each source can tell, for the UI. */
@@ -51,6 +55,8 @@ export const BENCHMARK_HINT: Record<SupportedChannel, { placeholder: string; rea
   reddit: { placeholder: "u/name", reads: "posting frequency only (Reddit's public feed has no followers or karma)" },
   hackernews: { placeholder: "name", reads: "karma, posts, engagement on stories" },
   rss: { placeholder: "https://blog.example.com", reads: "new posts (from the feed, or the one the site points to)" },
+  page: { placeholder: "https://example.com/pricing", reads: "what changed on the page" },
+  search: { placeholder: "https://www.linkedin.com/company/example", reads: "what web search finds about it (the page itself isn't read)" },
 };
 
 const WEEK = 7 * 86_400_000;
@@ -92,13 +98,15 @@ export function normalizeHandle(channel: BenchmarkChannel, input: string): { han
       // HN usernames are case-sensitive; keep them as typed.
       return { handle: name, url: `https://news.ycombinator.com/user?id=${name}` };
     }
-    case "rss": {
+    case "rss":
+    case "page":
+    case "search": {
       if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) && !/^https?:\/\//i.test(raw)) throw new Error("Enter an http(s) address");
       let u: URL;
       try {
         u = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
       } catch {
-        throw new Error("Enter the blog's or the feed's address, like https://blog.example.com");
+        throw new Error(channel === "rss" ? "Enter the blog's or the feed's address, like https://blog.example.com" : "Enter the page's address, like https://example.com/pricing");
       }
       if (u.protocol !== "https:" && u.protocol !== "http:") throw new Error("Enter an http(s) address");
       u.hash = "";
@@ -322,6 +330,10 @@ export async function fetchAccount(channel: BenchmarkChannel, handle: string, op
       return fetchReddit(handle, now, opts.signal);
     case "rss":
       return { numbers: null, posts: feedPosts((await fetchFeedPosts(handle, opts.signal)).posts) };
+    case "page":
+    case "search":
+      // Pages are compared with their last read (competitors/pages.ts); web-search links are never fetched.
+      throw new Error(`${BENCHMARK_LABEL[channel]} links aren't read here`);
     case "x":
       throw new Error("X isn't benchmarked: Startica doesn't look up accounts on X");
   }

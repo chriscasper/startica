@@ -1,6 +1,6 @@
 import type { z } from "zod";
 import type { AiContext } from "../ai/client.ts";
-import { competitorDigestPayload, runCompetitorDigest } from "../competitors/activity.ts";
+import { competitorDigestPayload, runCompetitorDigest } from "../competitors/briefs.ts";
 import { competitorResearchPayload, runCompetitorResearch } from "../competitors/research.ts";
 import {
   draftPayload,
@@ -159,9 +159,9 @@ export const jobs = {
   offsite_check: defineJob({ payload: offsiteCheckPayload, run: runOffsiteCheck, visibilityTimeoutSeconds: 900, maxAttempts: 1 }),
   // Competitor benchmarks: public profile numbers, paced (Reddit ~1 request/minute); daily and on Check now.
   competitor_sync: defineJob({ payload: competitorSyncPayload, run: (ctx, p) => runCompetitorSync(ctx, p), visibilityTimeoutSeconds: 1800, maxAttempts: 1 }),
-  // Competitor watch: web research on one competitor (the Research button), never retried; and the activity digest.
+  // Competitor watch: web research on one competitor (the Research button or its schedule), never retried; and the briefs.
   competitor_research: defineJob({ payload: competitorResearchPayload, run: runCompetitorResearch, visibilityTimeoutSeconds: 1800, maxAttempts: 1 }),
-  competitor_digest: defineJob({ payload: competitorDigestPayload, run: runCompetitorDigest, visibilityTimeoutSeconds: 900, maxAttempts: 1 }),
+  competitor_digest: defineJob({ payload: competitorDigestPayload, run: (ctx, p) => runCompetitorDigest(ctx, p), visibilityTimeoutSeconds: 1800, maxAttempts: 1 }),
 } satisfies Record<string, Job>;
 
 export type QueueName = keyof typeof jobs;

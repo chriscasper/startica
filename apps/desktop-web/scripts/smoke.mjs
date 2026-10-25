@@ -118,7 +118,7 @@ try {
   await page.getByRole("button", { name: "Finish" }).click();
   await page.waitForURL(/\/today$/);
 
-  for (const route of ["/", "/dashboard", "/today", "/welcome", "/inbox", "/inbox?tab=replies", "/inbox?tab=trends", "/inbox?tab=trends&range=90", "/content", "/content/calendar", "/content/calendar?view=month", "/roadmap", "/intel", "/intel?tab=benchmarks", "/analytics", "/analytics?tab=traffic", "/analytics?tab=conversions", "/analytics?tab=revenue", "/analytics?tab=startica&range=90", "/accessibility", "/accessibility/issues", "/accessibility/pages", "/accessibility/content", "/accessibility/documents", "/seo", "/seo/health", "/seo/search", "/seo/ai", "/seo/opportunities", "/seo/agents", "/seo/offsite", "/ads", "/security", "/settings", "/settings?tab=products", "/settings?tab=channels", "/system"]) {
+  for (const route of ["/", "/dashboard", "/today", "/welcome", "/inbox", "/inbox?tab=replies", "/inbox?tab=trends", "/inbox?tab=trends&range=90", "/content", "/content/calendar", "/content/calendar?view=month", "/roadmap", "/intel", "/intel?tab=benchmarks", "/intel?tab=following", "/intel?tab=following&brief=month&relevant=1", "/analytics", "/analytics?tab=traffic", "/analytics?tab=conversions", "/analytics?tab=revenue", "/analytics?tab=startica&range=90", "/accessibility", "/accessibility/issues", "/accessibility/pages", "/accessibility/content", "/accessibility/documents", "/seo", "/seo/health", "/seo/search", "/seo/ai", "/seo/opportunities", "/seo/agents", "/seo/offsite", "/ads", "/security", "/settings", "/settings?tab=products", "/settings?tab=channels", "/system"]) {
     const res = await page.goto(`${server.url}${route}`);
     await page.waitForLoadState("networkidle");
     const crashed = await page.getByText(/Application error|Unhandled Runtime Error/).count();
@@ -584,6 +584,12 @@ try {
   await page.getByRole("button", { name: "Save notes" }).click();
   await page.getByText("Notes saved").waitFor({ timeout: 15_000 });
   check(true, "Intel notes save");
+
+  // Intel → Following: how often to read saves, and the estimated cost is spelled out.
+  await page.goto(`${server.url}/intel?tab=following`);
+  await page.getByLabel(/^Read links and update briefs/).selectOption("6h");
+  await page.getByText("Saved").first().waitFor({ timeout: 15_000 });
+  check((await page.getByLabel(/^Read links and update briefs/).inputValue()) === "6h" && (await page.getByText(/^Estimated cost: up to/).isVisible()), "Intel → Following saves how often to read and shows the estimated cost");
 
   // System: queue a ping and wait for the live-updating job table.
   await page.goto(`${server.url}/system`);

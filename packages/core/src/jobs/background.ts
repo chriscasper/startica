@@ -58,7 +58,7 @@ export const QUEUE_LABELS: Record<string, string> = {
   offsite_check: "Reading pages AI answers cite",
   competitor_sync: "Reading competitor accounts",
   competitor_research: "Researching a competitor",
-  competitor_digest: "Summarizing competitor activity",
+  competitor_digest: "Writing competitor briefs",
 };
 
 /** Why a job of this queue runs, when it wasn't started by its schedule. */
@@ -106,9 +106,9 @@ const REASONS: Record<string, string> = {
   opportunity_draft: "You asked for a fix to be drafted.",
   agent_check: "You started an agent readiness check.",
   offsite_check: "You asked to read the pages AI answers cite.",
-  competitor_sync: "You followed an account or asked to check them now.",
+  competitor_sync: "You followed an account, page or person, asked to check them now, or a scheduled read was due.",
   competitor_research: "You asked Startica to research a competitor.",
-  competitor_digest: "You asked for a summary of what your competitors did this week.",
+  competitor_digest: "Competitor activity was read, a brief period ended, or you asked to update a brief.",
 };
 
 /** Where to see each queue's work. */

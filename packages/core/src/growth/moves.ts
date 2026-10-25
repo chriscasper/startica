@@ -20,7 +20,7 @@ import { openFindingCounts } from "../security/findings.ts";
 import { openRoadmapItems } from "./roadmap.ts";
 import { calendarCandidates } from "../content/calendar-moves.ts";
 import { listeningCandidates } from "../distribution/listening-moves.ts";
-import { competitorCandidates } from "../competitors/activity.ts";
+import { competitorCandidates } from "../competitors/briefs.ts";
 
 /**
  * Today's moves: a short ranked list built by rules from what's actually waiting

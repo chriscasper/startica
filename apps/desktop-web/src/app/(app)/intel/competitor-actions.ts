@@ -3,15 +3,18 @@
 import { z } from "zod";
 import { hasAiKey } from "@startica/core/ai/client";
 import { removeBenchmarkAccount } from "@startica/core/benchmarks/accounts";
-import { markActivitySeen, markDigestSeen, setWeeklyDigest, summarizeActivity } from "@startica/core/competitors/activity";
+import { markActivitySeen } from "@startica/core/competitors/activity";
+import { markBriefSeen, updateBriefsNow } from "@startica/core/competitors/briefs";
 import { addPerson, followCompanyLink, followPerson, ignorePerson, removePerson, updatePerson } from "@startica/core/competitors/people";
 import { researchCompetitor } from "@startica/core/competitors/research";
+import { saveWatchSettings, watchSettings } from "@startica/core/competitors/settings";
+import { briefPeriods } from "@startica/db/schema";
 import type { ActionResult } from "@/components/app/form-dialog";
 import { formFields, id, mutate, productScope } from "@/lib/actions";
 import { getWorkspace } from "@/lib/dal";
 import { desktopApp } from "@/lib/desktop";
 
-// The competitor watch (ARCHITECTURE.md section 3): research, people, followed accounts, activity and the digest.
+// The competitor watch (ARCHITECTURE.md section 3): research, people, followed accounts and pages, activity, the briefs and their settings.
 
 async function needAi() {
   if (desktopApp().demo) throw new Error("AI research is off in the demo.");
@@ -81,18 +84,20 @@ export async function markSeen(productId: string, competitorId?: string): Promis
   });
 }
 
-export async function summarizeNow(productId: string): Promise<ActionResult> {
+export async function updateNow(productId: string, period: string): Promise<ActionResult> {
   return mutate(async () => {
     await needAi();
     const scope = await productScope(productId);
-    await summarizeActivity(scope.workspaceId, scope.productId);
+    await updateBriefsNow(scope.workspaceId, scope.productId, z.enum(briefPeriods).parse(period));
   });
 }
 
-export async function setWeekly(productId: string, on: boolean): Promise<ActionResult> {
-  return mutate(async () => setWeeklyDigest((await productScope(productId)).productId, z.boolean().parse(on)));
+export async function saveSettings(productId: string, input: unknown): Promise<ActionResult> {
+  return mutate(async () => {
+    await saveWatchSettings((await productScope(productId)).productId, watchSettings.parse(input));
+  });
 }
 
-export async function digestSeen(digestId: string): Promise<ActionResult> {
-  return mutate(async () => markDigestSeen((await getWorkspace()).id, id.parse(digestId)));
+export async function briefSeen(briefId: string): Promise<ActionResult> {
+  return mutate(async () => markBriefSeen((await getWorkspace()).id, id.parse(briefId)));
 }

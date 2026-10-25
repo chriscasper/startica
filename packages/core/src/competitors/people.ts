@@ -8,13 +8,54 @@ import { cleanLinks, ownCompetitor } from "./research.ts";
 
 /**
  * People at a competitor (ARCHITECTURE.md section 3, "Competitor watch"). Following someone turns
- * their readable links (Bluesky, Mastodon, Reddit, Hacker News, a blog or newsletter feed) into
- * followed accounts; LinkedIn, X, GitHub and the rest stay links the owner opens: LinkedIn has no
- * public way to read posts, and the owner decided against account lookups on X.
+ * every link of theirs into a followed account: Bluesky, Mastodon, Reddit and Hacker News are read
+ * through their public APIs, a blog or site through its feed (else watched as a page), GitHub,
+ * YouTube and other pages are watched for changes, and LinkedIn and X are only briefed from web
+ * search: their pages need a login and their robots.txt asks crawlers to stay out (owner decision
+ * 2026-10-24), and the owner decided against account lookups on X.
  */
 
-/** Link kinds Startica reads, and the account channel each becomes. */
-export const READABLE_LINKS: Partial<Record<PersonLinkKind, SupportedChannel>> = { bluesky: "bluesky", mastodon: "mastodon", reddit: "reddit", hackernews: "hackernews", rss: "rss" };
+/** The account channel each kind of link becomes when followed. */
+export const LINK_CHANNEL: Record<PersonLinkKind, SupportedChannel> = {
+  bluesky: "bluesky",
+  mastodon: "mastodon",
+  reddit: "reddit",
+  hackernews: "hackernews",
+  rss: "rss",
+  website: "rss",
+  linkedin: "search",
+  x: "search",
+  github: "page",
+  youtube: "page",
+  other: "page",
+};
+
+/**
+ * The channel a link is followed on. A website's homepage or blog-like address is read through its
+ * feed; any other address on it (a pricing or careers page) is watched as a page, so a feed the
+ * site points to doesn't take its place.
+ */
+export function linkChannel(l: PersonLink): SupportedChannel {
+  if (l.kind !== "website") return LINK_CHANNEL[l.kind];
+  let path = "/";
+  try {
+    path = new URL(l.url).pathname;
+  } catch {
+    // parseLinks and cleanLinks keep only URLs that parse
+  }
+  return path === "/" || /\/(blog|news|changelog|updates|releases|posts|articles|newsletter|journal)(\/|$)/i.test(path) ? "rss" : "page";
+}
+
+/** How Startica follows each kind of link, for the UI. */
+export const LINK_HOW: Record<SupportedChannel, string> = {
+  bluesky: "posts",
+  mastodon: "posts",
+  reddit: "posts",
+  hackernews: "posts",
+  rss: "new posts, or changes when there's no feed",
+  page: "changes on the page",
+  search: "web search (the page itself isn't read)",
+};
 
 export const LINK_LABEL: Record<PersonLinkKind, string> = {
   linkedin: "LinkedIn",
@@ -78,13 +119,12 @@ async function ownPerson(workspaceId: string, personId: string) {
   return row;
 }
 
-/** Follows each readable link that isn't followed yet; returns what couldn't be followed and why. */
+/** Follows each link that isn't followed yet; returns what couldn't be followed and why. */
 async function followLinks(person: typeof competitorPeople.$inferSelect): Promise<string[]> {
   const existing = await getDb().select().from(competitorAccounts).where(eq(competitorAccounts.personId, person.id));
   const problems: string[] = [];
   for (const l of person.links) {
-    const channel = READABLE_LINKS[l.kind];
-    if (!channel) continue;
+    const channel = linkChannel(l);
     let handle: string;
     try {
       handle = normalizeHandle(channel, l.url).handle;
@@ -92,7 +132,8 @@ async function followLinks(person: typeof competitorPeople.$inferSelect): Promis
       problems.push(`${LINK_LABEL[l.kind]}: ${error instanceof Error ? error.message : String(error)}`);
       continue;
     }
-    if (existing.some((a) => a.channel === channel && a.handle === handle)) continue;
+    // A website already followed may have become a watched page.
+    if (existing.some((a) => a.handle === handle && (a.channel === channel || (channel === "rss" && a.channel === "page")))) continue;
     try {
       await addBenchmarkAccount(person.workspaceId, person.productId, { competitorId: person.competitorId, personId: person.id, channel, handle: l.url });
     } catch (error) {
@@ -102,7 +143,7 @@ async function followLinks(person: typeof competitorPeople.$inferSelect): Promis
   return problems;
 }
 
-/** Adds someone the owner wants to follow, and follows their readable links. */
+/** Adds someone the owner wants to follow, and follows their links. */
 export async function addPerson(workspaceId: string, competitorId: string, input: z.input<typeof personInput>): Promise<{ id: string; problems: string[] }> {
   const c = await ownCompetitor(workspaceId, competitorId);
   const v = personInput.parse(input);
@@ -113,7 +154,7 @@ export async function addPerson(workspaceId: string, competitorId: string, input
   return { id: row!.id, problems: await followLinks(row!) };
 }
 
-/** Changes a person's name, role, note and links; a followed person follows any new readable link (and drops removed ones). */
+/** Changes a person's name, role, note and links; a followed person follows any new link (and drops removed ones). */
 export async function updatePerson(workspaceId: string, personId: string, input: z.input<typeof personInput>): Promise<string[]> {
   const person = await ownPerson(workspaceId, personId);
   const v = personInput.parse(input);
@@ -129,10 +170,10 @@ async function dropUnlinkedAccounts(person: typeof competitorPeople.$inferSelect
   const accounts = await getDb().select().from(competitorAccounts).where(eq(competitorAccounts.personId, person.id));
   const wanted = new Set(
     person.links.flatMap((l) => {
-      const channel = READABLE_LINKS[l.kind];
-      if (!channel) return [];
+      const channel = linkChannel(l);
       try {
-        return [`${channel} ${normalizeHandle(channel, l.url).handle}`];
+        const { handle } = normalizeHandle(channel, l.url);
+        return channel === "rss" ? [`rss ${handle}`, `page ${handle}`] : [`${channel} ${handle}`];
       } catch {
         return [];
       }
@@ -141,7 +182,7 @@ async function dropUnlinkedAccounts(person: typeof competitorPeople.$inferSelect
   for (const a of accounts) if (!wanted.has(`${a.channel} ${a.handle}`)) await getDb().delete(competitorAccounts).where(eq(competitorAccounts.id, a.id));
 }
 
-/** Follow a suggested (or ignored) person: their readable links start being read. */
+/** Follow a suggested (or ignored) person: their links start being read. */
 export async function followPerson(workspaceId: string, personId: string): Promise<string[]> {
   const person = await ownPerson(workspaceId, personId);
   const [row] = await getDb().update(competitorPeople).set({ status: "following" }).where(eq(competitorPeople.id, person.id)).returning();
@@ -160,11 +201,9 @@ export async function removePerson(workspaceId: string, personId: string): Promi
   await getDb().delete(competitorPeople).where(eq(competitorPeople.id, person.id));
 }
 
-/** Follows one of the competitor's own accounts or feeds (from its profile, or typed by the owner). */
+/** Follows one of the competitor's own accounts, feeds or pages (from its profile, or typed by the owner). */
 export async function followCompanyLink(workspaceId: string, competitorId: string, url: string): Promise<string> {
   const c = await ownCompetitor(workspaceId, competitorId);
-  const kind = linkKind(/^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`);
-  const channel = READABLE_LINKS[kind] ?? (kind === "website" ? "rss" : null);
-  if (!channel) throw new Error(`Startica can't read ${LINK_LABEL[kind]} accounts: open it from the profile instead`);
-  return addBenchmarkAccount(workspaceId, c.productId, { competitorId: c.id, channel, handle: url });
+  const address = /^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`;
+  return addBenchmarkAccount(workspaceId, c.productId, { competitorId: c.id, channel: linkChannel({ kind: linkKind(address), url: address }), handle: url });
 }

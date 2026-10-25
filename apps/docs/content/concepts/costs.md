@@ -45,7 +45,10 @@ These are estimates worked out from the default models, typical prompt sizes in 
 | Build a voice profile | `strategy`, Opus or Sol | $0.10 to $0.25 |
 | Build an Intel brief (research plus synthesis) | `research` + `strategy`, Opus or Sol | $0.40 to $1.00 |
 | [Research one competitor in depth](/guides/competitor-watch) | `research` + `draft`, Opus + Sonnet or Sol | $0.30 to $0.80 |
-| The [weekly competitor digest](/guides/competitor-watch#the-weekly-digest) | `draft`, Sonnet or Sol | $0.01 to $0.05 |
+| One [competitor brief](/guides/competitor-watch#briefs) (a day, week, month or year) | `draft`, Sonnet or Sol | $0.01 to $0.05 |
+| One followed link's or person's brief | `draft`, Sonnet or Sol | About $0.01 |
+| One LinkedIn or X link's brief (web search, at most weekly) | `research` + `draft`, Opus + Sonnet or Sol | $0.05 to $0.15 |
+| Rating 25 new competitor posts for relevance | `score`, Haiku or Luna | Under $0.01 |
 | Plan or replan the roadmap | `strategy`, Opus or Sol | $0.10 to $0.30 |
 | Plan an ad campaign | `strategy`, Opus or Sol | $0.10 to $0.30 |
 | Rewrite one ad | `draft`, Sonnet or Sol | $0.01 to $0.03 |

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.7] - 2026-10-25
+
+Keep up with competitors: follow their accounts, blogs, pages and people, with AI briefs for the day, week, month and year. Plus a content calendar, listening trends, and Refine for everything you write.
+
+### Added
+
+- **Competitor research and following** (Intel → Competitors): research a competitor in depth (pricing, features, messaging, recent changes, what users say, how it compares), and follow its accounts, blog, pages and the people who speak for it.
+- **Watched pages:** follow a competitor's pricing, changelog, careers or any other page, and see what changed on it. LinkedIn and X links are looked up with web search instead of being opened.
+- **Briefs** (Intel → Following): a short brief on every followed link and person, and daily, weekly, monthly and yearly briefs of what matters for your product, kept up to date as new posts and changes arrive. Posts that matter get a Matters badge.
+- **Competitor watch settings:** which briefs to write, how often to read (daily by default), and whether to research competitors again on a schedule (off by default), with the estimated monthly cost.
+- **Competitor benchmarks** (Intel → Benchmarks): followers, posting frequency and engagement of competitors' public accounts next to yours, with plain-language observations.
+- **Content calendar and plans:** a week and month calendar, best times to post, AI content plans for one or two weeks, and images for posts.
+- **Listening trends** (Inbox → Trends): conversations over time per keyword and community, sentiment, share of voice against competitors, and spikes on Today.
+- **Replies to your posts** (Inbox → Replies).
+- **Refine for writing:** chat with the AI to revise reply drafts, Content Studio pieces and ad copy, with earlier versions kept.
+- **Accessibility fix plans,** and an **analytics report export** (Markdown or a printable page).
+
+### Changed
+
+- **Product database setup:** clearer errors (an IPv6-only host points to the pooler connection string), the error shown in the setup dialog, and pg_cron's run log no longer counted as a table a login can write.
+- **Dependencies updated,** including Electron 45 and Next.js 16.4.3.
+
 ## [0.0.6] - 2026-10-19
 
 A much fuller Analytics page with a weekly AI read-out, Refine chats for suggestions, and a way to pause the search for conversations.
@@ -102,7 +124,8 @@ First public release. Installers are unsigned for now, so the documented way in 
 - **Releases and updates:** a GitHub Actions workflow builds macOS, Windows and Linux installers into a draft release (signed and notarized once certificates are set up), and the installed app updates itself from GitHub Releases.
 - **Developer tooling:** `yarn seed:demo`, eval sets for the scorer, Accessibility and Security, browser and desktop smoke tests, and CI on macOS and Linux.
 
-[Unreleased]: https://github.com/chriscasper/startica/compare/v0.0.6...HEAD
+[Unreleased]: https://github.com/chriscasper/startica/compare/v0.0.7...HEAD
+[0.0.7]: https://github.com/chriscasper/startica/compare/v0.0.6...v0.0.7
 [0.0.6]: https://github.com/chriscasper/startica/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/chriscasper/startica/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/chriscasper/startica/compare/v0.0.3...v0.0.4

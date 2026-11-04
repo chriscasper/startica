@@ -2899,7 +2899,7 @@ __metadata:
     "@types/node": "npm:^24"
     "@types/nspell": "npm:^2.1.6"
     axe-core: "npm:4.14.0"
-    croner: "npm:^10.0.1"
+    croner: "npm:^11.0.0"
     dictionary-en: "npm:4.0.0"
     linkedom: "npm:^0.18.14"
     nspell: "npm:2.1.5"
@@ -2921,7 +2921,7 @@ __metadata:
   resolution: "@startica/db@workspace:packages/db"
   dependencies:
     "@types/node": "npm:^24"
-    croner: "npm:^10.0.1"
+    croner: "npm:^11.0.0"
     drizzle-kit: "npm:^0.31.11"
     drizzle-orm: "npm:^0.45.4"
     typescript: "npm:^6.0.3"
@@ -4943,10 +4943,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"croner@npm:^10.0.1":
-  version: 10.0.1
-  resolution: "croner@npm:10.0.1"
-  checksum: 10c0/b1a022f8c786b19799e662e0f11686937e97133e386efa2859e316ba64b7a9c2ecd0d1500cdbe3157625ff7e9af8584c7d6e41c9a17db892c731f83be464bc92
+"croner@npm:^11.0.0":
+  version: 11.0.0
+  resolution: "croner@npm:11.0.0"
+  checksum: 10c0/0017d58231ef879dcd23969222d85e39c97c2e0125e26e5e4723db735c5e4ac8b0732e9a33aea6f5428bdb35f522e8119a15e29f71b836324a05c3c7b7fceab8
   languageName: node
   linkType: hard
 

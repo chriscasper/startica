@@ -22,7 +22,7 @@
     "vitest": "^5.0.5"
   },
   "dependencies": {
-    "croner": "^10.0.1",
+    "croner": "^11.0.0",
     "drizzle-orm": "^0.45.4"
   }
 }

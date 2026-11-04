@@ -22,7 +22,7 @@
     "@mozilla/readability": "^0.6.0",
     "@startica/db": "workspace:*",
     "axe-core": "4.14.0",
-    "croner": "^10.0.1",
+    "croner": "^11.0.0",
     "dictionary-en": "4.0.0",
     "linkedom": "^0.18.14",
     "nspell": "2.1.5",

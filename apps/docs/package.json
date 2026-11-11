@@ -15,10 +15,10 @@
   "devDependencies": {
     "@startica/brand": "workspace:*",
     "@startica/web-theme": "workspace:*",
-    "@tailwindcss/vite": "^4.3.3",
-    "pagefind": "^1.5.2",
+    "@tailwindcss/vite": "^4.3.5",
+    "pagefind": "^1.6.0",
     "simple-engine": "^2.1.0",
-    "tailwindcss": "^4.3.3",
-    "wrangler": "^4.152.0"
+    "tailwindcss": "^4.3.5",
+    "wrangler": "^4.158.0"
   }
 }

@@ -2906,7 +2906,7 @@ __metadata:
     openai: "npm:^7.43.0"
     pdfjs-dist: "npm:6.4.299"
     playwright: "npm:^1.64.1"
-    postgres: "npm:^3.4.9"
+    postgres: "npm:^4.1.0"
     stripe: "npm:^23.0.1"
     tsx: "npm:^4.23.15"
     typescript: "npm:^6.0.3"
@@ -9979,10 +9979,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"postgres@npm:^3.4.9":
-  version: 3.4.9
-  resolution: "postgres@npm:3.4.9"
-  checksum: 10c0/b767dd2258df0f6523ce1ec0bce0a87e93c6fb961c97be0059f8ea2bc4c57c6057689258361a0988f0bb61d636483d35f0c591620566218f7083c78ab7955862
+"postgres@npm:^4.1.0":
+  version: 4.1.0
+  resolution: "postgres@npm:4.1.0"
+  checksum: 10c0/58142d2e7fcd77f38db50d859649a4ea8481deff78c571c0863120bb3434bbe0d1eef0d5e2833192400e7814c9f405b0d8355cdcd153c69f89814d2610b05cb4
   languageName: node
   linkType: hard
 

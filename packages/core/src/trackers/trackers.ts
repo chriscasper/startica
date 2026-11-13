@@ -126,7 +126,7 @@ export async function a11yIssueText(group: Group, labels: string[], now = new Da
     .select({ url: sitePages.url, selector: a11yOccurrences.selector, html: a11yOccurrences.html, failureSummary: a11yOccurrences.failureSummary })
     .from(a11yOccurrences)
     .innerJoin(sitePages, eq(sitePages.id, a11yOccurrences.pageId))
-    .where(eq(a11yOccurrences.groupId, group.id))
+    .where(and(eq(a11yOccurrences.groupId, group.id), eq(a11yOccurrences.ignored, false)))
     .orderBy(asc(sitePages.url))
     .limit(MAX_ELEMENTS_IN_ISSUE);
   const pages = group.pagesCount === 1 ? "1 page" : `${group.pagesCount} pages`;

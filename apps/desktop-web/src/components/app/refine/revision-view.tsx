@@ -4,12 +4,16 @@ import { CopyBlock } from "@/components/app/copy-block";
 /**
  * A revision in its subject's shape (the AI output schema: security `explainOutput`, a11y
  * `fixOutput`, Inbox `draftOutput`, Content Studio `contentOutput` / `campaignOutput`, an ad
- * platform's `adSchema`), shown under the reply that proposed it and in Versions.
+ * platform's `adSchema`, an SEO draft's `DRAFT_OUTPUTS`, `auditFindingOutput`,
+ * `roadmapItemRevision`), shown under the reply that proposed it and in Versions.
  */
 
 type SecurityRevision = { summary: string; steps: string[]; snippets: { label: string; language: string; code: string }[]; verify: string };
 type A11yRevision = { explanation: string; fixed_html: string; steps: string[]; confidence: string };
 type DraftRevision = { reply: string; mentions_product: boolean; rationale: string };
+type SeoDraftRevision = { pages?: { url: string; title: string; description: string }[]; json_ld?: string; text?: string; question?: string; answer?: string; where?: string };
+type AuditFindingRevision = { severity: string; title: string; detail: string; fix: string };
+type RoadmapRevision = { stage: string; title: string; why: string; playbook: string; success_metric: string; next_step: string; priority: number };
 type PieceRevision = { title: string; body?: string; emails?: { subject: string; preview: string; send_day: number; body: string }[]; mentions_product: boolean; rationale: string };
 
 /** Ad copy fields in the order the platforms show them (google, meta, reddit). */
@@ -74,7 +78,75 @@ function Steps({ steps }: { steps: string[] }) {
   );
 }
 
+function SeoDraftView({ v }: { v: SeoDraftRevision }) {
+  if (v.pages) {
+    return (
+      <div className="flex min-w-0 flex-col gap-2">
+        {v.pages.map((p) => (
+          <div key={p.url} className="flex min-w-0 flex-col gap-0.5 rounded-md border p-2">
+            <span className="truncate font-mono text-xs text-muted-foreground">{p.url}</span>
+            <span className="font-medium">
+              {p.title} <Length text={p.title} />
+            </span>
+            <span className="text-muted-foreground">
+              {p.description} <Length text={p.description} />
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (v.question !== undefined) {
+    return (
+      <div className="flex min-w-0 flex-col gap-2">
+        <p className="font-medium">{v.question}</p>
+        <Text>{v.answer ?? ""}</Text>
+        {v.where && <p className="text-xs text-muted-foreground">{v.where}</p>}
+      </div>
+    );
+  }
+  return <CopyBlock text={v.json_ld ?? v.text ?? ""} label={v.json_ld !== undefined ? "the JSON-LD" : "llms.txt"} />;
+}
+
 export function RevisionView({ kind, value }: { kind: ChatSubjectKind; value: Record<string, unknown> }) {
+  if (kind === "seo_draft") return <SeoDraftView v={value as SeoDraftRevision} />;
+  if (kind === "audit_finding") {
+    const v = value as AuditFindingRevision;
+    return (
+      <div className="flex min-w-0 flex-col gap-2">
+        <p>
+          <span className="font-medium">{v.title}</span> <span className="text-xs text-muted-foreground">({v.severity})</span>
+        </p>
+        <p className="text-muted-foreground">{v.detail}</p>
+        <p>
+          <span className="font-medium">Fix: </span>
+          {v.fix}
+        </p>
+      </div>
+    );
+  }
+  if (kind === "roadmap_item") {
+    const v = value as RoadmapRevision;
+    return (
+      <dl className="flex min-w-0 flex-col gap-1.5">
+        <p className="font-medium">
+          {v.title} <span className="text-xs font-normal text-muted-foreground">({v.stage}, P{v.priority}{v.playbook ? `, ${v.playbook}` : ""})</span>
+        </p>
+        {[
+          ["Why", v.why],
+          ["Success", v.success_metric],
+          ["Next", v.next_step],
+        ].map(([label, text]) =>
+          text ? (
+            <div key={label}>
+              <dt className="inline text-xs font-medium">{label}: </dt>
+              <dd className="inline">{text}</dd>
+            </div>
+          ) : null,
+        )}
+      </dl>
+    );
+  }
   if (kind === "reply_draft") {
     const v = value as DraftRevision;
     return (
@@ -145,6 +217,13 @@ export function revisionHeadline(kind: ChatSubjectKind, value: Record<string, un
     reply_draft: value.reply,
     content_piece: value.title || value.body || first(value.emails && (value.emails as { subject: string }[]).map((e) => e.subject)),
     ad_copy: first(value.headlines) ?? value.headline ?? value.title,
+    seo_draft: (first(value.pages) as { title?: string } | undefined)?.title ?? value.question ?? value.text ?? value.json_ld,
+    audit_finding: value.title,
+    roadmap_item: value.title,
+    // Ask-only chats have no versions.
+    security_triage: "",
+    a11y_review: "",
+    visibility_answer: "",
   }[kind];
   const text = String(field ?? "");
   return text.length > 140 ? `${text.slice(0, 139)}…` : text;

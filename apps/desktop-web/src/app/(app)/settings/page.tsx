@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { asc, count, eq } from "drizzle-orm";
 import { activeProvider, hasAiApiKey, monthlyBudgetUsd } from "@startica/core/ai/client";
+import { batchScoring } from "@startica/core/distribution/jobs";
 import { modelLabel, PROVIDERS } from "@startica/core/ai/models";
 import { X_COST_PER_READ, X_TOKEN_SECRET, xLastError, xSettings, xUsage } from "@startica/core/channels/x";
 import { getSetting } from "@startica/db/bootstrap";
@@ -27,6 +28,7 @@ import { trackerFor } from "@startica/core/trackers/trackers";
 import {
   AddProductButton,
   AiSettingsButton,
+  BatchScoringToggle,
   EditAiModelButton,
   EditProductButton,
   LaunchAtLoginToggle,
@@ -106,13 +108,14 @@ function keyStatus(key: boolean, required: boolean) {
 async function General() {
   const workspace = await getWorkspace();
   const d = await db();
-  const [models, provider, anthropicKey, openaiKey, budget, launchAtLogin] = await Promise.all([
+  const [models, provider, anthropicKey, openaiKey, budget, launchAtLogin, batching] = await Promise.all([
     d.select().from(schema.aiModels).where(eq(schema.aiModels.workspaceId, workspace.id)).orderBy(asc(schema.aiModels.task)),
     activeProvider(),
     hasAiApiKey("anthropic"),
     hasAiApiKey("openai"),
     monthlyBudgetUsd(),
     askDesktop<boolean>("launch-at-login"),
+    batchScoring(),
   ]);
   const app = desktopApp();
 
@@ -131,7 +134,8 @@ async function General() {
             <AiSettingsButton provider={provider} keys={{ anthropic: anthropicKey, openai: openaiKey }} budget={budget} />
           </CardAction>
         </CardHeader>
-        <CardContent>
+        <CardContent className="grid gap-4">
+          <BatchScoringToggle on={batching} />
           <details className="group">
             <summary className="cursor-pointer text-sm font-medium">Advanced: the model for each task</summary>
             <p className="mt-2 text-sm text-muted-foreground">Picking a provider sets these to its recommended models; change one only if you have a reason to.</p>

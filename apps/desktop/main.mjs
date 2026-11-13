@@ -12,6 +12,7 @@ import { createPosting } from "./posting/window.mjs";
 import { createHighlighter } from "./scanner/highlight.mjs";
 import { createRenderer } from "./renderer/render.mjs";
 import { createScanner } from "./scanner/scanner.mjs";
+import { openSignInWindow, signInPartition } from "./scanner/sign-in.mjs";
 import { createUpdater } from "./updater.mjs";
 
 // Dev runs (`yarn dev:desktop`) are "Startica Dev": their own data folder, keychain entry
@@ -245,6 +246,8 @@ function startServer() {
       else if (message?.type === "posting-open") posting?.open(message.request);
       else if (message?.type === "posting-recorded") posting?.recorded(message.requestId, message.ok, message.error);
       else if (message?.type === "scan-page") scanPage(message);
+      else if (message?.type === "security-sign-in") openSignIn(message.request);
+      else if (message?.type === "security-forget-sign-in") void forgetSignIn(message.siteId);
       else if (message?.type === "render-creative") renderCreative(message);
       else if (message?.type === "a11y-highlight") (highlighter ??= createHighlighter()).open(message);
       else if (message?.type === "save-pdf") void savePdf(message);
@@ -271,7 +274,8 @@ function startServer() {
  * and writes the file. Only these report paths are accepted.
  */
 async function savePdf({ path, filename }) {
-  const report = /^\/accessibility\/report\/print\?site=[0-9a-f-]{36}$/i.test(path) || /^\/analytics\/report\/print\?product=[0-9a-f-]{36}&range=\d{1,3}$/i.test(path);
+  const report =
+    /^\/accessibility\/report\/(print|acr\/print)\?site=[0-9a-f-]{36}$/i.test(path) || /^\/analytics\/report\/print\?product=[0-9a-f-]{36}&range=\d{1,3}$/i.test(path);
   if (!serverInfo || typeof path !== "string" || !report) return;
   const win = new BrowserWindow({ show: false, webPreferences: { session: session.defaultSession, sandbox: true, contextIsolation: true, nodeIntegration: false } });
   try {
@@ -318,10 +322,35 @@ function notify({ title, body, href }) {
 
 // --- Accessibility scanner (ARCHITECTURE.md 9.3) ---------------------------------------------
 
+/** Signed-in scanners (S3), one per site's sign-in partition, made when first needed. */
+const signInScanners = new Map(); // partition → scanner
+
+function signInScanner(siteId) {
+  const partition = signInPartition(siteId);
+  if (!signInScanners.has(partition)) signInScanners.set(partition, createScanner({ appPort: () => (serverInfo ? Number(new URL(serverInfo.url).port) : null), partition }));
+  return signInScanners.get(partition);
+}
+
+/** S3: the visible window where the owner signs in to their site by hand. */
+function openSignIn(request) {
+  if (!request?.siteId) return;
+  openSignInWindow(signInScanner(request.siteId), request);
+}
+
+/** S3: Forget sign-in: clears the site's sign-in session (cookies and storage) and its scan windows. */
+async function forgetSignIn(siteId) {
+  if (!siteId) return;
+  const partition = signInPartition(siteId);
+  signInScanners.get(partition)?.close();
+  signInScanners.delete(partition);
+  await session.fromPartition(partition).clearStorageData().catch(() => {});
+}
+
 /** Runs a page check the server asked for and answers with the result or the error. */
 function scanPage({ requestId, request }) {
-  if (!scanner) return server?.send({ type: "scan-result", requestId, error: "The scanner isn't ready yet" });
-  scanner.scan(request).then(
+  const target = request?.signIn ? signInScanner(request.signIn.siteId) : scanner;
+  if (!target) return server?.send({ type: "scan-result", requestId, error: "The scanner isn't ready yet" });
+  target.scan(request).then(
     (response) => server?.send({ type: "scan-result", requestId, response }),
     (error) => server?.send({ type: "scan-result", requestId, error: error instanceof Error ? error.message : String(error) }),
   );

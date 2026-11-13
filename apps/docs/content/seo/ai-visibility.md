@@ -30,7 +30,7 @@ Across a run, these add up to the share of answers that mention and recommend yo
 Read the results as a trend, not an exact count. The screen says so too: "Answers come from Claude Sonnet 5.5 with web search, through your AI key. What people see in ChatGPT, Claude, Perplexity or Google can differ: those apps personalize answers and use other models and settings. Treat this as a trend, not an exact count."
 
 - **API answers, not the consumer apps.** Startica asks through the provider's API, the way a developer would, not through the ChatGPT, Claude, Perplexity or Gemini apps. The apps use their own system prompts, models, memory, location and personalization, so the same question there can get a different answer. Startica never signs in to those apps or scrapes them.
-- **One provider per run.** Every question in a run goes to the model of the `answer` task: Claude Sonnet 5.5 by default, or GPT-6.1 Sol if you use OpenAI. A run shows what that one model says, not what every assistant says. See [Models](#models).
+- **One or two providers per run.** Every question in a run goes to the model of the `answer` task: Claude Sonnet 5.5 by default, or GPT-6.1 Sol if you use OpenAI. With both keys saved, you can ask both in the same run (see [Both providers](#both-providers)). Either way a run shows what those models say, not what every assistant says. See [Models](#models).
 - **One answer per question.** AI answers vary from one asking to the next. A single question flipping from mentioned to not mentioned may be chance. Look at many questions and several runs.
 - **The assistant isn't told about you.** Startica's instructions to the answering model don't mention your product. It's told to answer well and concisely, to search the web when it helps, and to name specific products when the question asks for tools or alternatives. That's the point: to see what it says on its own. It also means answers are shaped by Startica's short instructions rather than an app's.
 - **Not Google's AI Overviews or AI Mode.** Those have no API. They're counted inside Google's search totals; see [Search performance: Limits](/seo/search#limits).
@@ -190,20 +190,28 @@ Only competitors in your Intel are counted here. If answers keep naming a produc
 
 "The share of answers that name _product_, run by run." A chart of the **Mentioned** percentage for each run that answered at least one question, up to the last 26 runs, by the day each started. Hover a point to see its value. It appears after the second run; until then the card says "The trend shows after the second run. Turn on weekly runs in Settings to build it up."
 
+### By provider and by topic
+
+When a run asked both providers, **By provider** shows each one's answers, and the share that mentioned, recommended and cited you. Use it to see whether one assistant knows your product better than the other. The tiles, share of voice and chart above count both providers' answers together.
+
+**By topic** shows the same figures for each question topic (the topic badge on a question; questions without one are grouped as "No topic"), most answers first. It appears once at least one question has a topic. A topic where you're rarely mentioned is a good place to start: [Opportunities](/seo/opportunities#ai-answers-opportunities) lists its questions.
+
+Each answer keeps the topic its question had when it was asked, so renaming a topic later doesn't change earlier runs.
+
 ### The questions table
 
 Each row is a question, with its topic and stage badges, and:
 
 | Column | What it shows |
 | --- | --- |
-| **Last run** | The question's result in the latest run: **Recommended · #1** (with its position), **Mentioned · #3**, **Not mentioned**, **Failed** (in red) or **Not asked yet** for a question added or resumed since, or one the run didn't reach. When the result changed since the run before, it says "new since last run" or "dropped since last run". |
+| **Last run** | The question's result in the latest run (one per provider, each labeled with its model, when the run asked both): **Recommended · #1** (with its position), **Mentioned · #3**, **Not mentioned**, **Failed** (in red) or **Not asked yet** for a question added or resumed since, or one the run didn't reach. When the result changed since the run before, it says "new since last run" or "dropped since last run". |
 | **Others named** | Up to 5 other products the answer named, in order. Useful for finding competitors you didn't know about. |
 
 The last column has edit, pause or resume, and delete.
 
 ### Read the answer
 
-**Read the answer** under a question opens the full answer from the latest run:
+**Read the answer** under a question opens the full answer from the latest run (**Read Claude Sonnet 5.5's answer** and **Read GPT-6.1 Sol's answer** when it asked both). **Ask about it** under an answer opens a [chat about it](/guides/refine#ask-about-it): why you weren't named, which sources matter, what to publish.
 
 - **The answer's text**, as the model wrote it. For a failed question, the error instead.
 - **How it describes you**: the short quote, with the sentiment in brackets, for example "“an offline-first field notebook; notes carry location, time and photos” (positive)".
@@ -233,6 +241,12 @@ Two tasks do the work, and you can change either in **Settings → General → A
 | `score` | "Scoring conversations for relevance, and reading AI visibility answers" | Claude Haiku 5.5, effort low | GPT-6 Luna, effort low |
 
 The `answer` model decides which provider's assistant you're measuring. To see what OpenAI's model says instead of Claude's, save an OpenAI key and set `answer` to GPT-6.1 Sol (or the reverse). Each run records the model it used. Mixing models across runs makes the trend less meaningful, so change it rarely, and expect a jump in the chart when you do.
+
+### Both providers
+
+In **Settings** on the AI visibility screen, turn on **Ask both Claude and OpenAI**. Each run then asks every question twice: once of your `answer` model and once of the other provider's default answer model (Claude Sonnet 5.5 or GPT-6.1 Sol), one question at a time, so a run that stops or reaches its cap has asked both the same questions. It needs both keys; without the second one, runs ask one provider as before. It's off by default.
+
+A run with both costs about twice as much and takes about twice as long; the Run dialog shows the estimate for both. The cap covers the whole run. The questions table, **Read the answer** and **By provider** show each provider's answer, and [Opportunities](/seo/opportunities#ai-answers-opportunities) lists a question once, with every competitor either answer named.
 
 `score` is shared with conversation scoring in the Inbox, so changing it affects both. See [How Startica uses AI](/concepts/ai#tasks-and-models).
 

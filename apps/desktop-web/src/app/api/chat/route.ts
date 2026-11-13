@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { chatSubjectKinds } from "@startica/db/schema";
+import { subjectIdInput } from "@startica/core/chat/subjects";
 import { chatSnapshot, earlierChat } from "@startica/core/chat/threads";
 import { getWorkspace } from "@/lib/dal";
 
-const query = z.union([z.object({ kind: z.enum(chatSubjectKinds), id: z.guid() }), z.object({ thread: z.guid() })]);
+const query = z.union([z.object({ kind: z.enum(chatSubjectKinds), id: subjectIdInput }), z.object({ thread: z.guid() })]);
 
 /**
  * A Refine chat for the panel: `?kind=&id=` is the suggestion's open chat (messages, earlier

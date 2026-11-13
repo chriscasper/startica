@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { FormDialog, type Field } from "@/components/app/form-dialog";
 import { refreshScanActivity, StopButton, useScanActivity } from "@/components/app/scan-activity";
 import { Button } from "@/components/ui/button";
-import { addContentRule, addSite, checkContentNow, checkPage, createTrackerIssue, criterionRoadmap, deleteContentRule, ignoreIssue, ignoreSpelling, issueToRoadmap, openHighlights, recheckGroup, recheckPage, removeSite, reviewAltText, reviewCriterion, reviewItem, saveReadabilityTarget, saveReportPdf, saveSite, saveStatement, scanSite, setCriterionStatus, suggestFix, suggestReview, summarize, unignoreIssue } from "./actions";
+import { addContentRule, addSite, checkContentNow, checkPage, createTrackerIssue, criterionRoadmap, deleteContentRule, ignoreIssue, ignoreSpelling, issueToRoadmap, openHighlights, recheckGroup, recheckPage, removeSite, reviewAltText, reviewCriterion, reviewItem, saveReadabilityTarget, saveReportPdf, saveSite, saveStatement, scanSite, setCriterionStatus, suggestFix, suggestReview, summarize, unignoreIssue, ignoreIssueOnPage, saveAcrPdf, unignoreIssueOnPage } from "./actions";
 
 function useAction() {
   const [pending, start] = useTransition();
@@ -232,6 +232,44 @@ export function IgnoreIssueButton({ groupId }: { groupId: string }) {
       action={(fd) => ignoreIssue(groupId, fd)}
     />
   );
+}
+
+/** Ignores the issue on this one page; the rest of the site still counts. */
+export function IgnoreOnPageButton({ groupId, pageId }: { groupId: string; pageId: string }) {
+  return (
+    <FormDialog
+      trigger={
+        <Button size="xs" variant="ghost">
+          Ignore on this page
+        </Button>
+      }
+      title="Ignore this issue on this page"
+      description="The issue still counts on its other pages. This page leaves its counts, priority and the reports, and later scans remember it."
+      fields={[
+        {
+          name: "reason",
+          label: "Why",
+          type: "select",
+          options: [
+            { value: "false_positive", label: "False positive on this page" },
+            { value: "wont_fix", label: "Won't fix here (say why below)" },
+            { value: "not_applicable", label: "Not applicable to this page" },
+          ],
+        },
+        { name: "note", label: "Note (optional)", type: "textarea", rows: 3 },
+      ]}
+      submitLabel="Ignore on this page"
+      action={(fd) => ignoreIssueOnPage(groupId, pageId, fd)}
+    />
+  );
+}
+
+export function UnignoreOnPageButton({ groupId, pageId }: { groupId: string; pageId: string }) {
+  return <SmallAction label="Count this page again" variant="ghost" run={() => unignoreIssueOnPage(groupId, pageId)} success="This page counts again." />;
+}
+
+export function SaveAcrPdfButton({ siteId, available }: { siteId: string; available: boolean }) {
+  return <SmallAction label="Save as PDF" disabled={!available} run={() => saveAcrPdf(siteId)} success="Choose where to save the PDF." />;
 }
 
 function SmallAction({ label, run, success, variant = "outline", disabled }: { label: string; run: () => Promise<{ error: string | null }>; success: string; variant?: "outline" | "ghost" | "default"; disabled?: boolean }) {

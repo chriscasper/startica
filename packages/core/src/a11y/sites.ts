@@ -1,4 +1,5 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
+import { noScanReason } from "../security/signed-in.ts";
 import { z } from "zod";
 import { getDb } from "@startica/db/client";
 import { enqueue } from "@startica/db/queue";
@@ -98,14 +99,23 @@ export async function activeScan(siteId: string, scope: "full" | "check") {
 
 /** Queues a full scan; refuses while one is queued or running for the site. */
 export async function startSiteScan(site: { id: string; workspaceId: string }, trigger: "manual" | "scheduled" = "manual"): Promise<string> {
+  await refuseInNoScanWindow(site.id);
   if (await activeScan(site.id, "full")) throw new Error("A scan of this site is already under way");
   const [scan] = await getDb().insert(siteScans).values({ workspaceId: site.workspaceId, siteId: site.id, scope: "full", trigger }).returning({ id: siteScans.id });
   await enqueue(site.workspaceId, "site_scan", { scanId: scan!.id });
   return scan!.id;
 }
 
+/** S3: nothing scans a site inside one of its no-scan windows. */
+async function refuseInNoScanWindow(siteId: string): Promise<void> {
+  const [row] = await getDb().select({ noScanWindows: sites.noScanWindows }).from(sites).where(eq(sites.id, siteId));
+  const reason = row ? noScanReason(row) : null;
+  if (reason) throw new Error(reason);
+}
+
 /** Queues a check of specific pages (Check a page, Recheck page or an issue group's pages). */
 export async function startPageCheck(site: { id: string; workspaceId: string }, urls: string[], scope: "page" | "group" = "page"): Promise<string> {
+  await refuseInNoScanWindow(site.id);
   if (await activeScan(site.id, "check")) throw new Error("A check of this site's pages is already under way; try again when it finishes");
   const [scan] = await getDb().insert(siteScans).values({ workspaceId: site.workspaceId, siteId: site.id, scope }).returning({ id: siteScans.id });
   await enqueue(site.workspaceId, "site_page_check", { scanId: scan!.id, urls });

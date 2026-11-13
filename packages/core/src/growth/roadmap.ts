@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, transaction } from "@startica/db/client";
 import {
@@ -14,16 +14,19 @@ import {
   publications,
   roadmapItems,
   roadmapReplans,
+  sites,
   type ReplanChange,
 } from "@startica/db/schema";
 import { runStructured, type AiContext } from "../ai/client.ts";
 import { loadProductContext } from "../distribution/context.ts";
 import { latestReadySummary } from "../metrics/summary.ts";
+import { recordVersion } from "../chat/versions.ts";
+import { freshSummaryLine } from "../a11y/track.ts";
 import { PLAYBOOKS, playbookText } from "./playbooks.ts";
 
 export const ROADMAP_PROMPT_VERSION = "roadmap-plan@3";
 
-const SYSTEM = `You are the growth strategist inside Startica, an open-source startup harness that helps a small founder with everything after they ship. You maintain the product's growth roadmap: a short, prioritized list of initiatives across the funnel (acquisition, activation, retention, revenue, referral), each one an experiment with a hypothesis and a success metric.
+export const ROADMAP_SYSTEM = `You are the growth strategist inside Startica, an open-source startup harness that helps a small founder with everything after they ship. You maintain the product's growth roadmap: a short, prioritized list of initiatives across the funnel (acquisition, activation, retention, revenue, referral), each one an experiment with a hypothesis and a success metric.
 
 You are given the product, its current numbers, what Startica has done (replies drafted, posted, dismissed and why), recent audit findings, the playbooks you can draw from, and the current roadmap.
 
@@ -50,6 +53,44 @@ const itemOutput = z.object({
 });
 
 export const roadmapOutput = z.object({ summary: z.string(), items: z.array(itemOutput) });
+
+/** One item as a Refine revision. */
+export const roadmapItemRevision = z.object({
+  stage: z.enum(funnelStages),
+  title: z.string(),
+  why: z.string().describe("The hypothesis, citing evidence when there is some"),
+  playbook: z.string().describe("A playbook key from the list, or an empty string"),
+  success_metric: z.string(),
+  next_step: z.string().describe("The single concrete action the founder can take today"),
+  priority: z.number().describe("1 (do now) to 5 (someday)"),
+});
+
+/** A roadmap item's plan as stored in its versions. */
+export type RoadmapItemValue = { stage: (typeof funnelStages)[number]; title: string; why: string; playbook: string | null; successMetric: string; nextStep: string; priority: number; createdAt?: string };
+
+export const roadmapItemValue = (i: typeof roadmapItems.$inferSelect): RoadmapItemValue => ({
+  stage: i.stage,
+  title: i.title,
+  why: i.why,
+  playbook: i.playbook,
+  successMetric: i.successMetric,
+  nextStep: i.nextStep,
+  priority: i.priority,
+  createdAt: i.updatedAt.toISOString(),
+});
+
+/** A plan's fields, cleaned the way re-plans store them (unknown playbooks dropped, priority 1 to 5). */
+export function roadmapFields(item: z.infer<typeof roadmapItemRevision>): Omit<RoadmapItemValue, "createdAt"> {
+  return {
+    stage: item.stage,
+    title: item.title.trim(),
+    why: item.why.trim(),
+    playbook: PLAYBOOKS.some((p) => p.key === item.playbook) ? item.playbook : null,
+    successMetric: item.success_metric.trim(),
+    nextStep: item.next_step.trim(),
+    priority: Math.min(5, Math.max(1, Math.round(item.priority))),
+  };
+}
 export type RoadmapOutput = z.infer<typeof roadmapOutput>;
 
 export const roadmapPlanPayload = z.object({ workspaceId: z.guid(), productId: z.guid().optional() });
@@ -58,7 +99,8 @@ const daysAgo = (n: number) => new Date(Date.now() - n * 86400_000);
 
 const LEVEL_METRICS = new Set(["mrr", "active_subscriptions", "trials", "active_users", "active_posters"]);
 
-async function evidence(productId: string): Promise<string> {
+/** What the plan is based on: numbers, what was tried and recent audits (also a Refine chat's context). */
+export async function evidence(productId: string): Promise<string> {
   const db = getDb();
   const since30 = daysAgo(30);
   const sinceDay = since30.toISOString().slice(0, 10);
@@ -143,6 +185,15 @@ async function evidence(productId: string): Promise<string> {
     ),
   );
   const summary = await latestReadySummary(productId);
+  // Accessibility (section 9): each scanned site's score, with the AI summary of its latest scan.
+  const productSites = await db
+    .select({ name: sites.name, score: sites.score, a11ySummary: sites.a11ySummary, lastScanId: sites.lastScanId })
+    .from(sites)
+    .where(and(eq(sites.productId, productId), isNotNull(sites.lastScanId)));
+  const a11yLines = productSites.map((s) => {
+    const line = freshSummaryLine(s);
+    return `- ${s.name}: accessibility score ${s.score == null ? "not scored" : Math.round(s.score)}/100${line ? `. AI summary: ${line}` : ""}`;
+  });
   const lines = [
     `Metrics, last 30 days: ${metricText.length ? metricText.join("; ") : "none (no analytics, payments or product database connected yet)"}`,
     summary ? `This week's analytics read-out (${summary.periodStart} to ${summary.periodEnd}): ${summary.body.headline} ${summary.body.summary}` : "",
@@ -166,6 +217,7 @@ async function evidence(productId: string): Promise<string> {
           )
           .join("\n")}`
       : "Audits: none run yet",
+    a11yLines.length ? `Accessibility (automated checks, not a claim of compliance):\n${a11yLines.join("\n")}` : "",
   ];
   return lines.filter(Boolean).join("\n");
 }
@@ -175,20 +227,12 @@ export async function applyRoadmap(workspaceId: string, productId: string, plan:
   const db = getDb();
   const current = await db.select().from(roadmapItems).where(eq(roadmapItems.productId, productId));
   const byId = new Map(current.map((i) => [i.id, i]));
-  const playbookKeys = new Set(PLAYBOOKS.map((p) => p.key));
   const changes: ReplanChange[] = [];
+  const updated: { id: string; previous: RoadmapItemValue; value: RoadmapItemValue }[] = [];
 
   await transaction(async (tx) => {
     for (const item of plan.items) {
-      const fields = {
-        stage: item.stage,
-        title: item.title.trim(),
-        why: item.why.trim(),
-        playbook: playbookKeys.has(item.playbook) ? item.playbook : null,
-        successMetric: item.success_metric.trim(),
-        nextStep: item.next_step.trim(),
-        priority: Math.min(5, Math.max(1, Math.round(item.priority))),
-      };
+      const fields = roadmapFields(item);
       const existing = item.id ? byId.get(item.id) : undefined;
       const editable = existing && existing.source === "ai" && existing.status !== "done";
 
@@ -197,6 +241,7 @@ export async function applyRoadmap(workspaceId: string, productId: string, plan:
         changes.push({ title: fields.title, change: "added", reason: item.reason });
       } else if (item.action === "update" && editable) {
         await tx.update(roadmapItems).set(fields).where(eq(roadmapItems.id, existing.id));
+        updated.push({ id: existing.id, previous: roadmapItemValue(existing), value: fields });
         changes.push({ title: fields.title, change: "updated", reason: item.reason });
       } else if (item.action === "drop" && editable) {
         await tx.update(roadmapItems).set({ status: "dropped", result: item.reason }).where(eq(roadmapItems.id, existing.id));
@@ -207,6 +252,8 @@ export async function applyRoadmap(workspaceId: string, productId: string, plan:
     }
     await tx.insert(roadmapReplans).values({ workspaceId, productId, summary: plan.summary.trim(), changes });
   });
+  // Versions outside the transaction (it holds the connection's lock); the old plan is the first one.
+  for (const u of updated) await recordVersion({ workspaceId, kind: "roadmap_item", subjectId: u.id }, u.value, "suggested", { previous: u.previous });
   return changes;
 }
 
@@ -236,7 +283,7 @@ export async function runRoadmapPlan(ctx: AiContext, payload: z.infer<typeof roa
     const plan = await runStructured(ctx, {
       task: "strategy",
       promptVersion: ROADMAP_PROMPT_VERSION,
-      system: `${SYSTEM}\n\n<playbooks>\n${playbookText()}\n</playbooks>`,
+      system: `${ROADMAP_SYSTEM}\n\n<playbooks>\n${playbookText()}\n</playbooks>`,
       messages: [
         {
           role: "user",

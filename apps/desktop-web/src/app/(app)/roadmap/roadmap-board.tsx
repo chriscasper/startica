@@ -7,6 +7,8 @@ import { FormDialog, type ActionResult, type Field } from "@/components/app/form
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { RefineButton } from "@/components/app/refine/refine-panel";
+import { VersionsButton, type VersionItem } from "@/components/app/refine/versions-button";
 import { addFindingToRoadmap, deleteRoadmapItem, finishItem, requestReplan, runAudit, saveRoadmapItem, setItemStatus } from "./actions";
 
 export type ItemView = {
@@ -21,6 +23,7 @@ export type ItemView = {
   status: "todo" | "doing" | "done" | "dropped";
   result: string | null;
   source: "ai" | "owner";
+  versions?: VersionItem[];
 };
 export type PlanView = { summary: string; changes: { title: string; change: string; reason: string }[]; date: string } | null;
 export type AuditView = {
@@ -66,7 +69,7 @@ function useAction() {
   return [pending, run] as const;
 }
 
-function ItemCard({ productId, item }: { productId: string; item: ItemView }) {
+function ItemCard({ productId, item, aiBlocked }: { productId: string; item: ItemView; aiBlocked: string | null }) {
   const [pending, run] = useAction();
   return (
     <Card size="sm" id={item.id} className="scroll-mt-20 target:ring-2 target:ring-primary">
@@ -87,7 +90,7 @@ function ItemCard({ productId, item }: { productId: string; item: ItemView }) {
             title="Edit roadmap item"
             description="Editing makes the item yours: re-plans won't change or drop it."
             fields={itemFields}
-            values={{ ...item, priority: String(item.priority), success_metric: item.successMetric, next_step: item.nextStep }}
+            values={{ title: item.title, stage: item.stage, why: item.why, priority: String(item.priority), success_metric: item.successMetric, next_step: item.nextStep }}
             action={(fd) => saveRoadmapItem(productId, item.id, fd)}
           />
           <Button
@@ -148,6 +151,10 @@ function ItemCard({ productId, item }: { productId: string; item: ItemView }) {
             </Button>
           )}
         </div>
+        <div className="flex flex-wrap gap-1">
+          <RefineButton kind="roadmap_item" subjectId={item.id} variant="ghost" disabled={Boolean(aiBlocked)} why={aiBlocked ?? undefined} />
+          <VersionsButton kind="roadmap_item" noun="roadmap item" versions={item.versions ?? []} />
+        </div>
       </CardContent>
     </Card>
   );
@@ -202,7 +209,7 @@ export function RoadmapHeader({ productId, planning, plan }: { productId: string
   );
 }
 
-export function Board({ productId, items }: { productId: string; items: ItemView[] }) {
+export function Board({ productId, items, aiBlocked }: { productId: string; items: ItemView[]; aiBlocked: string | null }) {
   const open = items.filter((i) => i.status === "todo" || i.status === "doing");
   const closed = items.filter((i) => i.status === "done" || i.status === "dropped");
   const sort = (a: ItemView, b: ItemView) => (a.status === "doing" ? -1 : 0) - (b.status === "doing" ? -1 : 0) || a.priority - b.priority;
@@ -222,7 +229,7 @@ export function Board({ productId, items }: { productId: string; items: ItemView
               {stageItems.map((item) => (
                 <div key={item.id} className="grid gap-1">
                   {item.status === "doing" && <span className="text-xs font-medium text-primary">In progress</span>}
-                  <ItemCard productId={productId} item={item} />
+                  <ItemCard productId={productId} item={item} aiBlocked={aiBlocked} />
                 </div>
               ))}
             </section>
@@ -234,7 +241,7 @@ export function Board({ productId, items }: { productId: string; items: ItemView
           <summary className="cursor-pointer text-sm text-muted-foreground">Done and dropped ({closed.length})</summary>
           <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
             {closed.map((item) => (
-              <ItemCard key={item.id} productId={productId} item={item} />
+              <ItemCard key={item.id} productId={productId} item={item} aiBlocked={aiBlocked} />
             ))}
           </div>
         </details>
@@ -253,7 +260,22 @@ const AUDITS: { kind: AuditView["kind"]; label: string; what: string }[] = [
 const severityVariant = { high: "destructive", medium: "secondary", low: "outline" } as const;
 
 // The SEO and AI search audits live on SEO & GEO → Opportunities; the Roadmap keeps the landing and onboarding ones.
-export function Audits({ productId, audits, kinds, title = "Audits" }: { productId: string; audits: AuditView[]; kinds: AuditView["kind"][]; title?: string }) {
+export function Audits({
+  productId,
+  audits,
+  kinds,
+  title = "Audits",
+  aiBlocked,
+  versions,
+}: {
+  productId: string;
+  audits: AuditView[];
+  kinds: AuditView["kind"][];
+  title?: string;
+  aiBlocked: string | null;
+  /** Versions by finding (`<audit id>:<index>`). */
+  versions: Record<string, VersionItem[]>;
+}) {
   const [pending, run] = useAction();
   return (
     <Card>
@@ -312,6 +334,10 @@ export function Audits({ productId, audits, kinds, title = "Audits" }: { product
                             <span className="font-medium">Fix: </span>
                             {f.fix}
                           </p>
+                          <div className="flex flex-wrap gap-1">
+                            <RefineButton kind="audit_finding" subjectId={`${latest.id}:${i}`} variant="ghost" disabled={Boolean(aiBlocked)} why={aiBlocked ?? undefined} />
+                            <VersionsButton kind="audit_finding" noun="finding" versions={versions[`${latest.id}:${i}`] ?? []} />
+                          </div>
                         </li>
                       ))}
                     </ul>

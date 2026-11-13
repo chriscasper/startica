@@ -70,7 +70,7 @@ describe("opportunity_score dedupe", () => {
     await new Promise((r) => setTimeout(r, 5)); // distinct created_at
     const copy = await storeConversation({ workspaceId, productId, conversation: post("t3_b2", "GradSchool", `${question} Thanks in advance.`), origin: "listening", matchedOn: "reddit" });
 
-    const result = await runOpportunityScore({ workspaceId }, { workspaceId, opportunityIds: [copy.opportunityId], force: false });
+    const result = await runOpportunityScore({ workspaceId }, { workspaceId, opportunityIds: [copy.opportunityId], force: false, batch: false });
     expect(result).toEqual({ drafting: 0, archived: 0, duplicates: 1 });
 
     const [row] = await getDb().select().from(opportunities).where(eq(opportunities.id, copy.opportunityId));

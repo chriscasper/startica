@@ -5,7 +5,7 @@ import { getDb } from "@startica/db/client";
 import { enqueue } from "@startica/db/queue";
 import { aiRuns, chatMessages, chatThreads, type ChatSource, type ChatSubjectKind } from "@startica/db/schema";
 import { jobByPayload, stopJob } from "../jobs/cancel.ts";
-import { CHAT_SUBJECTS, subjectShape, type ChatSubject } from "./subjects.ts";
+import { CHAT_SUBJECTS, revisable, subjectShape, type ChatSubject } from "./subjects.ts";
 import { listVersions, listVersionsFor, markApplied, ownVersion, recordVersion, type SuggestionVersion, type VersionSource } from "./versions.ts";
 
 /**
@@ -44,6 +44,12 @@ export type ChatMessageView = {
 export type ChatSnapshot = {
   title: string;
   noun: string;
+  /** The chat only answers questions: no revisions, no Apply. */
+  askOnly: boolean;
+  /** A line under Apply when applying does more than replace the text. */
+  applyNote: string | null;
+  /** The second Apply button's label, when the subject has one. */
+  alsoApply: string | null;
   /** The open thread, or null before the first message. */
   threadId: string | null;
   messages: ChatMessageView[];
@@ -116,6 +122,9 @@ export async function chatSnapshot(workspaceId: string, kind: ChatSubjectKind, s
   return {
     title,
     noun: subject.noun,
+    askOnly: Boolean(subject.askOnly),
+    applyNote: subject.applyNote ?? null,
+    alsoApply: subject.alsoApply?.label ?? null,
     threadId: thread?.id ?? null,
     messages: messages.map(view),
     earlier: closed.map((t) => ({ id: t.id, status: t.status as "applied" | "closed", createdAt: t.createdAt.toISOString(), messages: counts.filter((c) => c.threadId === t.id).length })),
@@ -137,7 +146,7 @@ export async function sendChatMessage(workspaceId: string, kind: ChatSubjectKind
   const subject = subjectOf(kind);
   const body = messageInput.parse(text);
   const { current } = await subject.load(workspaceId, subjectId);
-  if (!current) throw new Error(`There's nothing to refine yet: ask for the ${subject.noun} first`);
+  if (!current) throw new Error(`There's nothing to ${subject.askOnly ? "ask about" : "refine"} yet: ask for the ${subject.noun} first`);
   const db = getDb();
   let thread = await openThread(workspaceId, kind, subjectId);
   if (thread && (await threadMessages(thread.id)).some((m) => (BUSY as readonly string[]).includes(m.status))) {
@@ -165,21 +174,26 @@ async function ownMessage(workspaceId: string, messageId: string) {
   return row;
 }
 
-/** Applies a revision from the chat: the suggestion shows it (the old one stays under Versions) and the chat ends. */
-export async function applyRevision(workspaceId: string, messageId: string): Promise<void> {
+/**
+ * Applies a revision from the chat: the suggestion shows it (the old one stays under Versions) and
+ * the chat ends. `also` runs the subject's second action afterwards ("Apply and add to Roadmap").
+ */
+export async function applyRevision(workspaceId: string, messageId: string, options: { also?: boolean } = {}): Promise<void> {
   const { message, thread } = await ownMessage(workspaceId, messageId);
   if (thread.status !== "open") throw new Error("This chat has ended; start a new one to change it again");
   if (!message.proposal) throw new Error("That reply has no revision to apply");
-  const subject = subjectOf(thread.subjectKind);
+  const subject = revisable(subjectOf(thread.subjectKind));
   const loaded = await subject.load(workspaceId, thread.subjectId);
   const { current } = loaded;
-  const revision = subjectShape(subject, loaded).revision.parse(message.proposal);
-  const stored = subject.toStored(revision, message.model ?? "unknown model", current);
+  const schema = subjectShape(subject, loaded).revision;
+  if (!schema) throw new Error("That reply has no revision to apply");
+  const stored = await subject.toStored(schema.parse(message.proposal), message.model ?? "unknown model", current, workspaceId, thread.subjectId);
   await subject.write(workspaceId, thread.subjectId, stored);
   await recordVersion({ workspaceId, kind: thread.subjectKind, subjectId: thread.subjectId }, stored, "chat", { previous: current, threadId: thread.id });
   const now = new Date();
   await getDb().update(chatMessages).set({ proposalStatus: "applied" }).where(eq(chatMessages.id, message.id));
   await getDb().update(chatThreads).set({ status: "applied", appliedMessageId: message.id, closedAt: now }).where(eq(chatThreads.id, thread.id));
+  if (options.also && subject.alsoApply) await subject.alsoApply.run(workspaceId, thread.subjectId);
 }
 
 /** Stops a reply being written (or waiting to be). What it wrote so far stays. */
@@ -219,7 +233,7 @@ export async function startOver(workspaceId: string, kind: ChatSubjectKind, subj
 /** Shows an earlier version of a suggestion again. */
 export async function restoreVersion(workspaceId: string, versionId: string): Promise<void> {
   const version = await ownVersion(workspaceId, versionId);
-  await subjectOf(version.subjectKind).write(workspaceId, version.subjectId, version.value);
+  await revisable(subjectOf(version.subjectKind)).write(workspaceId, version.subjectId, version.value);
   await markApplied(version.id);
 }
 

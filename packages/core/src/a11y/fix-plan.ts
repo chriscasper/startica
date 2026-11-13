@@ -183,7 +183,7 @@ export async function runFixPlan(ctx: AiContext, payload: z.infer<typeof planPay
         .select({ url: sitePages.url, selector: a11yOccurrences.selector, html: a11yOccurrences.html, summary: a11yOccurrences.failureSummary })
         .from(a11yOccurrences)
         .innerJoin(sitePages, eq(sitePages.id, a11yOccurrences.pageId))
-        .where(eq(a11yOccurrences.groupId, g.id))
+        .where(and(eq(a11yOccurrences.groupId, g.id), eq(a11yOccurrences.ignored, false)))
         .orderBy(asc(sitePages.depth), asc(sitePages.url))
         .limit(PLAN_SAMPLES);
       items.push({

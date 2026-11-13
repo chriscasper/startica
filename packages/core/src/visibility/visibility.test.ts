@@ -16,6 +16,8 @@ const ai = vi.hoisted(() => ({
   suggestions: null as unknown,
   costPerCall: 0,
   onAnswer: null as null | (() => void),
+  keys: ["anthropic"] as string[],
+  asked: [] as string[],
 }));
 vi.mock("../ai/client.ts", async () => {
   const { getDb: db } = await import("@startica/db/client");
@@ -24,8 +26,10 @@ vi.mock("../ai/client.ts", async () => {
     db().insert(runs).values({ workspaceId: ctx.workspaceId, task: "answer", model: "claude-sonnet-5-5", promptVersion, status: "ok", costUsd: ai.costPerCall });
   return {
     hasAiKey: async () => true,
+    hasAiApiKey: async (provider: string) => ai.keys.includes(provider),
     taskModel: async (_ctx: unknown, task: string) => ({ model: task === "score" ? "claude-haiku-5-5" : "claude-sonnet-5-5", effort: "low", maxTokens: 4000 }),
-    runAnswer: vi.fn(async (ctx: { workspaceId: string }, req: { promptVersion: string }) => {
+    runAnswer: vi.fn(async (ctx: { workspaceId: string }, req: { promptVersion: string; modelConfig?: { model: string } }) => {
+      ai.asked.push(req.modelConfig?.model ?? "task model");
       ai.onAnswer?.();
       await log(ctx, req.promptVersion);
       const next = ai.answers.shift();
@@ -70,6 +74,8 @@ beforeEach(async () => {
   ai.analyses = [];
   ai.costPerCall = 0;
   ai.onAnswer = null;
+  ai.keys = ["anthropic"];
+  ai.asked = [];
   await getDb().delete(aiVisibilityRuns);
   await getDb().delete(aiPrompts);
   await getDb().delete(aiRuns);
@@ -140,6 +146,43 @@ describe("runs", () => {
     expect(answers.find((a) => a.mentioned)?.ownCitations).toEqual(["https://fieldnote.example/offline"]);
   });
 
+  it("asks both providers when the owner wants both and both keys are saved, with totals per model and per topic", async () => {
+    await addQuestion(workspaceId, productId, { text: "best offline field notes app", topic: "apps", stage: "discover" });
+    await addQuestion(workspaceId, productId, { text: "TerraJot alternatives for ecologists", topic: "alternatives", stage: "compare" });
+    await saveVisibilitySettings(productId, settingsInput.parse({ cap_usd: "2", both: "on" }));
+
+    // Without OpenAI's key, a run still asks only Claude.
+    expect((await getDb().select().from(aiVisibilityRuns).where(eq(aiVisibilityRuns.id, await createRun(workspaceId, productId, "manual"))))[0]!.models).toEqual(["claude-sonnet-5-5"]);
+    await getDb().delete(aiVisibilityRuns);
+
+    ai.keys = ["anthropic", "openai"];
+    ai.answers = [answer("Fieldnote is great.", ["https://fieldnote.example/"]), answer("Try TerraJot."), answer("Quadrat."), answer("Fieldnote or Quadrat.")];
+    ai.analyses = [
+      analysis({ products_named: ["Fieldnote"], mentioned: true, recommended: true }),
+      analysis({ products_named: ["TerraJot"], competitors: ["TerraJot"] }),
+      analysis({ products_named: ["Quadrat"], competitors: ["Quadrat"] }),
+      analysis({ products_named: ["Fieldnote", "Quadrat"], mentioned: true, competitors: ["Quadrat"] }),
+    ];
+    const runId = await createRun(workspaceId, productId, "manual");
+    const [run] = await getDb().select().from(aiVisibilityRuns).where(eq(aiVisibilityRuns.id, runId));
+    expect(run!.models).toEqual(["claude-sonnet-5-5", "gpt-6.1-sol"]);
+    expect(await runVisibility({ workspaceId }, { workspaceId, runId })).toEqual({ answered: 4, mentioned: 2, status: "done" });
+    // Each question of each model in turn.
+    expect(ai.asked).toEqual(["claude-sonnet-5-5", "gpt-6.1-sol", "claude-sonnet-5-5", "gpt-6.1-sol"]);
+    const answers = await getDb().select().from(aiVisibilityAnswers).where(eq(aiVisibilityAnswers.runId, runId));
+    expect(answers.map((a) => `${a.topic} ${a.model}`).sort()).toEqual(["alternatives claude-sonnet-5-5", "alternatives gpt-6.1-sol", "apps claude-sonnet-5-5", "apps gpt-6.1-sol"]);
+    const [done] = await getDb().select().from(aiVisibilityRuns).where(eq(aiVisibilityRuns.id, runId));
+    expect(done!.metrics!.byModel).toEqual([
+      { key: "claude-sonnet-5-5", answered: 2, mentioned: 1, recommended: 1, cited: 1 },
+      { key: "gpt-6.1-sol", answered: 2, mentioned: 1, recommended: 0, cited: 0 },
+    ]);
+    expect(done!.metrics!.byTopic).toEqual([
+      { key: "alternatives", answered: 2, mentioned: 1, recommended: 0, cited: 0 },
+      { key: "apps", answered: 2, mentioned: 1, recommended: 1, cited: 1 },
+    ]);
+    await saveVisibilitySettings(productId, settingsInput.parse({ cap_usd: "2" }));
+  });
+
   it("stops before the cost cap, and keeps what it has", async () => {
     for (const t of ["question one here", "question two here", "question three"]) await addQuestion(workspaceId, productId, { text: t, topic: "", stage: "discover" });
     await saveVisibilitySettings(productId, settingsInput.parse({ cap_usd: "0.1" }));
@@ -200,7 +243,7 @@ describe("runs", () => {
     await addQuestion(workspaceId, productId, { text: "question one here", topic: "", stage: "discover" });
     expect(await runVisibility({ workspaceId }, { workspaceId })).toEqual({ queued: 0 });
     await saveVisibilitySettings(productId, settingsInput.parse({ weekly: "on", cap_usd: "1" }));
-    expect(await visibilitySettings(productId)).toEqual({ weekly: true, capUsd: 1 });
+    expect(await visibilitySettings(productId)).toEqual({ weekly: true, capUsd: 1, both: false });
     expect(await runVisibility({ workspaceId }, { workspaceId })).toEqual({ queued: 1 });
     expect((await getDb().select().from(jobs).where(eq(jobs.queue, "ai_visibility_run"))).length).toBe(1);
     expect((await getDb().select().from(aiVisibilityRuns))[0]).toMatchObject({ trigger: "weekly", capUsd: 1 });

@@ -15,6 +15,9 @@ import { CheckPageButton, ScanSiteButton } from "../accessibility/controls";
 import { ago, loadSites, withSite } from "../accessibility/data";
 import { NoProduct, ScanUnavailable, Score, SitePicker } from "../accessibility/ui";
 import { bySeverity, OutsideNote, SecurityNoSite, SeverityBadge, VerifyCard } from "./shared";
+import { CheckSignedInButton, ForgetSignInButton, SignedInSettingsButton, SignInButton } from "./controls";
+import { formatNoScanWindows, noScanReason } from "@startica/core/security/signed-in";
+import type { sites } from "@startica/db/schema";
 
 export const metadata: Metadata = { title: "Security" };
 
@@ -153,6 +156,8 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/security">
         <CardContent>{data.history.length < 2 ? <p className="text-sm text-muted-foreground">The chart appears after two full scans.</p> : <ScoreChart data={data.history} target={90} label="Security score" />}</CardContent>
       </Card>
 
+      <SignedInCard site={site} canScan={ctx.canScan} />
+
       <Card>
         <CardHeader>
           <CardTitle>Fix these first</CardTitle>
@@ -203,5 +208,75 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/security">
         </CardContent>
       </Card>
     </>
+  );
+}
+
+const PAGE_STATUS = { checked: "Checked", signed_out: "Signed out", failed: "Couldn't check" } as const;
+
+/** S3: pages behind the owner's sign-in, and the safety controls (no-scan windows, extra hosts). */
+function SignedInCard({ site, canScan }: { site: typeof sites.$inferSelect; canScan: boolean }) {
+  const check = site.signedInCheck;
+  const blocked = noScanReason(site);
+  const path = (url: string) => {
+    try {
+      return new URL(url).pathname;
+    } catch {
+      return url;
+    }
+  };
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Signed-in checks and safety</CardTitle>
+        <CardDescription>
+          The same passive checks on pages behind your sign-in: you sign in by hand in a window Startica opens, and it checks the pages you list after each full scan.
+          Session cookies are read only for their flags; Startica never stores the session.
+        </CardDescription>
+        <CardAction className="flex flex-wrap justify-end gap-2">
+          <SignedInSettingsButton
+            siteId={site.id}
+            values={{
+              pages: site.signedInPages.map(path).join("\n"),
+              sign_in_url: site.signInUrl ? path(site.signInUrl) : "",
+              extra_hosts: site.extraHosts.join("\n"),
+              no_scan: formatNoScanWindows(site.noScanWindows),
+            }}
+          />
+          {site.signedInPages.length > 0 && (
+            <>
+              <SignInButton siteId={site.id} disabled={!canScan} />
+              <CheckSignedInButton siteId={site.id} disabled={!canScan || Boolean(blocked)} />
+              <ForgetSignInButton siteId={site.id} />
+            </>
+          )}
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 text-sm">
+        {blocked && <p className="rounded-md border border-amber-600/30 bg-amber-600/5 p-3">Inside a no-scan window now: scans, monitoring and signed-in checks wait until it ends.</p>}
+        {site.signedInPages.length === 0 ? (
+          <p className="text-muted-foreground">No signed-in pages yet. Add them in Settings, then Sign in.</p>
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {site.signedInPages.map((url) => {
+              const result = check?.pages.find((p) => p.url === url);
+              return (
+                <li key={url} className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-xs">{path(url)}</span>
+                  <span className={result?.status === "checked" ? "text-xs text-muted-foreground" : "text-xs text-amber-700 dark:text-amber-400"}>
+                    {result ? PAGE_STATUS[result.status] : "Not checked yet"}
+                    {result?.error ? `: ${result.error}` : ""}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <p className="text-xs text-muted-foreground">
+          {check ? `Last checked ${ago(new Date(check.at))}. ` : ""}
+          {site.extraHosts.length ? `Extra hosts: ${site.extraHosts.join(", ")}. ` : ""}
+          {site.noScanWindows.length ? `No-scan windows: ${formatNoScanWindows(site.noScanWindows).replace(/\n/g, "; ")}.` : "No no-scan windows: scans can run any time."}
+        </p>
+      </CardContent>
+    </Card>
   );
 }

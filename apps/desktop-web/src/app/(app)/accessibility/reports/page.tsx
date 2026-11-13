@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { statementHtml } from "@startica/core/a11y/statement-html";
 import { Suspense } from "react";
 import { DownloadIcon, ExternalLinkIcon } from "lucide-react";
 import { CopyBlock } from "@/components/app/copy-block";
@@ -10,7 +11,7 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { buildAcr, buildStatement } from "@startica/core/a11y/manual";
 import { desktopApp } from "@/lib/desktop";
-import { SavePdfButton, StatementForm } from "../controls";
+import { SaveAcrPdfButton, SavePdfButton, StatementForm } from "../controls";
 import { loadSites } from "../data";
 import { NoProduct, NoSite, SitePicker } from "../ui";
 
@@ -82,16 +83,28 @@ async function Reports({ searchParams }: { searchParams: PageProps<"/accessibili
               values={{ organization: input?.organization ?? ctx.product.name, contact: input?.contact ?? "", target: input?.target ?? "wcag22aa", approach: input?.approach ?? "", limitations: input?.limitations ?? "" }}
             />
             {statement && (
-              <a href={`/accessibility/report/statement?site=${site.id}`} className={link}>
-                <DownloadIcon />
-                Markdown
-              </a>
+              <>
+                <a href={`/accessibility/report/statement?site=${site.id}`} className={link}>
+                  <DownloadIcon />
+                  Markdown
+                </a>
+                <a href={`/accessibility/report/statement?site=${site.id}&format=html`} className={link}>
+                  <DownloadIcon />
+                  HTML
+                </a>
+              </>
             )}
           </CardAction>
         </CardHeader>
         {statement && (
-          <CardContent>
+          <CardContent className="flex flex-col gap-3">
             <CopyBlock text={statement} label="the statement" />
+            <details>
+              <summary className="cursor-pointer text-sm">HTML to paste into your site or CMS</summary>
+              <div className="mt-2">
+                <CopyBlock text={statementHtml(statement)} label="the statement's HTML" />
+              </div>
+            </details>
           </CardContent>
         )}
       </Card>
@@ -103,7 +116,12 @@ async function Reports({ searchParams }: { searchParams: PageProps<"/accessibili
             Each WCAG 2.2 A and AA criterion with a conformance level and remarks, from the automated results and your checklist. Criteria you haven&apos;t checked by hand are
             &quot;Not Evaluated&quot;, however clean the automated checks are. Always a draft: review every row before you share it.
           </CardDescription>
-          <CardAction>
+          <CardAction className="flex flex-wrap justify-end gap-2">
+            <a href={`/accessibility/report/acr/print?site=${site.id}`} target="_blank" rel="noopener noreferrer" className={link}>
+              <ExternalLinkIcon />
+              Open
+            </a>
+            <SaveAcrPdfButton siteId={site.id} available={pdf} />
             <a href={`/accessibility/report/acr?site=${site.id}`} className={link}>
               <DownloadIcon />
               Markdown

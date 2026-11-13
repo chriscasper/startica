@@ -165,14 +165,22 @@ async function aiOpportunities(productId: string, productName: string, productUr
   const names = productNames(productName, productUrl);
   const out: Opportunity[] = [];
   // Questions where assistants name competitors but not the product.
-  const gaps = answers.filter((a) => !a.mentioned && a.competitors.length > 0).sort((a, b) => b.competitors.length - a.competitors.length);
+  // One per question: when a run asked both providers, a question both left the product out of is
+  // one opportunity naming every competitor either answer named (and only when neither mentions it).
+  const byQuestion = new Map<string, (typeof answers)[number]>();
+  for (const a of answers) {
+    const key = a.promptText.toLowerCase();
+    const seen = byQuestion.get(key);
+    byQuestion.set(key, seen ? { ...seen, mentioned: seen.mentioned || a.mentioned, competitors: [...new Set([...seen.competitors, ...a.competitors])] } : a);
+  }
+  const gaps = [...byQuestion.values()].filter((a) => !a.mentioned && a.competitors.length > 0).sort((a, b) => b.competitors.length - a.competitors.length);
   for (const a of gaps.slice(0, 12)) {
     const comparison = /\b(vs\.?|versus|alternatives?|instead of|compared?|better than)\b/i.test(a.promptText);
     out.push({
       key: `ai:${a.promptText.toLowerCase()}`,
       area: "ai",
       title: `Get into AI answers for “${a.promptText}”`,
-      why: `Asked on ${latest.startedAt.toISOString().slice(0, 10)}, the assistant named ${a.competitors.join(", ")} but not ${productName}.`,
+      why: `Asked on ${latest.startedAt.toISOString().slice(0, 10)}, ${latest.models.length > 1 ? "the assistants" : "the assistant"} named ${a.competitors.join(", ")} but not ${productName}.`,
       action: comparison
         ? "Publish an honest comparison or alternatives page for this question, and an FAQ answer on your site that AI assistants can cite."
         : "Answer this question on your site in plain words (an FAQ entry or a section on the relevant page), so assistants that search the web can find and cite it.",

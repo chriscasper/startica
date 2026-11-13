@@ -39,6 +39,8 @@ The button reads **Add API key** until the provider in use has a key, then **Cha
 
 Switching provider moves every task still on the other provider's models to the new provider's recommended models (see the defaults below). Tasks already on the new provider's models keep their settings.
 
+Under the card's description, **Score big backlogs in batches** (on by default; `settings` table key `ai_batch_scoring`) sends a scan's 20 or more new conversations from one place for scoring through the provider's batch API, at about half the price. See [Batches](/concepts/costs#batches).
+
 When the provider not in use has a saved key, a **Remove Claude (Anthropic) key** or **Remove OpenAI key** button appears next to the main button. It deletes that key. Any task you routed to that provider's models stops working until you add the key again.
 
 How they are resolved at run time:

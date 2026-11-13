@@ -3,10 +3,12 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { CheckIcon, Loader2Icon, MinusIcon } from "lucide-react";
 import { hasAiKey, taskModel } from "@startica/core/ai/client";
+import { RefineButton } from "@/components/app/refine/refine-panel";
 import { MODELS } from "@startica/core/ai/models";
 import { estimatePerQuestion, MAX_PROMPTS, namesProduct, productNames } from "@startica/core/visibility/analysis";
 import { answersFor, listQuestions, listRuns, visibilitySettings } from "@startica/core/visibility/questions";
-import type { aiVisibilityAnswers, VisibilityMetrics } from "@startica/db/schema";
+import type { aiVisibilityAnswers, VisibilityBreakdown, VisibilityMetrics } from "@startica/db/schema";
+import { answerModels } from "@startica/core/visibility/jobs";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { PageHeader } from "@/components/app/page-header";
 import { PageSkeleton } from "@/components/app/page-skeleton";
@@ -34,16 +36,17 @@ export default function AiVisibilityPage() {
 
 type Answer = typeof aiVisibilityAnswers.$inferSelect;
 const pct = (n: number, of: number) => (of ? Math.round((n / of) * 100) : 0);
+const modelName = (id: string) => MODELS.find((m) => m.id === id)?.label ?? id;
 const date = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 /** Everything the page shows. A plain function, so it may read the clock. */
 async function load(productId: string, workspaceId: string) {
-  const [questions, runs, settings, aiReady, answerModel, scoreModel] = await Promise.all([
+  const settings = await visibilitySettings(productId);
+  const [questions, runs, aiReady, answerModelList, scoreModel] = await Promise.all([
     listQuestions(productId),
     listRuns(productId),
-    visibilitySettings(productId),
     hasAiKey(),
-    taskModel({ workspaceId }, "answer"),
+    answerModels({ workspaceId }, settings.both),
     taskModel({ workspaceId }, "score"),
   ]);
   const running = runs.find((r) => r.status === "running") ?? null;
@@ -51,20 +54,30 @@ async function load(productId: string, workspaceId: string) {
   const [latest, previous] = finished;
   const answers = await answersFor([running?.id, latest?.id, previous?.id].filter((x): x is string => Boolean(x)));
   const active = questions.filter((q) => q.active).length;
+  // Each question's answers in a run, in the run's model order (two when it asked both providers).
+  const byPrompt = (run: { id: string; model: string; models: string[] } | undefined) => {
+    const order = run ? (run.models.length ? run.models : [run.model]) : [];
+    const map = new Map<string, Answer[]>();
+    for (const a of answers.filter((x) => x.runId === run?.id && x.promptId)) map.set(a.promptId!, [...(map.get(a.promptId!) ?? []), a]);
+    for (const list of map.values()) list.sort((x, y) => order.indexOf(x.model ?? run!.model) - order.indexOf(y.model ?? run!.model));
+    return map;
+  };
   return {
     questions,
     runs,
     running,
     runningDone: running ? answers.filter((a) => a.runId === running.id).length : 0,
+    runningTotal: running ? running.promptCount * Math.max(1, running.models.length) : 0,
     latest: latest ?? null,
     previous: previous ?? null,
-    latestAnswers: new Map(answers.filter((a) => a.runId === latest?.id && a.promptId).map((a) => [a.promptId!, a])),
-    previousAnswers: new Map(answers.filter((a) => a.runId === previous?.id && a.promptId).map((a) => [a.promptId!, a])),
+    latestAnswers: byPrompt(latest),
+    previousAnswers: byPrompt(previous),
     history: [...finished].reverse(),
     settings,
     aiReady,
-    model: MODELS.find((m) => m.id === answerModel.model)?.label ?? answerModel.model,
-    estimate: estimatePerQuestion(answerModel, scoreModel) * active,
+    model: answerModelList.map((m) => modelName(m.model)).join(" and "),
+    answersPerQuestion: answerModelList.length,
+    estimate: answerModelList.reduce((sum, m) => sum + estimatePerQuestion(m, scoreModel), 0) * active,
     active,
     ago: (d: Date) => {
       const days = Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400_000));
@@ -111,10 +124,38 @@ function Result({ answer }: { answer: Answer | undefined }) {
   );
 }
 
-function AnswerDetails({ answer }: { answer: Answer }) {
+/** Answered, mentioned and recommended per provider or per topic. */
+function Breakdown({ rows, label }: { rows: VisibilityBreakdown[]; label: (key: string) => string }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead />
+          <TableHead className="text-right">Answers</TableHead>
+          <TableHead className="text-right">Mentioned</TableHead>
+          <TableHead className="text-right">Recommended</TableHead>
+          <TableHead className="text-right">Cited you</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((r) => (
+          <TableRow key={r.key}>
+            <TableCell className="whitespace-normal">{label(r.key)}</TableCell>
+            <TableCell className="text-right tabular-nums">{r.answered}</TableCell>
+            <TableCell className="text-right tabular-nums">{pct(r.mentioned, r.answered)}%</TableCell>
+            <TableCell className="text-right tabular-nums">{pct(r.recommended, r.answered)}%</TableCell>
+            <TableCell className="text-right tabular-nums">{pct(r.cited, r.answered)}%</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+function AnswerDetails({ answer, blocked, who }: { answer: Answer; blocked: string | null; who: string | null }) {
   return (
     <details className="text-sm">
-      <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">Read the answer</summary>
+      <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">{who ? `Read ${who}'s answer` : "Read the answer"}</summary>
       <div className="mt-2 grid gap-3 rounded-md border bg-muted/30 p-3">
         {answer.error ? <p className="text-destructive">{answer.error}</p> : <p className="whitespace-pre-wrap">{answer.answer}</p>}
         {answer.description && (
@@ -135,6 +176,11 @@ function AnswerDetails({ answer }: { answer: Answer }) {
           </div>
         )}
         {answer.searches.length > 0 && <p className="text-xs text-muted-foreground">Searched for: {answer.searches.map((s) => `“${s}”`).join(", ")}</p>}
+        {!answer.error && (
+          <div>
+            <RefineButton kind="visibility_answer" subjectId={answer.id} disabled={Boolean(blocked)} why={blocked ?? undefined} />
+          </div>
+        )}
       </div>
     </details>
   );
@@ -186,8 +232,16 @@ async function Visibility() {
           personalize answers and use other models and settings. Treat this as a trend, not an exact count.
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          <SettingsButton productId={product.id} weekly={d.settings.weekly} cap={d.settings.capUsd} />
-          <RunButton productId={product.id} questions={d.active} model={d.model} estimate={d.estimate} cap={d.settings.capUsd} disabled={blocked ?? (d.running ? "A run is already going" : null)} />
+          <SettingsButton productId={product.id} weekly={d.settings.weekly} cap={d.settings.capUsd} both={d.settings.both} />
+          <RunButton
+            productId={product.id}
+            questions={d.active}
+            model={d.model}
+            answers={d.answersPerQuestion}
+            estimate={d.estimate}
+            cap={d.settings.capUsd}
+            disabled={blocked ?? (d.running ? "A run is already going" : null)}
+          />
         </div>
       </div>
 
@@ -195,7 +249,7 @@ async function Visibility() {
         <div className="flex flex-wrap items-center gap-3 rounded-lg border p-4 text-sm">
           <Loader2Icon className="size-4 animate-spin" aria-hidden />
           <span>
-            Asking question {Math.min(d.runningDone + 1, d.running.promptCount)} of {d.running.promptCount}…
+            {d.runningTotal > d.running.promptCount ? "Getting answer" : "Asking question"} {Math.min(d.runningDone + 1, d.runningTotal)} of {d.runningTotal}…
           </span>
           <StopRunButton runId={d.running.id} />
         </div>
@@ -218,6 +272,33 @@ async function Visibility() {
             From the run {d.ago(d.latest.startedAt)} ({d.latest.trigger === "weekly" ? "weekly" : "run by you"}, ${d.latest.costUsd.toFixed(2)})
             {d.previous ? `, compared with the one on ${date(d.previous.startedAt)}` : ""}.
           </p>
+
+          {(m.byModel || (m.byTopic && m.byTopic.some((t) => t.key))) && (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {m.byModel && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>By provider</CardTitle>
+                    <CardDescription>The same questions, asked of each provider in this run.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Breakdown rows={m.byModel} label={modelName} />
+                  </CardContent>
+                </Card>
+              )}
+              {m.byTopic && m.byTopic.some((t) => t.key) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>By topic</CardTitle>
+                    <CardDescription>Where {product.name} shows up, by your questions&apos; topics.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Breakdown rows={m.byTopic} label={(key) => key || "No topic"} />
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
@@ -277,9 +358,9 @@ async function Visibility() {
               </TableHeader>
               <TableBody>
                 {d.questions.map((q) => {
-                  const a = d.latestAnswers.get(q.id);
-                  const before = d.previousAnswers.get(q.id);
-                  const changed = a && before && !a.error && !before.error && a.mentioned !== before.mentioned;
+                  const list = d.latestAnswers.get(q.id) ?? [];
+                  const earlier = d.previousAnswers.get(q.id) ?? [];
+                  const several = list.length > 1;
                   return (
                     <TableRow key={q.id} className={cn(!q.active && "opacity-60")}>
                       <TableCell className="max-w-xl whitespace-normal align-top">
@@ -290,17 +371,29 @@ async function Visibility() {
                             <Badge variant="outline">{q.stage}</Badge>
                             {!q.active && <Badge variant="outline">paused</Badge>}
                           </span>
-                          {a && <AnswerDetails answer={a} />}
+                          {list.map((a) => (
+                            <AnswerDetails key={a.id} answer={a} blocked={blocked} who={several ? modelName(a.model ?? "") : null} />
+                          ))}
                         </div>
                       </TableCell>
                       <TableCell className="align-top">
                         <div className="grid justify-items-start gap-1">
-                          <Result answer={a} />
-                          {changed && <span className="text-xs text-muted-foreground">{a.mentioned ? "new since last run" : "dropped since last run"}</span>}
+                          {list.length === 0 && <Result answer={undefined} />}
+                          {list.map((a) => {
+                            const before = earlier.find((b) => (b.model ?? "") === (a.model ?? "")) ?? (earlier.length === 1 && !several ? earlier[0] : undefined);
+                            const changed = before && !a.error && !before.error && a.mentioned !== before.mentioned;
+                            return (
+                              <div key={a.id} className="grid justify-items-start gap-0.5">
+                                {several && <span className="text-xs text-muted-foreground">{modelName(a.model ?? "")}</span>}
+                                <Result answer={a} />
+                                {changed && <span className="text-xs text-muted-foreground">{a.mentioned ? "new since last run" : "dropped since last run"}</span>}
+                              </div>
+                            );
+                          })}
                         </div>
                       </TableCell>
                       <TableCell className="max-w-56 align-top text-xs whitespace-normal text-muted-foreground">
-                        {a?.productsNamed.filter((p) => !namesProduct(p, names)).slice(0, 5).join(", ") || ""}
+                        {[...new Set(list.flatMap((a) => a.productsNamed).filter((p) => !namesProduct(p, names)))].slice(0, 5).join(", ")}
                       </TableCell>
                       <TableCell className="align-top">
                         <QuestionActions question={q} />

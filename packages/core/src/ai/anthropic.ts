@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { BetaMessage, BetaMessageParam } from "@anthropic-ai/sdk/resources/beta/messages/messages";
 import type { z } from "zod";
-import { AiError, type AiMessage, type Answer, type CallRequest, type CallResult, type ChatOptions, type ChatReply, type ResearchOptions } from "./errors.ts";
+import { AiError, type AiMessage, type Answer, type BatchItemResult, type BatchRequest, type BatchState, type CallRequest, type CallResult, type ChatOptions, type ChatReply, type ResearchOptions } from "./errors.ts";
 import { addUsage, emptyUsage, type TokenUsage } from "./pricing.ts";
 
 // Server-side refusal fallbacks exist for Opus/Sonnet/Fable, not Haiku.
@@ -49,7 +49,7 @@ function anthropicMessages(messages: AiMessage[]): BetaMessageParam[] {
 }
 
 /** Throws if the final message was refused or cut off. */
-function checkStop(message: BetaMessage, req: CallRequest, usage: TokenUsage): void {
+function checkStop(message: BetaMessage, req: { task: string; config: { maxTokens: number } }, usage: TokenUsage): void {
   const meta = { model: message.model, usage };
   if (message.stop_reason === "refusal") {
     throw new AiError(`Claude declined the request (${message.stop_details?.category ?? "no category"})`, "refused", meta);
@@ -170,4 +170,65 @@ async function searchLoop(
   }
   checkStop(final!, req, usage);
   return { final: final!, usage, content };
+}
+
+// --- Message Batches (ARCHITECTURE.md 5.2): the same structured request, at half the price ------
+
+type BatchSubmit = Omit<CallRequest, "system" | "messages"> & { requests: BatchRequest[]; schema: z.ZodType };
+
+/** Sends structured requests as one Message Batch; returns its id. Same prompt caching as a single call. */
+export async function anthropicBatchSubmit(key: string, req: BatchSubmit): Promise<string> {
+  const format = betaZodOutputFormat(req.schema);
+  const batch = await getClient(key).beta.messages.batches.create(
+    {
+      requests: req.requests.map((r) => ({
+        custom_id: r.customId,
+        params: {
+          model: req.config.model,
+          max_tokens: req.config.maxTokens,
+          system: [{ type: "text" as const, text: r.system, cache_control: { type: "ephemeral" as const } }],
+          messages: anthropicMessages(r.messages),
+          output_config: { format: { type: "json_schema" as const, schema: format.schema }, ...(req.config.effort ? { effort: req.config.effort } : {}) },
+        },
+      })),
+    },
+    { signal: req.signal },
+  );
+  return batch.id;
+}
+
+export async function anthropicBatchState(key: string, id: string, signal?: AbortSignal): Promise<BatchState> {
+  const batch = await getClient(key).beta.messages.batches.retrieve(id, {}, { signal });
+  return { ended: batch.processing_status === "ended" };
+}
+
+/** An ended batch's results, each parsed with `schema` and checked like a single call. */
+export async function anthropicBatchResults(key: string, id: string, expect: { schema: z.ZodType; task: string; config: { maxTokens: number } }, signal?: AbortSignal): Promise<BatchItemResult[]> {
+  const { schema } = expect;
+  const out: BatchItemResult[] = [];
+  for await (const item of await getClient(key).beta.messages.batches.results(id, {}, { signal })) {
+    const customId = item.custom_id;
+    const result = item.result;
+    if (result.type !== "succeeded") {
+      const error = result.type === "errored" ? `${result.error.error.type}: ${result.error.error.message}` : result.type === "expired" ? "The batch expired before this request ran" : "Cancelled";
+      out.push({ customId, ok: false, error, kind: result.type === "errored" ? "api" : "expired" });
+      continue;
+    }
+    const message = result.message;
+    const usage = usageOf(message);
+    try {
+      checkStop(message, expect, usage);
+      const parsed = schema.safeParse(JSON.parse(textOf(message)));
+      if (!parsed.success) throw new AiError("Response did not match the expected schema", "invalid_output", { model: message.model, usage });
+      out.push({ customId, ok: true, value: parsed.data, model: message.model, usage });
+    } catch (error) {
+      const e = error instanceof SyntaxError ? new AiError("Response wasn't valid JSON", "invalid_output") : AiError.wrap(error);
+      out.push({ customId, ok: false, error: e.message, kind: e.kind, model: message.model, usage });
+    }
+  }
+  return out;
+}
+
+export async function anthropicBatchCancel(key: string, id: string): Promise<void> {
+  await getClient(key).beta.messages.batches.cancel(id);
 }

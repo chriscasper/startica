@@ -21,8 +21,12 @@ import {
   recheckFinding,
   reopen,
   reportFinding,
+  checkSignedInNow,
+  forgetSiteSignIn,
   runMonitorNow,
+  saveSignedIn,
   setReportStatus,
+  signInToSite,
   triageReport,
   verifyOwnership,
 } from "./actions";
@@ -517,6 +521,55 @@ export function RunMonitorButton({ siteId, disabled }: { siteId: string; disable
     >
       {pending ? <Loader2Icon className="animate-spin" /> : <RefreshCwIcon />}
       Check now
+    </Button>
+  );
+}
+
+// --- S3: signed-in checks and safety controls
+
+export function SignedInSettingsButton({ siteId, values }: { siteId: string; values: { pages: string; sign_in_url: string; extra_hosts: string; no_scan: string } }) {
+  return (
+    <FormDialog
+      trigger={<Button size="sm" variant="outline">Settings</Button>}
+      title="Signed-in checks and safety"
+      description="Startica checks the pages you list here with your own sign-in, the same passive way as the rest of the site. It never types a password or submits a form: you sign in by hand."
+      fields={[
+        { name: "pages", label: "Pages to check after sign-in (on this site, at most 20)", type: "lines", rows: 4, placeholder: "/account\n/settings" },
+        { name: "sign_in_url", label: "Sign-in page (where the sign-in window opens; the site's start page if empty)", type: "text", placeholder: "/login" },
+        { name: "extra_hosts", label: "Extra hosts the sign-in may pass through (at most 5)", type: "lines", rows: 2, placeholder: "login.example.com" },
+        { name: "no_scan", label: "No-scan windows, in your local time, like Mon-Fri 09:00-17:00", type: "lines", rows: 3, placeholder: "Mon-Fri 09:00-17:00\ndaily 22:00-06:00" },
+      ]}
+      values={values}
+      action={(fd) => saveSignedIn(siteId, fd)}
+    />
+  );
+}
+
+export function SignInButton({ siteId, disabled }: { siteId: string; disabled: boolean }) {
+  return <ActionButton label="Sign in…" disabled={disabled} run={() => signInToSite(siteId)} success="Sign in in the new window, then close it." />;
+}
+
+export function CheckSignedInButton({ siteId, disabled }: { siteId: string; disabled: boolean }) {
+  return <ActionButton label="Check now" icon={<RefreshCwIcon />} disabled={disabled} run={() => checkSignedInNow(siteId)} success="Checking the signed-in pages." />;
+}
+
+export function ForgetSignInButton({ siteId }: { siteId: string }) {
+  const [pending, start] = useTransition();
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      disabled={pending}
+      onClick={() =>
+        window.confirm("Forget the sign-in? Startica clears this site's sign-in session and the results from signed-in pages.") &&
+        start(async () => {
+          const { error } = await forgetSiteSignIn(siteId);
+          if (error) toast.error(error);
+          else toast.success("Sign-in forgotten.");
+        })
+      }
+    >
+      Forget sign-in
     </Button>
   );
 }

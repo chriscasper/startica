@@ -9,6 +9,7 @@ import { generateSetupSql, METRICS_VIEW, randomPassword, readerUrlFrom, savedRea
 import { checkReaderConnection } from "@startica/core/metrics/product-db";
 import { checkUmami, normalizeUmamiUrl, type UmamiConfig } from "@startica/core/metrics/umami";
 import { X_SETTINGS, X_TOKEN_SECRET } from "@startica/core/channels/x";
+import { BATCH_SCORING_SETTING } from "@startica/core/distribution/jobs";
 import { checkBingSite } from "@startica/core/search/bing";
 import { parseServiceAccount } from "@startica/core/search/google";
 import { checkProperty, normalizeProperty } from "@startica/core/search/search-console";
@@ -103,6 +104,11 @@ export async function saveAiSettings(formData: FormData): Promise<ActionResult> 
     await setSetting(BUDGET_SETTING, input.budget);
     await setActiveProvider((await getWorkspace()).id, input.provider);
   });
+}
+
+/** Batch scoring (ARCHITECTURE.md 5.2): big backlogs of conversations scored at about half the price, in minutes instead of seconds. */
+export async function setBatchScoring(on: boolean): Promise<ActionResult> {
+  return mutate(async () => setSetting(BATCH_SCORING_SETTING, z.boolean().parse(on)));
 }
 
 /** Forgets a provider's key. Tasks routed to its models stop until a key is added again. */

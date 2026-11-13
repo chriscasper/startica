@@ -225,7 +225,14 @@ async function SystemContent() {
               {aiRuns.map((run) => (
                 <TableRow key={run.id} title={run.error ?? undefined}>
                   <TableCell className="whitespace-nowrap">{formatTime(run.createdAt)}</TableCell>
-                  <TableCell>{run.task}</TableCell>
+                  <TableCell>
+                    {run.task}
+                    {run.batchId && (
+                      <Badge variant="outline" className="ml-1" title="Sent in a batch at about half the price; the time is the wait for the batch">
+                        batch
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell className="font-mono text-xs">{run.model}</TableCell>
                   <TableCell>
                     <StatusBadge status={run.status} />

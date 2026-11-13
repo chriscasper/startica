@@ -1,4 +1,6 @@
 import { and, asc, count, eq, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { pageIgnoreKeys, recountGroups } from "./page-ignores.ts";
+import { pageSessions, pathOf } from "./track.ts";
 import { z } from "zod";
 import { getDb, transaction } from "@startica/db/client";
 import { a11yIssueGroups, a11yOccurrences, siteScans, sitePages, sites } from "@startica/db/schema";
@@ -8,6 +10,7 @@ import { queueTrackerSync } from "../trackers/trackers.ts";
 import { queueAgentCheck } from "../agents/run.ts";
 import { finishSecurity, storePageSecurity } from "../security/findings.ts";
 import { queueMonitor } from "../security/monitor.ts";
+import { noScanReason, queueSignedInCheck } from "../security/signed-in.ts";
 import { syncSiteImages } from "./ai.ts";
 import { queueContentCheck } from "./documents.ts";
 import { finishSeo, storePageSeo } from "../seo/site.ts";
@@ -113,6 +116,7 @@ export async function storePageResult(site: Site, page: Page, scanId: string, re
   // Content quality (A5), worked out before the transaction: spelling suggestions take a moment.
   const content = await pageContent(site, response, await knownWords(site));
   if (!shot && page.screenshot) deleteScreenshot(site.id, page.screenshot);
+  const ignoredHere = await pageIgnoreKeys(site.id);
   await transaction(async (db) => {
     await db.delete(a11yOccurrences).where(eq(a11yOccurrences.pageId, page.id));
     for (const f of found) {
@@ -161,6 +165,7 @@ export async function storePageResult(site: Site, page: Page, scanId: string, re
         failureSummary: f.failureSummary,
         impact: f.impact,
         box: f.box,
+        ignored: ignoredHere.has(`${f.fingerprint} ${page.url}`),
       });
     }
     await db
@@ -238,6 +243,7 @@ async function work(ctx: AiContext, site: Site, scanId: string, opts: { discover
 
   for (;;) {
     ctx.signal?.throwIfAborted(); // stopped by the user: pages already checked keep their results
+    if (noScanReason(site)) throw new NoScanWindowStarted("Stopped: a no-scan window for this site began");
     const batch = await nextQueued(scanId, CONCURRENCY);
     if (batch.length === 0) break;
     const results = await Promise.all(
@@ -274,36 +280,22 @@ async function work(ctx: AiContext, site: Site, scanId: string, opts: { discover
 export async function finishScan(site: Site, scanId: string): Promise<void> {
   const db = getDb();
   const now = new Date();
-  const live = await db
-    .select({ groupId: a11yOccurrences.groupId, pages: sql<number>`count(distinct ${a11yOccurrences.pageId})`, occurrences: count() })
-    .from(a11yOccurrences)
-    .innerJoin(sitePages, eq(sitePages.id, a11yOccurrences.pageId))
-    .where(and(eq(sitePages.siteId, site.id), isNull(sitePages.goneAt)))
-    .groupBy(a11yOccurrences.groupId);
-  const byGroup = new Map(live.map((g) => [g.groupId, g]));
-  const groups = await db.select({ id: a11yIssueGroups.id, status: a11yIssueGroups.status }).from(a11yIssueGroups).where(eq(a11yIssueGroups.siteId, site.id));
-  await transaction(async (tx) => {
-    for (const group of groups) {
-      const counts = byGroup.get(group.id);
-      const fixedNow = !counts && group.status === "open";
-      await tx
-        .update(a11yIssueGroups)
-        .set({
-          pagesCount: Number(counts?.pages ?? 0),
-          occurrencesCount: counts?.occurrences ?? 0,
-          ...(fixedNow ? { status: "fixed" as const, fixedAt: now, fixedScanId: scanId } : {}),
-        })
-        .where(eq(a11yIssueGroups.id, group.id));
-    }
-  });
+  // Pages where the owner ignored an issue leave its counts (section 9.3).
+  await recountGroups(site.id, scanId, now);
 
   const pages = await db
-    .select({ score: sitePages.score, impacts: sitePages.impacts, needsReview: sitePages.needsReview })
+    .select({ url: sitePages.url, score: sitePages.score, impacts: sitePages.impacts, needsReview: sitePages.needsReview })
     .from(sitePages)
     .where(and(eq(sitePages.siteId, site.id), eq(sitePages.state, "done"), isNull(sitePages.goneAt)));
   const impacts = emptyImpacts();
   for (const p of pages) for (const k of Object.keys(impacts) as (keyof typeof impacts)[]) impacts[k] += p.impacts?.[k] ?? 0;
-  const score = siteScore(pages.flatMap((p) => (p.score == null ? [] : [p.score])));
+  // Weighted by each page's 30-day GA4 sessions when there are any (1 + sessions), else a plain average.
+  const sessions = await pageSessions(site.productId);
+  const scored = pages.filter((p) => p.score != null);
+  const score = siteScore(
+    scored.map((p) => p.score!),
+    sessions.size ? scored.map((p) => 1 + (sessions.get(pathOf(p.url)) ?? 0)) : undefined,
+  );
   const [changes] = await db
     .select({
       added: sql<number>`sum(${a11yIssueGroups.firstSeenScanId} = ${scanId} and ${a11yIssueGroups.kind} = 'violation')`,
@@ -343,6 +335,8 @@ export async function finishScan(site: Site, scanId: string): Promise<void> {
   await finishSecurity(fresh, { scanId, probes: scope === "full" });
   // Exposure monitoring after each full scan of a verified site (S2): the scan just refreshed the libraries and scripts.
   if (scope === "full") await queueMonitor(fresh);
+  // Signed-in pages (S3) are checked after each full scan of a verified site that lists some.
+  if (scope === "full") await queueSignedInCheck(fresh);
   // Documents and external links after each full scan (A5).
   if (scope === "full") await queueContentCheck(fresh);
   // The site's image list for the alt text review (A3), from the pages' latest checks.
@@ -353,11 +347,14 @@ export async function finishScan(site: Site, scanId: string): Promise<void> {
   await queueAgentCheck(site);
 }
 
-/** Stopped by the user: recount from the pages checked so far and record the scan as stopped. */
-async function markStopped(site: Site, scanId: string): Promise<void> {
+/** Stopped by the user (or a no-scan window, `why`): recount from the pages checked so far and record the scan as stopped. */
+async function markStopped(site: Site, scanId: string, why: string | null = null): Promise<void> {
   await finishScan(site, scanId);
-  await getDb().update(siteScans).set({ status: "cancelled", error: null, finishedAt: new Date() }).where(eq(siteScans.id, scanId));
+  await getDb().update(siteScans).set({ status: "cancelled", error: why, finishedAt: new Date() }).where(eq(siteScans.id, scanId));
 }
+
+/** A no-scan window began while a scan was running (S3): it stops between pages, like Stop. */
+class NoScanWindowStarted extends Error {}
 
 /** A full scan: start URL and sitemap first, then links found on each checked page, up to the site's caps. */
 export async function runSiteScan(ctx: AiContext, payload: z.infer<typeof siteScanPayload>) {
@@ -405,6 +402,10 @@ export async function runSiteScan(ctx: AiContext, payload: z.infer<typeof siteSc
     }
     await finishScan(site, scan.id);
   } catch (error) {
+    if (error instanceof NoScanWindowStarted) {
+      await markStopped(site, scan.id, error.message);
+      return { stopped: error.message };
+    }
     if (ctx.signal?.aborted) await markStopped(site, scan.id);
     else
       await getDb()
@@ -436,6 +437,10 @@ export async function runPageCheck(ctx: AiContext, payload: z.infer<typeof pageC
     await work(ctx, site, scan.id, { discover: false, robots: null });
     await finishScan(site, scan.id);
   } catch (error) {
+    if (error instanceof NoScanWindowStarted) {
+      await markStopped(site, scan.id, error.message);
+      return { stopped: error.message };
+    }
     if (ctx.signal?.aborted) await markStopped(site, scan.id);
     else
       await getDb()

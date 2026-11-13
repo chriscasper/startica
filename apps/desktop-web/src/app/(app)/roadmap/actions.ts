@@ -2,7 +2,9 @@
 
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { auditKinds } from "@startica/core/growth/audits";
+import { recordVersion } from "@startica/core/chat/versions";
+import { auditKinds, findingToRoadmap } from "@startica/core/growth/audits";
+import { roadmapItemValue } from "@startica/core/growth/roadmap";
 import { enqueue } from "@startica/db/queue";
 import { audits, funnelStages, roadmapItems } from "@startica/db/schema";
 import type { ActionResult } from "@/components/app/form-dialog";
@@ -44,6 +46,8 @@ export async function saveRoadmapItem(productId: string, itemId: string | null, 
     if (itemId) {
       const item = await ownItem(itemId);
       await (await db()).update(roadmapItems).set(values).where(eq(roadmapItems.id, item.id));
+      const edited = roadmapItemValue({ ...item, ...values, updatedAt: new Date() });
+      await recordVersion({ workspaceId: item.workspaceId, kind: "roadmap_item", subjectId: item.id }, edited, "edited", { previous: roadmapItemValue(item) });
     } else {
       await (await db()).insert(roadmapItems).values({ ...values, ...scope });
     }
@@ -85,27 +89,7 @@ export async function runAudit(productId: string, kind: string): Promise<ActionR
   }
 }
 
-const stageFor = { landing: "acquisition", onboarding: "activation", seo: "acquisition", geo: "acquisition" } as const;
-
 /** Turns an audit finding into an owner roadmap item. */
 export async function addFindingToRoadmap(auditId: string, index: number): Promise<ActionResult> {
-  return mutate(async () => {
-    const workspace = await getWorkspace();
-    const [audit] = await (await db())
-      .select()
-      .from(audits)
-      .where(and(eq(audits.id, id.parse(auditId)), eq(audits.workspaceId, workspace.id)));
-    const finding = audit?.findings[index];
-    if (!audit || !finding) throw new Error("Finding not found");
-    await (await db()).insert(roadmapItems).values({
-      workspaceId: workspace.id,
-      productId: audit.productId,
-      stage: stageFor[audit.kind],
-      title: finding.title,
-      why: finding.detail,
-      nextStep: finding.fix,
-      priority: finding.severity === "high" ? 1 : finding.severity === "medium" ? 3 : 4,
-      source: "owner",
-    });
-  });
+  return mutate(async () => findingToRoadmap((await getWorkspace()).id, id.parse(auditId), z.number().int().min(0).parse(index)));
 }

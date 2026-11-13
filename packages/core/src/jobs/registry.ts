@@ -1,6 +1,8 @@
 import type { z } from "zod";
 import type { AiContext } from "../ai/client.ts";
 import { competitorDigestPayload, runCompetitorDigest } from "../competitors/briefs.ts";
+import { batchPollPayload, runBatchPoll } from "./batches.ts";
+import { runSignedInCheck, signedInCheckPayload } from "../security/signed-in.ts";
 import { competitorResearchPayload, runCompetitorResearch } from "../competitors/research.ts";
 import {
   draftPayload,
@@ -162,6 +164,10 @@ export const jobs = {
   // Competitor watch: web research on one competitor (the Research button or its schedule), never retried; and the briefs.
   competitor_research: defineJob({ payload: competitorResearchPayload, run: runCompetitorResearch, visibilityTimeoutSeconds: 1800, maxAttempts: 1 }),
   competitor_digest: defineJob({ payload: competitorDigestPayload, run: (ctx, p) => runCompetitorDigest(ctx, p), visibilityTimeoutSeconds: 1800, maxAttempts: 1 }),
+  // Checks a batch sent at half price (5.2) and stores its results; queues itself again until it's done.
+  ai_batch_poll: defineJob({ payload: batchPollPayload, run: runBatchPoll, visibilityTimeoutSeconds: 600, maxAttempts: 1 }),
+  // S3: the passive page checks on up to 20 pages behind the owner's own sign-in, a second apart.
+  security_signed_in_check: defineJob({ payload: signedInCheckPayload, run: runSignedInCheck, visibilityTimeoutSeconds: 1800, maxAttempts: 1 }),
 } satisfies Record<string, Job>;
 
 export type QueueName = keyof typeof jobs;

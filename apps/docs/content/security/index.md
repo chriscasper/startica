@@ -40,14 +40,14 @@ If you change a site's address to a different host name, it needs verifying agai
 
 ## What it never does
 
-- **It never tries to break in.** No attack payloads, no guessing passwords, no filling in or submitting forms, no fuzzing. Every request is an ordinary GET of a page or a well-known address, a TLS handshake or a DNS lookup. [Monitoring](/security/monitoring) also asks free public services about your domain and libraries, and downloads the third-party scripts your pages load.
+- **It never tries to break in.** No attack payloads, no guessing passwords, no filling in or submitting forms, no fuzzing. It never signs in by itself: [signed-in checks](/security/signed-in) use a session you sign in to by hand, and never store it. Every request is an ordinary GET of a page or a well-known address, a TLS handshake or a DNS lookup. [Monitoring](/security/monitoring) also asks free public services about your domain and libraries, and downloads the third-party scripts your pages load.
 - **It never checks sites you haven't verified.**
 - **It never changes your site or DNS.** It tells you what to change.
 - **Its checks make no AI calls** and cost nothing. AI help (explaining a finding, reading another report, triaging a reported problem) runs only when you ask, on your own key.
 
 ## What it can't see
 
-- Pages behind a sign-in.
+- Pages behind a sign-in, unless you list them for [signed-in checks](/security/signed-in) and sign in yourself.
 - How the application handles input: injection, access control between users, business logic.
 - Servers, ports and cloud settings other than the website itself.
 - Your source code, server-side dependencies and secrets inside the code.
@@ -59,7 +59,7 @@ For those, a penetration test by people you trust is still the way to go. Starti
 
 | Screen | What it shows |
 | --- | --- |
-| **Overview** | Before verifying: the steps above. After: the score, open findings by severity, the HTTPS certificate, the email domain and security.txt, and the most serious findings. **Scan now** and **Check a page** start the same scans as on the Accessibility Overview. |
+| **Overview** | Before verifying: the steps above. After: the score, open findings by severity, the HTTPS certificate, the email domain and security.txt, and the most serious findings. **Scan now** and **Check a page** start the same scans as on the Accessibility Overview. **Signed-in checks and safety** checks pages behind your sign-in and holds the [no-scan windows](/security/signed-in#no-scan-windows). |
 | **Monitoring** | Libraries with known vulnerabilities, subdomains and certificates, look-alike domains and third-party scripts. See [Monitoring](/security/monitoring). |
 | **Findings** | Every finding, most serious first, filtered by **Open**, **Fixed** or **Accepted or not a problem**. Each opens its own page. See [Findings and report](/security/findings). |
 | **Report** | The report for the site, with a **Download Markdown** button. See [The report](/security/findings#the-report). |

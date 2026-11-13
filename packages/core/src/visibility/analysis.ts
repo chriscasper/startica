@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AnswerCitation, VisibilityMetrics } from "@startica/db/schema";
+import type { AnswerCitation, VisibilityBreakdown, VisibilityMetrics } from "@startica/db/schema";
 import { priceOf, type ModelConfig } from "../ai/models.ts";
 
 /**
@@ -131,9 +131,28 @@ export function analyzed(out: AnalysisOutput, answer: { text: string; citations:
   };
 }
 
-/** The run's totals from its answers. */
-export function runMetrics(answers: (AnalyzedAnswer & { error?: string | null })[], productName: string, competitors: string[]): VisibilityMetrics {
+type RunAnswer = AnalyzedAnswer & { error?: string | null; model?: string | null; topic?: string | null };
+
+/** Answered, mentioned, recommended and cited, per model or per topic, in first-seen order. */
+function breakdown(ok: RunAnswer[], keyOf: (a: RunAnswer) => string): VisibilityBreakdown[] {
+  const out = new Map<string, VisibilityBreakdown>();
+  for (const a of ok) {
+    const key = keyOf(a);
+    const b = out.get(key) ?? { key, answered: 0, mentioned: 0, recommended: 0, cited: 0 };
+    b.answered++;
+    if (a.mentioned) b.mentioned++;
+    if (a.recommended) b.recommended++;
+    if (a.ownCitations.length > 0) b.cited++;
+    out.set(key, b);
+  }
+  return [...out.values()];
+}
+
+/** The run's totals from its answers, with a breakdown per topic and (when it asked more than one) per model. */
+export function runMetrics(answers: RunAnswer[], productName: string, competitors: string[]): VisibilityMetrics {
   const ok = answers.filter((a) => !a.error);
+  const byModel = breakdown(ok, (a) => a.model ?? "");
+  const byTopic = breakdown(ok, (a) => a.topic?.trim() ?? "").sort((a, b) => b.answered - a.answered || a.key.localeCompare(b.key));
   const positions = ok.map((a) => a.position).filter((p): p is number => p != null);
   return {
     answered: ok.length,
@@ -145,6 +164,8 @@ export function runMetrics(answers: (AnalyzedAnswer & { error?: string | null })
       { name: productName, answers: ok.filter((a) => a.mentioned).length, own: true },
       ...competitors.map((c) => ({ name: c, answers: ok.filter((a) => a.competitors.includes(c)).length, own: false })),
     ].sort((a, b) => b.answers - a.answers || Number(b.own) - Number(a.own)),
+    ...(byModel.length > 1 ? { byModel } : {}),
+    byTopic,
   };
 }
 

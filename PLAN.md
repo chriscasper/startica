@@ -4,7 +4,7 @@
 >
 > When an item is built, describe it in ARCHITECTURE.md (or the docs) and remove it from here.
 >
-> Last updated: 2026-10-19.
+> Last updated: 2026-11-07.
 
 ---
 
@@ -12,21 +12,7 @@
 
 Ordered by value for the effort.
 
-1. **Refine on the rest of the suggestions** (section 5.1; Security help, the accessibility fix, reply drafts, Content Studio pieces and ad copy have it). Each is a `ChatSubject`, a revision view and the two buttons:
-   - **Plans and fixes:** SEO opportunity drafts (revisions go through `metaProblems` / `jsonldProblems`), audit findings (Apply can also offer Add to roadmap), roadmap items.
-   - **Ask only, no Apply:** Security triage, the Needs-review suggestion, AI-visibility answers. The chat has no `propose_revision` tool.
-   - Later, if wanted: a page listing every chat, and caching the conversation turns as well as the system prompt.
-2. **Message Batches for scoring.** Send large `opportunity_score` backlogs (and other non-urgent bulk work) through Anthropic's and OpenAI's batch APIs at about half the price; results arrive in minutes instead of seconds. Needs a job that submits, polls and stores results, and the budget guard and `ai_runs` logging for batch calls (section 5).
-3. **Accessibility extras** (section 9):
-   - Ignore an issue on one page only (today an ignore covers the whole site).
-   - Weight the site score by traffic (today it's the plain page average).
-   - An HTML version of the accessibility statement to paste into a CMS, and a PDF of the ACR draft.
-   - Pass the AI summary to Today and the weekly re-plan.
-4. **AI visibility** (section 10.2, G3): both providers in one run, topic breakdowns.
-5. **Security S3, Deeper coverage** (section 11, shares sign-in with A6):
-   - The same passive checks on pages after the user signs in by hand in a visible window (persistent per-site partition). Session cookies are read only to check their flags, never stored.
-   - Safety controls: no-scan windows per site, allowed extra hosts (for example a separate login domain), and the existing Stop.
-   - Done when the passive checks run on a signed-in stand-in page without storing its session.
+Nothing queued here right now: pick from the module lists below.
 
 ---
 
@@ -35,6 +21,7 @@ Ordered by value for the effort.
 ### Marketing
 - More channels if wanted: Threads, YouTube comments; Facebook groups posting only if users ask.
 - **Reddit's official Data API**, only if access is ever approved: script app with the password grant, a descriptive `User-Agent`, 100 requests per minute, poll `/new` per subreddit and let Startica's scoring decide relevance, store each subreddit's rules in `communities.promo_rules`.
+- More work through batches (ARCHITECTURE.md 5.2), if the savings matter: the alt text review, competitor post relevance, the weekly analytics read-out.
 - Eval sets for the other AI tasks (only the scorer, Accessibility and Security have one), starting with the weekly analytics read-out (`analytics-summary@1`): does it stick to the numbers it's given.
 - **Content calendar and plans** (section 8.7): an eval set for `content-plan@1` (slots inside the range, no invented facts, uses the best-time hints) and `post-image@1`; attaching post images in assisted posting (today Post… fills text only and the owner attaches the image); best-time hints cached in `settings` only if computing them on each page view gets slow; Windows and Linux notification clicks (only macOS has been run).
 - **Analytics** (section 8.2): upgrades and downgrades in MRR movement (needs Stripe's subscription events), currencies other than US dollars, and a channel chart over time.
@@ -48,7 +35,7 @@ Ordered by value for the effort.
 - Spelling in other languages (a dictionary per page language).
 - A PDF's reading order and tables.
 - External link checks on a schedule between scans.
-- **A6, Harder coverage** (parked; decide per item when picked up): scans behind sign-in (persistent per-site partition, manual sign-in in a visible window like 8.4), mobile viewport, cross-origin iframes, a keyboard focus walk-through, a local CLI or MCP server for coding agents. Security S3 shares the sign-in part.
+- **A6, Harder coverage** (parked; decide per item when picked up): accessibility scans behind sign-in (Security S3's per-site sign-in partition and window, 11.5, can be reused), mobile viewport, cross-origin iframes, a keyboard focus walk-through, a local CLI or MCP server for coding agents.
 
 ### SEO & GEO (section 10)
 - Site health: redirect chains, how many clicks a page is from the home page, `hreflang`.
@@ -79,11 +66,13 @@ Built and tested against stand-ins; still to try for real. Each needs the owner'
 | SEO & GEO G3 | A real 20-question run costs within 20% of the estimate |
 | Security S1 | A real HTTPS site's TLS, redirect and email results |
 | Security S2 | Monitoring on a real verified domain (crt.sh rate limits and response sizes vary) |
+| Security S3 | A real site's sign-in in the desktop app (including a separate login domain as an extra host): Check now finds the session cookie's flags, a session cookie survives until Startica quits, and Forget sign-in signs it out |
 | Security S4 | `yarn eval security` passes on both providers |
 | Ads AD1 | One manual import into Google Ads Editor and one into Meta, to confirm the template columns |
 | Ads AD2 | A real picture with an OpenAI key, to compare the cost with the estimate |
 | Content calendar | A real reminder notification in the installed app on each system (click opens the item); a real `content_plan` run against the estimate; real post-image uploads on Bluesky (1 MB) and X |
 | Assisted posting | One real post on each of the seven sites with a signed-in account |
+| Batches | A real scoring batch on both providers (Anthropic Message Batches, OpenAI Batch API on `/v1/responses`): the request shape is accepted, results parse, the logged cost matches the bill, and Stop cancels it |
 | Refine | A real chat on both providers for each kind, with a revision through `propose_revision` in the subject's strict schema (the reply draft, a post and an email campaign, a Google, Meta and Reddit ad), and an ad revision that trips `checkAdCopy` |
 | Listening and replies | `yarn eval score` on both providers for `opportunity-score@2` (adds sentiment; scores should match `@1`) and a look at its sentiment labels; replies read from a real post on Reddit, Hacker News, Bluesky, Mastodon and Discourse (Discourse's `/t/<id>/<post>.json` window on a long topic) |
 | Issue trackers | Real GitHub and GitLab repositories |
@@ -143,7 +132,7 @@ Rejected (don't re-propose without new information): Astro Starlight, Docusaurus
 ## 7. Open questions
 
 - **Accessibility:** whether page importance should also weigh depth from the home page when GA4 isn't connected; whether a local MCP server for coding agents belongs in Startica (A6).
-- **SEO & GEO:** which provider to run AI visibility on by default when both keys are saved; whether to offer a SERP API opt-in for Google AI Overviews; whether agent task runs are worth their cost.
+- **SEO & GEO:** whether asking both providers should become the default when both keys are saved (today it's an opt-in per product); whether to offer a SERP API opt-in for Google AI Overviews; whether agent task runs are worth their cost.
 - **Security:** whether DNS-based look-alike checks are enough without a domain-registration feed; whether accepted risks should expire after a set time and come back for review.
 - **Ads:** which reporting APIs to support for spend; whether LinkedIn and X ads join later.
 - **Marketing and platform:** Opus or Fable for the weekly re-plan; automatic use of dismissal reasons as few-shot negatives; minimum supported OS versions (macOS version, Windows 10/11, which Linux distros), after testing builds on Windows and Linux.

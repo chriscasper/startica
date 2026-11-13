@@ -2,9 +2,9 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { closeDatabase, getDb, migrateDatabase, openDatabase } from "@startica/db/client";
-import { contentPieces, dailyMoves, jobs, roadmapItems, seoOpportunities } from "@startica/db/schema";
+import { aiVisibilityAnswers, aiVisibilityRuns, contentPieces, dailyMoves, jobs, roadmapItems, seoOpportunities } from "@startica/db/schema";
 import { seedDemo } from "../demo/seed.ts";
 import { collectOpportunities } from "./collect.ts";
 
@@ -52,6 +52,21 @@ describe("collecting", () => {
     const gap = opps.find((o) => o.area === "ai" && o.key.startsWith("ai:"));
     expect(gap?.draft?.kind).toBe("faq");
     expect(gap!.why).toMatch(/named .* but not Fieldnote/);
+  });
+
+  it("lists a question once when both providers answered it, with every competitor either named", async () => {
+    const [run] = await getDb().select().from(aiVisibilityRuns).where(and(eq(aiVisibilityRuns.productId, productId), eq(aiVisibilityRuns.status, "done"))).orderBy(desc(aiVisibilityRuns.startedAt)).limit(1);
+    const answers = await getDb().select().from(aiVisibilityAnswers).where(eq(aiVisibilityAnswers.runId, run!.id));
+    const gapAnswer = answers.find((a) => !a.mentioned && a.competitors.length > 0)!;
+    const { id: _id, createdAt: _c, updatedAt: _u, ...copy } = gapAnswer;
+    await getDb().insert(aiVisibilityAnswers).values({ ...copy, model: "gpt-6.1-sol", competitors: ["Field Notebook Pro"] });
+    await getDb().update(aiVisibilityRuns).set({ models: [run!.model, "gpt-6.1-sol"] }).where(eq(aiVisibilityRuns.id, run!.id));
+
+    const opps = await collectOpportunities(productId);
+    expect(new Set(opps.map((o) => o.key)).size).toBe(opps.length);
+    const gap = opps.find((o) => o.key === `ai:${gapAnswer.promptText.toLowerCase()}`)!;
+    expect(gap.why).toMatch(/the assistants named .*Field Notebook Pro/);
+    for (const c of gapAnswer.competitors) expect(gap.why).toContain(c);
   });
 });
 

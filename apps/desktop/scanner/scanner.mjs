@@ -2,6 +2,9 @@
 // for in hidden windows on an isolated, in-memory session, runs the server's axe-core
 // script in an isolated world, and answers with the result. The server builds every
 // script, so this file only loads pages safely and runs what it's given.
+// Security S3 (section 11.5) runs one more of these per site on its sign-in partition
+// ("persist:signin-<site>"), where the owner signed in by hand; those answers also carry the
+// session's cookie names and flags, never their values.
 import { BrowserWindow, session } from "electron";
 import { privateHost } from "./address.mjs";
 
@@ -32,6 +35,7 @@ export function createScanner({ appPort, partition = "scan" }) {
 
   /** Which site each scan window is checking, for the request guard below. */
   const siteOf = new Map(); // webContents id → site URL
+  const extraOf = new Map(); // webContents id → extra hosts a signed-in page may pass through (S3)
   ses.webRequest.onBeforeRequest((details, callback) => {
     const site = siteOf.get(details.webContentsId);
     let target;
@@ -77,7 +81,8 @@ export function createScanner({ appPort, partition = "scan" }) {
     win.webContents.on("will-navigate", (event, url) => {
       // Scripted navigation stays on the site being checked.
       const site = siteOf.get(win.webContents.id);
-      if (site && siteHost(url) !== siteHost(site)) event.preventDefault();
+      const extra = extraOf.get(win.webContents.id) ?? [];
+      if (site && siteHost(url) !== siteHost(site) && !extra.includes(siteHost(url))) event.preventDefault();
     });
     // "Leave this page?" prompts never block the next load. (A page that blocks on alert()
     // runs into the per-page timeout, and its window is replaced.)
@@ -146,6 +151,7 @@ export function createScanner({ appPort, partition = "scan" }) {
     const slot = await acquire();
     const wc = slot.win.webContents;
     siteOf.set(wc.id, request.url);
+    if (request.signIn) extraOf.set(wc.id, (request.signIn.extraHosts ?? []).map((h) => String(h).toLowerCase().replace(/^www\./, "")));
     let httpStatus = null;
     const onNavigate = (_event, _url, code) => {
       if (code) httpStatus = code;
@@ -172,7 +178,17 @@ export function createScanner({ appPort, partition = "scan" }) {
         const result = JSON.parse(json);
         if (result.error) throw new Error(`The check failed in the page: ${result.error}`);
         const screenshot = request.screenshot && (result.violations?.length || result.incomplete?.length) ? await capture(wc, result.page?.height) : null;
-        return { httpStatus, finalUrl: wc.getURL(), result, xRobotsTag: robotsHeader.get(wc.id) ?? null, headers: mainHeaders.get(wc.id) ?? {}, screenshot };
+        // Signed-in checks (S3): the jar's cookies for the page, names and flags only.
+        const cookies = request.signIn
+          ? (await ses.cookies.get({ url: wc.getURL() })).map((c) => ({
+              name: c.name,
+              secure: Boolean(c.secure),
+              httpOnly: Boolean(c.httpOnly),
+              // Electron says "unspecified" when the cookie set no SameSite, "no_restriction" for None.
+              sameSite: !c.sameSite || c.sameSite === "unspecified" ? null : c.sameSite === "no_restriction" ? "none" : c.sameSite,
+            }))
+          : undefined;
+        return { httpStatus, finalUrl: wc.getURL(), result, xRobotsTag: robotsHeader.get(wc.id) ?? null, headers: mainHeaders.get(wc.id) ?? {}, screenshot, ...(cookies ? { cookies } : {}) };
       })();
       const timeout = new Promise((_, reject) => {
         timer = setTimeout(() => reject(new Error(`The page took longer than ${Math.round(request.timeoutMs / 1000)} s`)), request.timeoutMs);
@@ -186,6 +202,7 @@ export function createScanner({ appPort, partition = "scan" }) {
       clearTimeout(timer);
       wc.off("did-navigate", onNavigate);
       siteOf.delete(wc.id);
+      extraOf.delete(wc.id);
       robotsHeader.delete(wc.id);
       if (!wc.isDestroyed()) await wc.loadURL("about:blank").catch(() => {});
       release(slot);
@@ -196,5 +213,18 @@ export function createScanner({ appPort, partition = "scan" }) {
     for (const slot of pool.splice(0)) if (!slot.win.isDestroyed()) slot.win.destroy();
   }
 
-  return { scan, close };
+  /**
+   * S3: lets a window on this session that isn't a scan window (the visible sign-in window) load
+   * `siteUrl` and its extra hosts under the same request guard, until it closes.
+   */
+  function allowWindow(webContents, siteUrl, extraHosts = []) {
+    siteOf.set(webContents.id, siteUrl);
+    extraOf.set(webContents.id, extraHosts.map((h) => String(h).toLowerCase().replace(/^www\./, "")));
+    webContents.once("destroyed", () => {
+      siteOf.delete(webContents.id);
+      extraOf.delete(webContents.id);
+    });
+  }
+
+  return { scan, close, session: ses, allowWindow };
 }

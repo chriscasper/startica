@@ -1,4 +1,6 @@
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, like, sql } from "drizzle-orm";
+import { noScanReason } from "../security/signed-in.ts";
+import { recountGroups } from "./page-ignores.ts";
 import { z } from "zod";
 import { getDb } from "@startica/db/client";
 import { a11yIssueGroups, a11yOccurrences, metricsSnapshots, roadmapItems, sitePages, siteScans, sites, type A11yImpact } from "@startica/db/schema";
@@ -35,6 +37,8 @@ export async function runScanDue(_ctx: AiContext, payload: z.infer<typeof scanDu
   let started = 0;
   for (const site of await dueSites(payload.workspaceId)) {
     if (await activeScan(site.id, "full")) continue;
+    // Inside a no-scan window (S3): the next hourly check after it ends starts the scan.
+    if (noScanReason(site)) continue;
     await startSiteScan(site, "scheduled");
     started++;
   }
@@ -57,7 +61,7 @@ export async function pageSessions(productId: string, now = new Date()): Promise
   return new Map(rows.map((r) => [r.dimension!.slice("page:".length), Number(r.value)]));
 }
 
-const pathOf = (url: string) => {
+export const pathOf = (url: string) => {
   try {
     return new URL(url).pathname;
   } catch {
@@ -97,7 +101,7 @@ export async function prioritizedGroups(site: { id: string; productId: string },
         .selectDistinct({ groupId: a11yOccurrences.groupId, url: sitePages.url })
         .from(a11yOccurrences)
         .innerJoin(sitePages, eq(sitePages.id, a11yOccurrences.pageId))
-        .where(and(inArray(a11yOccurrences.groupId, ids), isNull(sitePages.goneAt)))
+        .where(and(inArray(a11yOccurrences.groupId, ids), isNull(sitePages.goneAt), eq(a11yOccurrences.ignored, false)))
     : [];
   const urlsOf = new Map<string, string[]>();
   for (const p of pages) urlsOf.set(p.groupId, [...(urlsOf.get(p.groupId) ?? []), p.url]);
@@ -112,7 +116,7 @@ export async function prioritizedGroups(site: { id: string; productId: string },
 // --- Decisions
 
 export const ignoreReasons = ["false_positive", "wont_fix", "not_applicable"] as const;
-export const IGNORE_LABEL: Record<(typeof ignoreReasons)[number], string> = { false_positive: "False positive", wont_fix: "Won't fix", not_applicable: "Not applicable" };
+export const IGNORE_LABEL: Record<(typeof ignoreReasons)[number] | "pages", string> = { false_positive: "False positive", wont_fix: "Won't fix", not_applicable: "Not applicable", pages: "Ignored on each page it's on" };
 
 export const ignoreInput = z.object({ reason: z.enum(ignoreReasons, { error: "Pick a reason" }), note: z.string().trim().max(500).default("") });
 
@@ -128,13 +132,12 @@ export async function ignoreGroup(workspaceId: string, groupId: string, input: z
   await getDb().update(a11yIssueGroups).set({ status: "ignored", ignoreReason: input.reason, ignoreNote: input.note || null, ignoredAt: new Date() }).where(eq(a11yIssueGroups.id, groupId));
 }
 
-/** Back to open if the latest results still show it, otherwise fixed. */
+/** Back to open if the latest results still show it (on pages where it isn't ignored), otherwise fixed. */
 export async function unignoreGroup(workspaceId: string, groupId: string): Promise<void> {
   const g = await ownGroup(workspaceId, groupId);
-  await getDb()
-    .update(a11yIssueGroups)
-    .set({ status: g.occurrencesCount > 0 ? "open" : "fixed", ignoreReason: null, ignoreNote: null, ignoredAt: null })
-    .where(eq(a11yIssueGroups.id, groupId));
+  await getDb().update(a11yIssueGroups).set({ status: "open", ignoreReason: null, ignoreNote: null, ignoredAt: null }).where(eq(a11yIssueGroups.id, groupId));
+  // The recount decides: open, fixed, or ignored on its pages when every page it's on is.
+  await recountGroups(g.siteId, null);
 }
 
 export const reviewInput = z.object({ decision: z.enum(["pass", "fail", "skip", "undo"]), note: z.string().trim().max(500).default("") });
@@ -206,19 +209,27 @@ const csvCell = (v: unknown) => {
 /** Every open, fixed and ignored issue with each page and element it's on, as CSV. */
 export async function issuesCsv(siteId: string): Promise<string> {
   const rows = await getDb()
-    .select({ group: a11yIssueGroups, url: sitePages.url, selector: a11yOccurrences.selector, html: a11yOccurrences.html, summary: a11yOccurrences.failureSummary })
+    .select({ group: a11yIssueGroups, url: sitePages.url, selector: a11yOccurrences.selector, html: a11yOccurrences.html, summary: a11yOccurrences.failureSummary, ignored: a11yOccurrences.ignored })
     .from(a11yIssueGroups)
     .leftJoin(a11yOccurrences, eq(a11yOccurrences.groupId, a11yIssueGroups.id))
     .leftJoin(sitePages, eq(sitePages.id, a11yOccurrences.pageId))
     .where(eq(a11yIssueGroups.siteId, siteId))
     .orderBy(asc(a11yIssueGroups.status), asc(a11yIssueGroups.help), asc(sitePages.url));
-  const header = ["Issue", "Kind", "Impact", "WCAG criteria", "Level", "Status", "Reason", "Review", "Pages", "Page", "Element", "HTML", "How to fix", "Rule", "Help"];
-  const lines = rows.map(({ group: g, url, selector, html, summary }) =>
-    [g.help, g.kind === "violation" ? "Issue" : "Needs review", g.impact, g.criteria.join(" "), g.level, g.status, g.ignoreReason, g.reviewStatus, g.pagesCount, url, selector, html, summary, g.ruleId, g.helpUrl]
+  const header = ["Issue", "Kind", "Impact", "WCAG criteria", "Level", "Status", "Reason", "Review", "Pages", "Page", "Ignored on this page", "Element", "HTML", "How to fix", "Rule", "Help"];
+  const lines = rows.map(({ group: g, url, selector, html, summary, ignored }) =>
+    [g.help, g.kind === "violation" ? "Issue" : "Needs review", g.impact, g.criteria.join(" "), g.level, g.status, g.ignoreReason, g.reviewStatus, g.pagesCount, url, url ? (ignored ? "yes" : "no") : "", selector, html, summary, g.ruleId, g.helpUrl]
       .map(csvCell)
       .join(","),
   );
   return [header.map(csvCell).join(","), ...lines].join("\r\n") + "\r\n";
+}
+
+/** The first sentence of a site's AI summary, when it describes the site's latest scan (A3 summaries go stale after a rescan). */
+export function freshSummaryLine(site: Pick<typeof sites.$inferSelect, "a11ySummary" | "lastScanId">): string | null {
+  const s = site.a11ySummary;
+  if (!s || !s.text.trim() || (s.scanId && site.lastScanId && s.scanId !== site.lastScanId)) return null;
+  const first = /^[\s\S]*?[.!?](?=\s|$)/.exec(s.text.trim())?.[0] ?? s.text.trim();
+  return first.length > 240 ? `${first.slice(0, 239)}…` : first;
 }
 
 /** The top open issue for Today: priority first, with its traffic when GA4 is connected. */

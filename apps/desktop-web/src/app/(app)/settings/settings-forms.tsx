@@ -8,7 +8,7 @@ import { runSetupAgain } from "@/lib/setup-actions";
 import { FormDialog, type Field } from "@/components/app/form-dialog";
 import { Button } from "@/components/ui/button";
 import { modelLabel, modelsFor, PROVIDERS, type AiProvider } from "@startica/core/ai/models";
-import { openDataFolder, removeAiKey, removeXToken, setLaunchAtLoginAction, saveAiModel, saveAiSettings, savePostingSettings, saveProduct, saveXSettings } from "./actions";
+import { openDataFolder, removeAiKey, setBatchScoring, removeXToken, setLaunchAtLoginAction, saveAiModel, saveAiSettings, savePostingSettings, saveProduct, saveXSettings } from "./actions";
 
 const productFields: Field[] = [
   { name: "name", label: "Name", type: "text", required: true },
@@ -129,6 +129,33 @@ export function AiSettingsButton({ provider, keys, budget }: { provider: AiProvi
       values={{ provider, budget: String(budget) }}
       action={saveAiSettings}
     />
+  );
+}
+
+/** Batch scoring: a scan's big backlog goes through the provider's batch API (5.2). */
+export function BatchScoringToggle({ on }: { on: boolean }) {
+  const [pending, start] = useTransition();
+  return (
+    <label className="flex w-fit cursor-pointer items-start gap-2 text-sm">
+      <input
+        type="checkbox"
+        className="mt-1 accent-primary"
+        checked={on}
+        disabled={pending}
+        onChange={(e) =>
+          start(async () => {
+            const { error } = await setBatchScoring(e.target.checked);
+            if (error) toast.error(error);
+          })
+        }
+      />
+      <span>
+        <span className="font-medium">Score big backlogs in batches</span>
+        <span className="block text-muted-foreground">
+          When a scan finds 20 or more new conversations in one place, they&apos;re scored through your provider&apos;s batch API: about half the price, with results in a few minutes instead of seconds.
+        </span>
+      </span>
+    </label>
   );
 }
 

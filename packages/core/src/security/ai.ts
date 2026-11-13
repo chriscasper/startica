@@ -258,30 +258,35 @@ export async function requestTriage(workspaceId: string, reportId: string): Prom
   await enqueue(workspaceId, "security_intake_triage", { reportId });
 }
 
+/** The report, the product's sites and its known findings: what triage reads (also a Refine chat's context). */
+export async function triageContext(report: typeof securityReports.$inferSelect): Promise<{ content: string; known: { id: string }[] }> {
+  const db = getDb();
+  const known = await db
+    .select({ id: securityFindings.id, rule: securityFindings.rule, title: securityFindings.title, detail: securityFindings.detail })
+    .from(securityFindings)
+    .innerJoin(sites, eq(sites.id, securityFindings.siteId))
+    .where(and(eq(sites.productId, report.productId), ne(securityFindings.status, "fixed")))
+    .limit(80);
+  const list = known.map((f) => `${f.id}: ${isSecurityRule(f.rule) ? SECURITY_RULES[f.rule].title : (f.title ?? f.rule)}${describeDetail(f.detail) ? ` (${describeDetail(f.detail)})` : ""}`);
+  const productSites = await db.select({ url: sites.startUrl, name: sites.name }).from(sites).where(eq(sites.productId, report.productId));
+  return {
+    known,
+    content: `The product's sites: ${productSites.map((s) => s.url).join(", ") || "(none added)"}\nKnown findings (id: title):\n${list.join("\n") || "(none)"}\n\nFrom: ${report.reporter || "(not given)"}\n<report>\n${report.body}\n</report>`,
+  };
+}
+
 export async function runSecurityTriage(ctx: AiContext, payload: z.infer<typeof triagePayload>) {
   const where = eq(securityReports.id, payload.reportId);
   try {
     const db = getDb();
     const [report] = await db.select().from(securityReports).where(and(where, eq(securityReports.workspaceId, payload.workspaceId)));
     if (!report) return { skipped: "report removed" };
-    const known = await db
-      .select({ id: securityFindings.id, rule: securityFindings.rule, title: securityFindings.title, detail: securityFindings.detail })
-      .from(securityFindings)
-      .innerJoin(sites, eq(sites.id, securityFindings.siteId))
-      .where(and(eq(sites.productId, report.productId), ne(securityFindings.status, "fixed")))
-      .limit(80);
-    const list = known.map((f) => `${f.id}: ${isSecurityRule(f.rule) ? SECURITY_RULES[f.rule].title : (f.title ?? f.rule)}${describeDetail(f.detail) ? ` (${describeDetail(f.detail)})` : ""}`);
-    const productSites = await db.select({ url: sites.startUrl, name: sites.name }).from(sites).where(eq(sites.productId, report.productId));
+    const { content, known } = await triageContext(report);
     const out = await runStructured(ctx, {
       task: "draft",
       promptVersion: TRIAGE_PROMPT_VERSION,
       system: TRIAGE_SYSTEM,
-      messages: [
-        {
-          role: "user",
-          content: `The product's sites: ${productSites.map((s) => s.url).join(", ") || "(none added)"}\nKnown findings (id: title):\n${list.join("\n") || "(none)"}\n\nFrom: ${report.reporter || "(not given)"}\n<report>\n${report.body}\n</report>`,
-        },
-      ],
+      messages: [{ role: "user", content }],
       schema: triageOutput,
     });
     const triage: SecurityReportTriage = {

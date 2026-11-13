@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { playwrightScanner } from "@startica/core/a11y/playwright-backend";
-import { pickHeaders, setScanner, type ScannerBackend, type ScanRequest, type ScanResponse } from "@startica/core/a11y/scanner";
+import { cookieFlags, pickHeaders, setScanner, type ScannerBackend, type ScanRequest, type ScanResponse, type SignInRequest } from "@startica/core/a11y/scanner";
 import { playwrightRenderer, RENDER_TIMEOUT_MS, setRenderer, type Renderer, type RenderOutput, type RenderRequest } from "@startica/core/ads/render";
 
 /**
@@ -21,7 +21,8 @@ function electronScanner(): ScannerBackend {
     if (!waiter) return;
     pending.delete(message.requestId);
     // The Electron side sends every main-document header; keep the ones Security reads.
-    if (message.response) waiter.resolve({ ...message.response, headers: pickHeaders(message.response.headers ?? {}) });
+    // Signed-in checks (S3): cookie names and flags only, in the checks' terms.
+    if (message.response) waiter.resolve({ ...message.response, headers: pickHeaders(message.response.headers ?? {}), ...(message.response.cookies ? { cookies: message.response.cookies.map(cookieFlags) } : {}) });
     else waiter.reject(new Error(message.error ?? "The scan window failed"));
   });
   return {
@@ -36,6 +37,13 @@ function electronScanner(): ScannerBackend {
         }, request.timeoutMs + 30_000);
         process.send!({ type: "scan-page", requestId, request });
       });
+    },
+    // Security S3: the visible sign-in window and Forget sign-in, on the site's own partition.
+    async signIn(request: SignInRequest) {
+      process.send!({ type: "security-sign-in", request });
+    },
+    async forgetSignIn(siteId: string) {
+      process.send!({ type: "security-forget-sign-in", siteId });
     },
   };
 }

@@ -10,7 +10,7 @@ import { PageSkeleton } from "@/components/app/page-skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { securityFindings, sites, trackerIssues } from "@startica/db/schema";
-import { findingPages } from "@startica/core/security/findings";
+import { findingPages, findingSignedInPages } from "@startica/core/security/findings";
 import { hasAiKey } from "@startica/core/ai/client";
 import { COST_HINT } from "@startica/core/security/ai";
 import { versionsToShow } from "@startica/core/chat/threads";
@@ -59,6 +59,7 @@ async function Finding({ params }: { params: PageProps<"/security/findings/[id]"
   const vulns = finding.rule === "vulnerable-library" && Array.isArray(finding.detail.vulns) ? (finding.detail.vulns as LibraryVuln[]) : [];
   const detail = describeDetail(finding.detail);
   const pages = (await findingPages(site.id, finding.groupKey)).slice(0, MAX_PAGES);
+  const signedIn = await findingSignedInPages(site.id, finding.groupKey);
   const tracker = await trackerFor(site.productId);
   const [repoIssue] = tracker
     ? await d
@@ -217,6 +218,23 @@ async function Finding({ params }: { params: PageProps<"/security/findings/[id]"
         </CardContent>
       </Card>
 
+      {signedIn.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>After sign-in</CardTitle>
+            <CardDescription>Pages behind your sign-in where the last signed-in check saw it (Security → Signed-in checks and safety).</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="flex flex-col gap-1 text-sm">
+              {signedIn.map((url) => (
+                <li key={url} className="min-w-0 truncate font-mono text-xs">
+                  {pathOf(url)}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
       {pages.length > 0 && (
         <Card>
           <CardHeader>

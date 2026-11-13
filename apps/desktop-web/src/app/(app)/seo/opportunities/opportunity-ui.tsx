@@ -9,11 +9,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { OpportunityDraft } from "@startica/db/schema";
+import { RefineButton } from "@/components/app/refine/refine-panel";
+import { VersionsButton, type VersionItem } from "@/components/app/refine/versions-button";
 import { cn } from "@/lib/utils";
 import { draftFix, setStatus, toContent, toRoadmap, toToday } from "./actions";
 
 export type OpportunityView = {
   key: string;
+  /** The `seo_opportunities` row (Refine's subject), once the owner did something with it. */
+  rowId: string | null;
+  versions: VersionItem[];
   area: "search" | "site" | "ai";
   title: string;
   why: string;
@@ -129,6 +134,10 @@ export function OpportunityCard({ productId, o, aiBlocked }: { productId: string
               {drafting ? "Drafting…" : o.draft ? "Draft again" : DRAFT_LABEL[o.draftKind]}
             </Button>
           )}
+          {o.draft && o.rowId && !closed && (
+            <RefineButton kind="seo_draft" subjectId={o.rowId} disabled={drafting || Boolean(aiBlocked)} why={drafting ? "Wait for the draft" : (aiBlocked ?? undefined)} />
+          )}
+          {o.rowId && <VersionsButton kind="seo_draft" noun="draft" versions={o.versions} />}
           {o.hasBrief && !closed && (
             o.contentPieceId ? (
               <Button size="sm" variant="ghost" nativeButton={false} render={<Link href="/content?tab=library" />}>

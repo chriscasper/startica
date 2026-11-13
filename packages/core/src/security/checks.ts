@@ -61,7 +61,12 @@ const hostOf = (url: string) => {
 };
 
 /** Findings for one page: its headers, cookies and what the page loads. */
-export function pageSecurityFindings(page: { url: string; siteUrl: string }, headers: Headers, facts: SecurityFacts | undefined): SecurityFindingDraft[] {
+/**
+ * `cookies`: the flags of the cookies the browser holds for the page (S3, signed-in checks),
+ * read from its cookie jar because a session cookie is usually set by the sign-in response, not
+ * the page's. Names and flags only: values never reach the server.
+ */
+export function pageSecurityFindings(page: { url: string; siteUrl: string }, headers: Headers, facts: SecurityFacts | undefined, cookies: Cookie[] = []): SecurityFindingDraft[] {
   const out: SecurityFindingDraft[] = [];
   const add = (rule: SecurityRuleId, detail: Record<string, unknown> = {}, groupKey: string = rule) => out.push({ rule, groupKey, detail });
   const https = page.url.startsWith("https:");
@@ -89,7 +94,8 @@ export function pageSecurityFindings(page: { url: string; siteUrl: string }, hea
     if (value && /\d+\.\d+/.test(value)) add("server-version", { header: name, value: value.slice(0, 120) }, `server-version:${name}:${value.slice(0, 120).toLowerCase()}`);
   }
 
-  for (const c of parseCookies(headers["set-cookie"])) {
+  const jar = new Map(cookies.map((c) => [c.name, c]));
+  for (const c of [...parseCookies(headers["set-cookie"]).filter((c) => !jar.has(c.name)), ...jar.values()]) {
     if (https && !c.secure) add("cookie-not-secure", { cookie: c.name }, `cookie-not-secure:${c.name}`);
     if (!c.httpOnly) add("cookie-not-httponly", { cookie: c.name }, `cookie-not-httponly:${c.name}`);
     if (c.sameSite === null) add("cookie-no-samesite", { cookie: c.name }, `cookie-no-samesite:${c.name}`);

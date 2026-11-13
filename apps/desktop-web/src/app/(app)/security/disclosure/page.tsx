@@ -12,6 +12,7 @@ import { hasAiKey } from "@startica/core/ai/client";
 import { db } from "@/lib/dal";
 import { loadSites, withSite } from "../../accessibility/data";
 import { NoProduct } from "../../accessibility/ui";
+import { RefineButton } from "@/components/app/refine/refine-panel";
 import { AddReportButton, CopyBlock, PolicyForm, ReportActions, SecurityTxtForm } from "../controls";
 import { SeverityBadge } from "../shared";
 
@@ -109,7 +110,10 @@ async function Disclosure({ searchParams }: { searchParams: PageProps<"/security
                   <p className="mt-2 whitespace-pre-wrap">{r.body}</p>
                 </details>
               )}
-              <ReportActions reportId={r.id} status={r.status} siteId={verifiedSite?.id ?? null} hasFinding={Boolean(r.findingId)} canTriage={aiReady && r.triageStatus !== "working"} triaged={Boolean(r.triage)} />
+              <div className="flex flex-wrap items-center gap-2">
+                <ReportActions reportId={r.id} status={r.status} siteId={verifiedSite?.id ?? null} hasFinding={Boolean(r.findingId)} canTriage={aiReady && r.triageStatus !== "working"} triaged={Boolean(r.triage)} />
+                {r.triage && <RefineButton kind="security_triage" subjectId={r.id} variant="ghost" disabled={!aiReady || r.triageStatus === "working"} why={aiReady ? "Wait for the triage" : "Add an AI key in Settings (off in the demo)"} />}
+              </div>
             </div>
           ))}
           {closed.length > 0 && (

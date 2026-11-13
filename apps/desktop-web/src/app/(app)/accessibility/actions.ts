@@ -1,5 +1,6 @@
 "use server";
 
+import { ignoreOnPage, unignoreOnPage } from "@startica/core/a11y/page-ignores";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { NO_SCANNER } from "@startica/core/a11y/scan";
@@ -126,6 +127,15 @@ export async function unignoreIssue(groupId: string): Promise<ActionResult> {
   return mutate(async () => unignoreGroup((await getWorkspace()).id, id.parse(groupId)));
 }
 
+/** Ignores an issue on one page only (section 9.3). */
+export async function ignoreIssueOnPage(groupId: string, pageId: string, formData: FormData): Promise<ActionResult> {
+  return mutate(async () => ignoreOnPage((await getWorkspace()).id, id.parse(groupId), id.parse(pageId), ignoreInput.parse(formFields(formData))));
+}
+
+export async function unignoreIssueOnPage(groupId: string, pageId: string): Promise<ActionResult> {
+  return mutate(async () => unignoreOnPage((await getWorkspace()).id, id.parse(groupId), id.parse(pageId)));
+}
+
 export async function reviewItem(groupId: string, decision: "pass" | "fail" | "skip" | "undo", note = ""): Promise<ActionResult> {
   return mutate(async () => reviewGroup((await getWorkspace()).id, id.parse(groupId), reviewInput.parse({ decision, note })));
 }
@@ -238,6 +248,18 @@ export async function criterionRoadmap(siteId: string, criterion: string): Promi
 
 export async function saveStatement(siteId: string, formData: FormData): Promise<ActionResult> {
   return mutate(async () => saveStatementInput((await getWorkspace()).id, id.parse(siteId), statementInput.parse(formFields(formData))));
+}
+
+/** Desktop app: the conformance report draft as a PDF, like the report. */
+export async function saveAcrPdf(siteId: string): Promise<ActionResult> {
+  try {
+    if (process.env.STARTICA_ELECTRON !== "1" || typeof process.send !== "function") throw new Error("Save as PDF works in the desktop app; open the draft and print it from your browser instead");
+    const site = await ownSite((await getWorkspace()).id, id.parse(siteId));
+    process.send({ type: "save-pdf", path: `/accessibility/report/acr/print?site=${site.id}`, filename: `${new URL(site.startUrl).hostname}-accessibility-conformance-draft.pdf` });
+    return { error: null };
+  } catch (error) {
+    return fail(error);
+  }
 }
 
 /** Desktop app: asks the Electron process to save the printable report as a PDF (it asks where). */

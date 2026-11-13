@@ -171,10 +171,49 @@ export const aiRuns = sqliteTable(
     costUsd: real("cost_usd").notNull().default(0),
     latencyMs: integer("latency_ms"),
     error: text("error"),
+    /** Set when the call went through a batch (half price); `latency_ms` is then the wait for the batch. */
+    batchId: text("batch_id").references(() => aiBatches.id, { onDelete: "set null" }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [index("ai_runs_created_idx").on(t.workspaceId, t.createdAt)],
+);
+
+/** One request in a batch: its id at the provider and what the result is for (an opportunity to score). */
+export type AiBatchItem = { customId: string; ref: Record<string, string> };
+
+/**
+ * Non-urgent AI work sent through the providers' batch APIs at about half the price
+ * (ARCHITECTURE.md section 5.2): submitted by a job, polled by `ai_batch_poll`, results stored
+ * by the purpose's handler and logged to `ai_runs` one row per request.
+ */
+export const aiBatches = sqliteTable(
+  "ai_batches",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    provider: text("provider", { enum: ["anthropic", "openai"] }).notNull(),
+    /** The batch's id at the provider (OpenAI: the batch, with its input file in `input_file_id`). */
+    externalId: text("external_id").notNull(),
+    inputFileId: text("input_file_id"),
+    /** What the results are for; its handler stores them (`BATCH_PURPOSES`). */
+    purpose: text("purpose", { enum: ["opportunity_score"] }).notNull(),
+    task: text("task").notNull(),
+    model: text("model").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    status: text("status", { enum: ["submitted", "ended", "failed", "cancelled"] }).notNull().default("submitted"),
+    items: json<AiBatchItem[]>("items").notNull().$defaultFn(() => []),
+    succeeded: integer("succeeded").notNull().default(0),
+    errored: integer("errored").notNull().default(0),
+    costUsd: real("cost_usd").notNull().default(0),
+    polls: integer("polls").notNull().default(0),
+    error: text("error"),
+    submittedAt: timestamp("submitted_at").notNull().$defaultFn(() => new Date()),
+    endedAt: timestamp("ended_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("ai_batches_status_idx").on(t.workspaceId, t.status)],
 );
 
 // --- Intel ---------------------------------------------------------------------------
@@ -836,6 +875,15 @@ export const sites = sqliteTable(
     /** A3: the latest plain-language accessibility summary and its state. */
     /** S2: when exposure monitoring last ran and what failed. */
     securityMonitor: json<{ checkedAt: number; errors: string[] }>("security_monitor"),
+    /** S3: pages checked after the owner signs in by hand (same site only, at most 20), and where the sign-in window opens. */
+    signedInPages: json<string[]>("signed_in_pages").notNull().default(sql`'[]'`),
+    signInUrl: text("sign_in_url"),
+    /** S3: other hosts the sign-in window and signed-in checks may load (a separate login domain), at most 5. */
+    extraHosts: json<string[]>("extra_hosts").notNull().default(sql`'[]'`),
+    /** S3: when nothing may scan or probe the site (local time); scheduled work skips them, Scan now refuses, a scan stops at the next page. */
+    noScanWindows: json<NoScanWindow[]>("no_scan_windows").notNull().default(sql`'[]'`),
+    /** S3: the last signed-in check: when, and each page's result (never the session itself). */
+    signedInCheck: json<SignedInCheck>("signed_in_check"),
     a11ySummary: json<A11ySummary>("a11y_summary"),
     a11ySummaryStatus: text("a11y_summary_status", { enum: ["working", "ready", "failed"] }),
     a11ySummaryError: text("a11y_summary_error"),
@@ -994,10 +1042,33 @@ export const a11yOccurrences = sqliteTable(
     impact: text("impact", { enum: a11yImpacts }),
     /** Where the element was on the page (CSS pixels from the top left of the document), for highlights (A2). */
     box: json<{ x: number; y: number; width: number; height: number }>("box"),
+    /** The owner ignored this issue on this page (`a11y_page_ignores`): kept, but left out of counts and priority. */
+    ignored: integer("ignored", { mode: "boolean" }).notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [index("a11y_occurrences_page_idx").on(t.pageId), index("a11y_occurrences_group_idx").on(t.groupId)],
+);
+
+/** An issue ignored on one page only (section 9.3), remembered by the issue's fingerprint and the page's address across scans. */
+export const a11yPageIgnores = sqliteTable(
+  "a11y_page_ignores",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    siteId: text("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    fingerprint: text("fingerprint").notNull(),
+    url: text("url").notNull(),
+    /** false_positive, wont_fix or not_applicable, like a site-wide ignore. */
+    reason: text("reason").notNull(),
+    note: text("note"),
+    ignoredAt: timestamp("ignored_at").notNull().$defaultFn(() => new Date()),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("a11y_page_ignores_idx").on(t.siteId, t.fingerprint, t.url)],
 );
 
 /**
@@ -1205,6 +1276,11 @@ export type SecurityReportTriage = {
  * the page is checked; site-wide rows each time the site probes run. `groupKey` is the
  * finding it belongs to.
  */
+/** A time when nothing may scan a site: days 0 (Sunday) to 6, from and to as HH:MM local time (to before from runs past midnight). */
+export type NoScanWindow = { days: number[]; from: string; to: string };
+/** The last signed-in check (S3): per page, checked, signed out (the session ended) or failed. */
+export type SignedInCheck = { at: string; pages: { url: string; status: "checked" | "signed_out" | "failed"; error?: string }[]; error?: string };
+
 export const securityOccurrences = sqliteTable(
   "security_occurrences",
   {
@@ -1214,6 +1290,8 @@ export const securityOccurrences = sqliteTable(
       .notNull()
       .references(() => sites.id, { onDelete: "cascade" }),
     pageId: text("page_id").references(() => sitePages.id, { onDelete: "cascade" }),
+    /** S3: found on this page after the owner signed in (not a crawled page, so no `page_id`). */
+    signedInUrl: text("signed_in_url"),
     rule: text("rule").notNull(),
     groupKey: text("group_key").notNull(),
     detail: json<Record<string, unknown>>("detail").notNull().$defaultFn(() => ({})),
@@ -1928,7 +2006,14 @@ export type VisibilityMetrics = {
   avgPosition: number | null;
   /** Answers mentioning each brand: the product's name first, then competitors. */
   brands: { name: string; answers: number; own: boolean }[];
+  /** Per answer model, when a run asked more than one (both providers). */
+  byModel?: VisibilityBreakdown[];
+  /** Per question topic ("" for questions without one). */
+  byTopic?: VisibilityBreakdown[];
 };
+
+/** One slice of a run's answers: a model or a topic. */
+export type VisibilityBreakdown = { key: string; answered: number; mentioned: number; recommended: number; cited: number };
 
 export const aiVisibilityRuns = sqliteTable(
   "ai_visibility_runs",
@@ -1937,6 +2022,8 @@ export const aiVisibilityRuns = sqliteTable(
     workspaceId: workspaceId(),
     productId: productId(),
     model: text("model").notNull(),
+    /** Every answer model the run asks (both providers' when the owner asked for both); `model` is the first. Empty on older runs. */
+    models: json<string[]>("models").notNull().default(sql`'[]'`),
     status: text("status", { enum: ["running", "done", "failed", "cancelled"] }).notNull().default("running"),
     trigger: text("trigger", { enum: ["manual", "weekly"] }).notNull().default("manual"),
     promptCount: integer("prompt_count").notNull().default(0),
@@ -1967,6 +2054,10 @@ export const aiVisibilityAnswers = sqliteTable(
     promptId: text("prompt_id").references(() => aiPrompts.id, { onDelete: "set null" }),
     /** The question as it was asked (the prompt may be edited or deleted later). */
     promptText: text("prompt_text").notNull(),
+    /** The question's topic when it was asked, for the run's topic breakdown. */
+    topic: text("topic"),
+    /** The model that answered (null on runs from before a run could ask two). */
+    model: text("model"),
     answer: text("answer").notNull().default(""),
     citations: json<AnswerCitation[]>("citations").notNull().default(sql`'[]'`),
     searches: json<string[]>("searches").notNull().default(sql`'[]'`),
@@ -2000,6 +2091,8 @@ export type OpportunityDraft = {
   pages?: { url: string; title: string; description: string }[];
   /** Problems the checks found in the draft (empty when it passed). */
   problems: string[];
+  /** The model's output as written (the Refine revision's shape); missing on drafts from before Refine. */
+  output?: Record<string, unknown>;
   model: string;
   createdAt: string;
 };
@@ -2086,9 +2179,23 @@ export const offsitePages = sqliteTable(
 
 /**
  * What a chat can refine: a security finding's AI help, an accessibility issue's AI fix, an Inbox
- * reply draft (by opportunity), a Content Studio piece, an ad's copy.
+ * reply draft (by opportunity), a Content Studio piece, an ad's copy, an SEO opportunity's draft
+ * (by `seo_opportunities` row), one audit finding (`<audit id>:<index>`), a roadmap item. Ask
+ * only (no revision): a reported problem's triage, a Needs review suggestion, an AI visibility answer.
  */
-export const chatSubjectKinds = ["security_help", "a11y_fix", "reply_draft", "content_piece", "ad_copy"] as const;
+export const chatSubjectKinds = [
+  "security_help",
+  "a11y_fix",
+  "reply_draft",
+  "content_piece",
+  "ad_copy",
+  "seo_draft",
+  "audit_finding",
+  "roadmap_item",
+  "security_triage",
+  "a11y_review",
+  "visibility_answer",
+] as const;
 export type ChatSubjectKind = (typeof chatSubjectKinds)[number];
 export type ChatSource = { url: string; title: string };
 

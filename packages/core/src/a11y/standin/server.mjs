@@ -5,6 +5,9 @@
 // HttpOnly or SameSite on /signup.html, a public /.git/HEAD and no security.txt. Content
 // problems (A5) are on /about.html: a misspelling, a hard-to-read paragraph, an untagged
 // PDF without a title or language, and a link to a missing page on another host.
+// Behind sign-in (S3, nothing links to them): /account answers only with the session cookie
+// that /login sets when a person submits its form, a cookie without HttpOnly or SameSite;
+// without it, /account redirects to /login.
 // Used by both smoke tests and for manual runs:
 //   node packages/core/src/a11y/standin/server.mjs [port]   (default 58395)
 import { readFile } from "node:fs/promises";
@@ -22,6 +25,9 @@ const SECURE_HEADERS = {
   "referrer-policy": "strict-origin-when-cross-origin",
   "permissions-policy": "camera=(), microphone=(), geolocation=()",
 };
+
+/** The cookie /login sets and /account needs (S3). */
+export const SESSION_COOKIE = "standin_session";
 
 /** The planted security problems: response headers per page path. */
 export function standinHeaders(path) {
@@ -47,6 +53,25 @@ export function startStandin(port = 58395, { transform, headers } = {}) {
       res.writeHead(200, { "content-type": types[".xml"] });
       const pages = ["/", "/pricing.html", "/sitemap-only.html"];
       return res.end(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${pages.map((p) => `<url><loc>${base}${p}</loc></url>`).join("")}</urlset>`);
+    }
+    if (url.pathname === "/login") {
+      if (req.method === "POST") {
+        // A person signed in: a day-long session cookie, missing HttpOnly and SameSite (planted).
+        res.writeHead(303, { location: "/account", "set-cookie": `${SESSION_COOKIE}=signed-in; Path=/; Max-Age=86400`, "x-powered-by": "Standin/1.2" });
+        return res.end();
+      }
+      res.writeHead(200, { "content-type": types[".html"], "x-powered-by": "Standin/1.2" });
+      return res.end(
+        '<!doctype html><html lang="en"><head><title>Sign in: Stand-in site</title></head><body><main><h1>Sign in</h1><form method="post" action="/login"><label>Email <input name="email" type="email" autocomplete="username"></label> <label>Password <input name="password" type="password" autocomplete="current-password"></label> <button type="submit">Sign in</button></form></main></body></html>',
+      );
+    }
+    if (url.pathname === "/account") {
+      if (!new RegExp(`(^|;\\s*)${SESSION_COOKIE}=signed-in(;|$)`).test(req.headers.cookie ?? "")) {
+        res.writeHead(302, { location: "/login?next=/account" });
+        return res.end();
+      }
+      res.writeHead(200, { "content-type": types[".html"], "x-powered-by": "Standin/1.2" });
+      return res.end('<!doctype html><html lang="en"><head><title>Your account: Stand-in site</title></head><body><main><h1>Your account</h1><p>Signed in.</p></main></body></html>');
     }
     if (url.pathname === "/.git/HEAD") {
       // A deployed Git folder: Security reports it as exposed.

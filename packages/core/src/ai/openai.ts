@@ -1,8 +1,8 @@
-import OpenAI from "openai";
+import OpenAI, { toFile } from "openai";
 import { zodResponsesFunction, zodTextFormat } from "openai/helpers/zod";
 import type { Response } from "openai/resources/responses/responses";
 import type { z } from "zod";
-import { AiError, type AiMessage, type Answer, type CallRequest, type CallResult, type ChatOptions, type ChatReply, type ResearchOptions } from "./errors.ts";
+import { AiError, type AiMessage, type Answer, type BatchItemResult, type BatchRequest, type BatchState, type CallRequest, type CallResult, type ChatOptions, type ChatReply, type ResearchOptions } from "./errors.ts";
 import type { TokenUsage } from "./pricing.ts";
 
 /**
@@ -50,7 +50,7 @@ function common(req: CallRequest) {
 }
 
 /** Throws if the response was refused or cut off. */
-export function checkResponse(response: Pick<Response, "status" | "incomplete_details" | "output" | "model">, req: CallRequest, usage: TokenUsage): void {
+export function checkResponse(response: Pick<Response, "status" | "incomplete_details" | "output" | "model">, req: { task: string; config: { maxTokens: number } }, usage: TokenUsage): void {
   const meta = { model: response.model, usage };
   const refusal = response.output
     .flatMap((item) => (item.type === "message" ? item.content : []))
@@ -191,4 +191,84 @@ export async function openaiImage(key: string, req: CallRequest & { size: string
   const b64 = response.data?.[0]?.b64_json;
   if (!b64) throw new AiError("OpenAI returned no image", "invalid_output", { model: req.config.model, usage });
   return { value: Buffer.from(b64, "base64"), model: req.config.model, usage };
+}
+
+// --- Batch API (ARCHITECTURE.md 5.2): the same structured request, at half the price ---------
+
+type BatchSubmit = Omit<CallRequest, "system" | "messages"> & { requests: BatchRequest[]; schema: z.ZodType };
+
+/** Uploads the requests as JSONL and starts a Responses batch; returns the batch id and its input file. */
+export async function openaiBatchSubmit(key: string, req: BatchSubmit): Promise<{ id: string; inputFileId: string }> {
+  const format = zodTextFormat(req.schema, "output");
+  const lines = req.requests.map((r) =>
+    JSON.stringify({
+      custom_id: r.customId,
+      method: "POST",
+      url: "/v1/responses",
+      body: { ...common({ ...req, system: r.system, messages: r.messages }), text: { format: { type: format.type, name: format.name, schema: format.schema, strict: format.strict } } },
+    }),
+  );
+  const client = getClient(key);
+  const file = await client.files.create({ file: await toFile(Buffer.from(lines.join("\n")), "startica-batch.jsonl"), purpose: "batch" }, { signal: req.signal });
+  try {
+    const batch = await client.batches.create({ input_file_id: file.id, endpoint: "/v1/responses", completion_window: "24h" }, { signal: req.signal });
+    return { id: batch.id, inputFileId: file.id };
+  } catch (error) {
+    await client.files.delete(file.id).catch(() => {});
+    throw error;
+  }
+}
+
+const ENDED = new Set(["completed", "failed", "expired", "cancelled"]);
+
+export async function openaiBatchState(key: string, id: string, signal?: AbortSignal): Promise<BatchState> {
+  const batch = await getClient(key).batches.retrieve(id, { signal });
+  const failed = batch.status === "failed" ? (batch.errors?.data?.map((e) => e.message).join("; ") || "The batch failed") : undefined;
+  return { ended: ENDED.has(batch.status), failed };
+}
+
+type BatchLine = { custom_id: string; response?: { status_code: number; body: Response & { error?: { message: string } } } | null; error?: { message: string } | null };
+
+const outputText = (body: Pick<Response, "output">) =>
+  body.output
+    .flatMap((item) => (item.type === "message" ? item.content : []))
+    .flatMap((part) => (part.type === "output_text" ? [part.text] : []))
+    .join("");
+
+/** An ended batch's results (output and error files), each parsed with `schema` and checked like a single call. Deletes the files after reading. */
+export async function openaiBatchResults(key: string, id: string, expect: { schema: z.ZodType; task: string; config: { maxTokens: number } }, signal?: AbortSignal): Promise<BatchItemResult[]> {
+  const client = getClient(key);
+  const batch = await client.batches.retrieve(id, { signal });
+  const lines: BatchLine[] = [];
+  for (const fileId of [batch.output_file_id, batch.error_file_id]) {
+    if (!fileId) continue;
+    const text = await (await client.files.content(fileId, { signal })).text();
+    for (const line of text.split("\n")) if (line.trim()) lines.push(JSON.parse(line) as BatchLine);
+    await client.files.delete(fileId).catch(() => {});
+  }
+  await client.files.delete(batch.input_file_id).catch(() => {});
+
+  const out: BatchItemResult[] = lines.map((line) => {
+    const customId = line.custom_id;
+    const body = line.response?.body;
+    if (!body || (line.response?.status_code ?? 500) >= 400) {
+      return { customId, ok: false, error: line.error?.message ?? body?.error?.message ?? `HTTP ${line.response?.status_code ?? "error"}`, kind: "api" };
+    }
+    const usage = usageOf(body);
+    try {
+      checkResponse(body, expect, usage);
+      const parsed = expect.schema.safeParse(JSON.parse(outputText(body)));
+      if (!parsed.success) throw new AiError("Response did not match the expected schema", "invalid_output", { model: body.model, usage });
+      return { customId, ok: true, value: parsed.data, model: body.model, usage };
+    } catch (error) {
+      const e = error instanceof SyntaxError ? new AiError("Response wasn't valid JSON", "invalid_output") : AiError.wrap(error);
+      return { customId, ok: false, error: e.message, kind: e.kind, model: body.model, usage };
+    }
+  });
+  // Requests that never ran (an expired or cancelled batch) have no line.
+  return out;
+}
+
+export async function openaiBatchCancel(key: string, id: string): Promise<void> {
+  await getClient(key).batches.cancel(id);
 }

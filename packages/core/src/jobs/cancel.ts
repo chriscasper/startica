@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@startica/db/client";
 import { jobRuns, jobs } from "@startica/db/schema";
+import { BATCH_POLL_QUEUE, cancelBatch } from "../ai/client.ts";
 
 /**
  * Stopping jobs (scans, AI work) the user doesn't want to wait for. A waiting job is
@@ -34,6 +35,8 @@ export async function stopJob(workspaceId: string, jobId: string): Promise<StopR
   await getDb()
     .insert(jobRuns)
     .values({ workspaceId, jobId, queue: job.queue, attempt: job.attempts, payload: job.payload, status: "cancelled", error: "Stopped by you before it ran", finishedAt: new Date() });
+  // A batch waiting for its results is cancelled at the provider too (a running poll does it itself).
+  if (job.queue === BATCH_POLL_QUEUE && typeof job.payload.batchId === "string") await cancelBatch(workspaceId, job.payload.batchId);
   return "removed";
 }
 

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { noScanReason } from "./signed-in.ts";
 import { resolve4, resolve6, resolveCname, resolveNs } from "node:dns/promises";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -348,6 +349,8 @@ export async function runMonitor(_ctx: AiContext, payload: z.infer<typeof monito
     .where(and(eq(sites.workspaceId, payload.workspaceId), isNotNull(sites.securityVerifiedAt), payload.siteId ? eq(sites.id, payload.siteId) : undefined));
   const results: Record<string, { findings: number; errors: string[] }> = {};
   for (const site of list.filter(isVerified)) {
+    // A no-scan window (S3) covers the monitor's DNS lookups and script fetches too; the next daily run catches up.
+    if (noScanReason(site)) continue;
     const now = new Date();
     const errors: string[] = [];
     const drafts: MonitorDraft[] = [];

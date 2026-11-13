@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { hasAiKey } from "@startica/core/ai/client";
 import { COST_HINT } from "@startica/core/a11y/ai";
 import { desktopApp } from "@/lib/desktop";
+import { RefineButton } from "@/components/app/refine/refine-panel";
 import { ReviewButtons, SuggestReviewButton } from "../controls";
 import { loadSites, pathOf } from "../data";
 import { NoProduct, NoSite, SitePicker } from "../ui";
@@ -123,6 +124,7 @@ async function Review({ searchParams }: { searchParams: PageProps<"/accessibilit
                 {g.reviewStatus && <Badge variant="outline">{DECISION[g.reviewStatus]}</Badge>}
                 <ReviewButtons groupId={g.id} decided={g.reviewStatus} />
                 {!g.reviewStatus && <SuggestReviewButton groupId={g.id} again={Boolean(g.aiReview)} disabled={!aiReady || g.aiReviewStatus === "working"} />}
+                {g.aiReview && <RefineButton kind="a11y_review" subjectId={g.id} variant="ghost" disabled={!aiReady || g.aiReviewStatus === "working"} why={aiReady ? "Wait for the suggestion" : "Add an AI key in Settings (off in the demo)"} />}
               </div>
             </CardContent>
           </Card>

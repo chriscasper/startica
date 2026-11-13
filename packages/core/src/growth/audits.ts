@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { parseHTML } from "linkedom";
 import { z } from "zod";
 import { getDb } from "@startica/db/client";
-import { audits, products } from "@startica/db/schema";
+import { audits, products, roadmapItems } from "@startica/db/schema";
 import { runResearch, runStructured, type AiContext } from "../ai/client.ts";
 import { loadProductContext } from "../distribution/context.ts";
 import { crawlSite, USER_AGENT } from "../intel/crawl.ts";
@@ -13,26 +13,27 @@ export type AuditKind = (typeof auditKinds)[number];
 
 export const auditPayload = z.object({ workspaceId: z.guid(), auditId: z.guid() });
 
-const findingsOutput = z.object({
-  summary: z.string().describe("Two or three sentences: the overall verdict and the single most important fix."),
-  findings: z.array(
-    z.object({
-      severity: z.enum(["high", "medium", "low"]),
-      title: z.string().describe("Short, specific problem or opportunity"),
-      detail: z.string().describe("What you saw, with evidence (quote the page where useful)"),
-      fix: z.string().describe("The concrete change to make"),
-    }),
-  ),
+/** One finding: the audit's output and a Refine revision's shape. */
+export const auditFindingOutput = z.object({
+  severity: z.enum(["high", "medium", "low"]),
+  title: z.string().describe("Short, specific problem or opportunity"),
+  detail: z.string().describe("What you saw, with evidence (quote the page where useful)"),
+  fix: z.string().describe("The concrete change to make"),
 });
 
-const FOCUS: Record<AuditKind, string> = {
+const findingsOutput = z.object({
+  summary: z.string().describe("Two or three sentences: the overall verdict and the single most important fix."),
+  findings: z.array(auditFindingOutput),
+});
+
+export const FOCUS: Record<AuditKind, string> = {
   landing: `Audit the homepage and key pages as a landing page for the target audience. Check: is the promise clear in 5 seconds, in the audience's words; is there one obvious call to action; proof (examples, screenshots, numbers, testimonials); objections answered (price, privacy, "is anyone here?"); clutter and competing links; mobile-relevant issues visible in the text.`,
   onboarding: `Audit the path from first visit to first meaningful action (the activation moment for this kind of product). You can't sign up, so judge from the pages, FAQ, help and docs: signup friction, what a new user sees first, whether the first action is suggested, invite-only or waitlist confusion, and what would make someone come back.`,
   seo: `Audit technical and content SEO. Use the measured facts given (titles, descriptions, headings, canonical, Open Graph, robots.txt, sitemap) plus the page text: indexability problems, missing or weak titles/descriptions, thin pages, missing pages that answer the audience's searches (comparisons, how-tos, "best X for Y"), internal linking.`,
   geo: `Audit visibility in AI assistants' answers (generative engine optimization), using the research notes: does the product appear when the audience asks AI assistants or search for recommendations; how is it described; which competitors appear instead and why; what sources those answers cite; what content or mentions would get the product included.`,
 };
 
-const SYSTEM = `You are a senior growth and conversion reviewer inside Startica, an open-source startup harness that helps a small founder with everything after they ship. Be specific and evidence-based: quote or cite what you saw. Prioritize: high = likely costing signups now; medium = clear improvement; low = polish. 5–12 findings. Never invent facts about the product; if you couldn't check something, say so in the detail.`;
+export const AUDIT_SYSTEM = `You are a senior growth and conversion reviewer inside Startica, an open-source startup harness that helps a small founder with everything after they ship. Be specific and evidence-based: quote or cite what you saw. Prioritize: high = likely costing signups now; medium = clear improvement; low = polish. 5–12 findings. Never invent facts about the product; if you couldn't check something, say so in the detail.`;
 
 /** Facts an SEO audit can measure directly instead of asking a model. */
 export async function seoFacts(siteUrl: string): Promise<string> {
@@ -93,7 +94,7 @@ export async function runAudit(ctx: AiContext, payload: z.infer<typeof auditPayl
     const result = await runStructured(ctx, {
       task: "strategy",
       promptVersion: `${AUDIT_PROMPT_VERSION}:${audit.kind}`,
-      system: `${SYSTEM}\n\n${FOCUS[audit.kind]}`,
+      system: `${AUDIT_SYSTEM}\n\n${FOCUS[audit.kind]}`,
       messages: [{ role: "user", content: `<product>\n${context.text}\n</product>\n\n${material}` }],
       schema: findingsOutput,
     });
@@ -110,4 +111,34 @@ export async function runAudit(ctx: AiContext, payload: z.infer<typeof auditPayl
       .where(eq(audits.id, audit.id));
     throw error;
   }
+}
+
+/** An audit of the workspace, with one finding (`index`), or throws. */
+export async function ownAuditFinding(workspaceId: string, auditId: string, index: number) {
+  const [audit] = await getDb()
+    .select()
+    .from(audits)
+    .where(and(eq(audits.id, auditId), eq(audits.workspaceId, workspaceId)));
+  const finding = audit?.findings[index];
+  if (!audit || !finding) throw new Error("Finding not found");
+  return { audit, finding };
+}
+
+const STAGE_FOR = { landing: "acquisition", onboarding: "activation", seo: "acquisition", geo: "acquisition" } as const;
+
+/** Turns an audit finding into an owner roadmap item (re-plans keep it). */
+export async function findingToRoadmap(workspaceId: string, auditId: string, index: number): Promise<void> {
+  const { audit, finding } = await ownAuditFinding(workspaceId, auditId, index);
+  await getDb()
+    .insert(roadmapItems)
+    .values({
+      workspaceId,
+      productId: audit.productId,
+      stage: STAGE_FOR[audit.kind],
+      title: finding.title,
+      why: finding.detail,
+      nextStep: finding.fix,
+      priority: finding.severity === "high" ? 1 : finding.severity === "medium" ? 3 : 4,
+      source: "owner",
+    });
 }

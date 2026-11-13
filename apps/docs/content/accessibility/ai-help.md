@@ -58,6 +58,8 @@ On **Needs review**, **Ask AI** looks at an item's element, with the page screen
 
 On the Overview, **Summarize** writes three to five sentences on where the site stands, what changed in recent scans, and what to fix next. It says when there's a newer scan than the one it summarized. About $0.01.
 
+While the summary describes the latest scan, its first sentence also goes into Today's accessibility suggestion, and the [Roadmap's weekly re-plan](/guides/roadmap) reads it with the site's score. An older summary isn't passed on.
+
 ## Costs
 
 All four use your AI key and count toward the monthly budget in **Settings → General → AI**. Fix suggestions and summaries use the **draft** model; the alt text review and Ask AI use the **vision** model, which reads images. See [Costs and budget](/concepts/costs).

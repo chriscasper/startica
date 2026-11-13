@@ -3,7 +3,8 @@ import { z } from "zod";
 import { getDb } from "@startica/db/client";
 import { enqueue } from "@startica/db/queue";
 import { aiPrompts, aiRuns, aiVisibilityAnswers, aiVisibilityRuns, competitors, keywords, promptStages, type AnswerCitation } from "@startica/db/schema";
-import { hasAiKey, runAnswer, runStructured, taskModel, type AiContext } from "../ai/client.ts";
+import { hasAiApiKey, hasAiKey, runAnswer, runStructured, taskModel, type AiContext, type AiProvider, type ModelConfig } from "../ai/client.ts";
+import { DEFAULT_MODELS, providerOf } from "../ai/models.ts";
 import { loadProductContext } from "../distribution/context.ts";
 import {
   ANALYSIS_PROMPT_VERSION,
@@ -111,12 +112,24 @@ async function runSpend(ctx: AiContext, startedAt: Date): Promise<number> {
   return Number(row?.cost ?? 0);
 }
 
+/**
+ * The answer models a run asks: the answer task's model, plus the other provider's default
+ * answer model when the owner asked for both and that provider's key is saved.
+ */
+export async function answerModels(ctx: AiContext, both: boolean): Promise<ModelConfig[]> {
+  const main = await taskModel(ctx, "answer");
+  if (!both) return [main];
+  const other: AiProvider = providerOf(main.model) === "openai" ? "anthropic" : "openai";
+  if (!(await hasAiApiKey(other))) return [main];
+  return [main, DEFAULT_MODELS[other].answer];
+}
+
 /** Creates a run for a product (the Run button, or the weekly schedule). */
 export async function createRun(workspaceId: string, productId: string, trigger: "manual" | "weekly"): Promise<string> {
   const ctx = { workspaceId };
-  const [model, settings, prompts] = await Promise.all([
-    taskModel(ctx, "answer"),
-    visibilitySettings(productId),
+  const settings = await visibilitySettings(productId);
+  const [models, prompts] = await Promise.all([
+    answerModels(ctx, settings.both),
     getDb()
       .select({ id: aiPrompts.id })
       .from(aiPrompts)
@@ -125,7 +138,7 @@ export async function createRun(workspaceId: string, productId: string, trigger:
   if (prompts.length === 0) throw new Error("Add some questions first");
   const [row] = await getDb()
     .insert(aiVisibilityRuns)
-    .values({ workspaceId, productId, model: model.model, trigger, promptCount: prompts.length, capUsd: settings.capUsd })
+    .values({ workspaceId, productId, model: models[0]!.model, models: models.map((m) => m.model), trigger, promptCount: prompts.length, capUsd: settings.capUsd })
     .returning({ id: aiVisibilityRuns.id });
   return row!.id;
 }
@@ -145,12 +158,16 @@ export async function runVisibility(ctx: AiContext, payload: z.infer<typeof visi
     .where(and(eq(aiPrompts.productId, run.productId), eq(aiPrompts.active, true)))
     .orderBy(asc(aiPrompts.createdAt))
     .limit(MAX_PROMPTS);
-  const perQuestion = estimatePerQuestion(await taskModel(ctx, "answer"), await taskModel(ctx, "score"));
+  // The run's answer models as they were when it was created (older runs: the one model).
+  const configured = await answerModels(ctx, true);
+  const scoreModel = await taskModel(ctx, "score");
+  const models = (run.models.length ? run.models : [run.model]).map((id) => configured.find((m) => m.model === id) ?? { ...configured[0]!, model: id });
+  const perAnswer = new Map(models.map((m) => [m.model, estimatePerQuestion(m, scoreModel)]));
   const today = new Date().toISOString().slice(0, 10);
   // A run picked up again after Startica quit mid-run: keep its answers and what they cost, ask only the rest.
   const earlier = await db.select().from(aiVisibilityAnswers).where(eq(aiVisibilityAnswers.runId, run.id));
-  const asked = new Set(earlier.map((a) => a.promptId));
-  const results: (AnalyzedAnswer & { error?: string | null })[] = earlier.map((a) => ({
+  const asked = new Set(earlier.map((a) => `${a.promptId} ${a.model ?? run.model}`));
+  const results: (AnalyzedAnswer & { error?: string | null; model?: string | null; topic?: string | null })[] = earlier.map((a) => ({
     mentioned: a.mentioned,
     recommended: a.recommended,
     position: a.position,
@@ -160,27 +177,33 @@ export async function runVisibility(ctx: AiContext, payload: z.infer<typeof visi
     description: a.description,
     sentiment: a.sentiment,
     error: a.error,
+    model: a.model ?? run.model,
+    topic: a.topic,
   }));
   // The cost so far: what earlier passes saved on the run, plus this pass's AI calls.
   const baseCost = ctx.jobRunId ? run.costUsd : 0;
   const spentSoFar = async () => baseCost + (await runSpend(ctx, run.startedAt));
-  const total = prompts.length;
+  const total = prompts.length * models.length;
+  const unit = models.length > 1 ? "answers" : "questions";
   let note: string | null = null;
   let status: "done" | "failed" | "cancelled" = "done";
 
-  for (const prompt of prompts) {
-    if (asked.has(prompt.id)) continue;
+  // Each question of each model in turn, so a stop or the cap leaves both providers with the same questions answered.
+  const asks = prompts.flatMap((prompt) => models.map((model) => ({ prompt, model })));
+  ask: for (const { prompt, model } of asks) {
+    if (asked.has(`${prompt.id} ${model.model}`)) continue;
     if (ctx.signal?.aborted) {
       status = "cancelled";
-      note = `Stopped by you after ${results.length} of ${total} questions.`;
+      note = `Stopped by you after ${results.length} of ${total} ${unit}.`;
       break;
     }
     const spent = await spentSoFar();
     await db.update(aiVisibilityRuns).set({ costUsd: Math.round(spent * 10000) / 10000 }).where(eq(aiVisibilityRuns.id, run.id));
-    if (spent + perQuestion > run.capUsd) {
-      note = `Stopped at the $${run.capUsd.toFixed(2)} cap after ${results.length} of ${total} questions.`;
+    if (spent + (perAnswer.get(model.model) ?? 0) > run.capUsd) {
+      note = `Stopped at the $${run.capUsd.toFixed(2)} cap after ${results.length} of ${total} ${unit}.`;
       break;
     }
+    const tags = { model: model.model, topic: prompt.topic || null };
     try {
       const answer = await runAnswer(ctx, {
         task: "answer",
@@ -188,6 +211,7 @@ export async function runVisibility(ctx: AiContext, payload: z.infer<typeof visi
         system: answerSystem(today),
         messages: [{ role: "user", content: prompt.text }],
         maxSearches: MAX_SEARCHES,
+        modelConfig: model,
       });
       const citations: AnswerCitation[] = answer.citations.slice(0, 40);
       const out = await runStructured(ctx, {
@@ -208,7 +232,7 @@ export async function runVisibility(ctx: AiContext, payload: z.infer<typeof visi
         schema: analysisOutput,
       });
       const a = analyzed(out, { text: answer.text, citations }, { names, url: product.url }, comps);
-      results.push(a);
+      results.push({ ...a, ...tags });
       await db.insert(aiVisibilityAnswers).values({
         workspaceId: run.workspaceId,
         runId: run.id,
@@ -217,22 +241,23 @@ export async function runVisibility(ctx: AiContext, payload: z.infer<typeof visi
         answer: answer.text,
         citations,
         searches: answer.searches,
+        ...tags,
         ...a,
       });
     } catch (err) {
       if (ctx.signal?.aborted) {
         status = "cancelled";
-        note = `Stopped by you after ${results.length} of ${total} questions.`;
+        note = `Stopped by you after ${results.length} of ${total} ${unit}.`;
         break;
       }
       // One bad answer doesn't end the run; the budget guard or a missing key does.
       const text = message(err);
-      results.push({ mentioned: false, recommended: false, position: null, productsNamed: [], competitors: [], ownCitations: [], description: null, sentiment: null, error: text });
-      await db.insert(aiVisibilityAnswers).values({ workspaceId: run.workspaceId, runId: run.id, promptId: prompt.id, promptText: prompt.text, error: text });
+      results.push({ mentioned: false, recommended: false, position: null, productsNamed: [], competitors: [], ownCitations: [], description: null, sentiment: null, error: text, ...tags });
+      await db.insert(aiVisibilityAnswers).values({ workspaceId: run.workspaceId, runId: run.id, promptId: prompt.id, promptText: prompt.text, error: text, ...tags });
       if (/budget reached|No .*API key|Unknown model/i.test(text)) {
         status = "failed";
         note = text;
-        break;
+        break ask;
       }
     }
   }

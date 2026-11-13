@@ -6,7 +6,11 @@ import * as schema from "@startica/db/schema";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { PageHeader } from "@/components/app/page-header";
 import { PageSkeleton } from "@/components/app/page-skeleton";
-import { db, getActiveProduct } from "@/lib/dal";
+import { hasAiKey } from "@startica/core/ai/client";
+import { versionsToShowFor } from "@startica/core/chat/threads";
+import { db, getActiveProduct, getWorkspace } from "@/lib/dal";
+import { desktopApp } from "@/lib/desktop";
+import { findingVersions } from "./findings";
 import { Audits, Board, RoadmapHeader, type AuditView, type ItemView, type PlanView } from "./roadmap-board";
 
 export const metadata: Metadata = { title: "Roadmap" };
@@ -55,6 +59,9 @@ async function RoadmapContent() {
     if (latestAudits.some((x) => x.kind === a.kind)) continue;
     latestAudits.push({ id: a.id, kind: a.kind, status: a.status, summary: a.summary, error: a.error, date: date(a.createdAt), findings: a.findings });
   }
+  const aiBlocked = desktopApp().demo ? "AI is off in the demo" : (await hasAiKey()) ? null : "Add an AI key in Settings first";
+  const [itemVersions, auditVersions] = await Promise.all([versionsToShowFor((await getWorkspace()).id, "roadmap_item", items.map((i) => i.id)), findingVersions(latestAudits)]);
+  const itemViews: ItemView[] = items.map((i) => ({ ...(i as ItemView), versions: itemVersions[i.id] ?? [] }));
   const planView: PlanView = plan ? { summary: plan.summary, changes: plan.changes, date: date(plan.createdAt) } : null;
 
   return (
@@ -66,8 +73,8 @@ async function RoadmapContent() {
         </p>
       )}
       <RoadmapHeader productId={product.id} planning={planning} plan={planView} />
-      <Board productId={product.id} items={items as ItemView[]} />
-      <Audits productId={product.id} audits={latestAudits} kinds={["landing", "onboarding"]} />
+      <Board productId={product.id} items={itemViews} aiBlocked={aiBlocked} />
+      <Audits productId={product.id} audits={latestAudits} kinds={["landing", "onboarding"]} aiBlocked={aiBlocked} versions={auditVersions} />
     </>
   );
 }

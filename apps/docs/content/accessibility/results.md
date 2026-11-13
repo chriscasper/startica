@@ -101,7 +101,13 @@ The bands: **High** for critical and serious issues on 5 or more pages or on pag
 
 ## Ignore an issue
 
-**Ignore** on an issue asks why: **False positive** (the check got it wrong), **Won't fix**, or **Not applicable**, with an optional note. An ignored issue is kept on record under **Ignored**, leaves the open list and the [By criterion](#by-criterion) view, and later scans don't raise it again. **Stop ignoring** puts it back: open if the latest results still find it, fixed if not. An ignored issue covers the whole site.
+**Ignore** on an issue asks why: **False positive** (the check got it wrong), **Won't fix**, or **Not applicable**, with an optional note. An ignored issue is kept on record under **Ignored**, leaves the open list and the [By criterion](#by-criterion) view, and later scans don't raise it again. **Stop ignoring** puts it back: open if the latest results still find it, fixed if not. **Ignore** covers the whole site.
+
+### On one page only
+
+When an issue is right on most pages but not on one (a decorative image on the home page, say), use **Ignore on this page** next to that page in the issue's **Where it fails** list, or on the issue's card in the page report. It asks for the same reasons. The page is marked **Ignored on this page** and leaves the issue's page count, its [priority](#priority), the [By criterion](#by-criterion) view and the reports; the issue stays open for its other pages. Later scans remember it by the issue and the page's address.
+
+An issue ignored on every page it's on is listed under **Ignored** as "Ignored on each page it's on", and opens again if a scan finds it on another page. **Count this page again** undoes it for that page. The page's own score isn't changed, just as with a site-wide ignore. The CSV export has an **Ignored on this page** column.
 
 ## Open and fixed
 
@@ -127,7 +133,7 @@ The page's score is the passed points as a share of all the points, out of 100. 
 | One critical | 40 / (40 + 10) | 80 |
 | One minor | 40 / (40 + 1) | 97.6, shown as 98 |
 
-The site's score is the average of its checked pages' scores. Skipped and failed pages don't count.
+The site's score is the average of its checked pages' scores. Skipped and failed pages don't count. With web analytics connected ([Google Analytics](/credentials/google) or [Umami](/credentials/umami), the same page visits as the [priority](#priority)), each page counts by its traffic: 1 plus its visits in the last 30 days, so a busy page's score matters more than a page nobody opens. Without web analytics it's a plain average. Scores already recorded for earlier scans keep the way they were worked out.
 
 The target is 90 by default. Change it with **Target score** in [Site settings](/accessibility#site-settings). Use it as a goal for the issues automated checks can find.
 

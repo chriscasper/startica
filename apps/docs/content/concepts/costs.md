@@ -39,7 +39,7 @@ These are estimates worked out from the default models, typical prompt sizes in 
 | --- | --- | --- |
 | Test job (**Run test job**) | `ping`, Haiku or Luna | Well under $0.001 |
 | Score one conversation | `score`, Haiku or Luna | About $0.0005 |
-| Score one source's full share of a scan (60 new conversations, the per-source cap) | `score`, Haiku or Luna | About $0.03 |
+| Score one source's full share of a scan (60 new conversations, the per-source cap) | `score`, Haiku or Luna | About $0.03, or about $0.015 [in a batch](#batches) |
 | Draft one reply | `draft`, Sonnet or Sol | $0.01 to $0.03 |
 | Write one Content Studio piece | `draft`, Sonnet or Sol | $0.01 to $0.05 |
 | Build a voice profile | `strategy`, Opus or Sol | $0.10 to $0.25 |
@@ -60,13 +60,21 @@ These are estimates worked out from the default models, typical prompt sizes in 
 | Draft one fix on [Opportunities](/seo/opportunities#costs) (titles and descriptions, JSON-LD, `llms.txt` or an FAQ answer) | `draft`, Sonnet or Sol | $0.01 to $0.03 |
 | **Write it in Content Studio** on Opportunities (one blog article) | `draft`, Sonnet or Sol | $0.01 to $0.05 |
 | Ask one AI visibility question (answer with up to 3 searches, then read it) | `answer` + `score`, Sonnet + Haiku or Sol + Luna | About $0.06 |
-| An AI visibility run of 20 questions | `answer` + `score` | About $1.30, capped at $2 by default |
+| An AI visibility run of 20 questions | `answer` + `score` | About $1.30, capped at $2 by default; about twice that when it [asks both providers](/seo/ai-visibility#both-providers) |
 | [Accessibility](/accessibility/ai-help): suggest a fix for one issue, Ask AI on one Needs review item, or summarize a site | `draft` or `vision`, Sonnet or Sol | About $0.01 each |
 | [Accessibility](/accessibility/ai-help#alt-text-review): review the alt text of 50 images | `vision`, Sonnet or Sol | About $0.25 (about $0.005 an image) |
 | [Security](/security/findings): explain and fix one finding, or [triage](/security/disclosure#reported-problems) one reported problem | `draft`, Sonnet or Sol | About $0.02 each |
 | [Security](/security/findings#findings-from-other-reports): import another tool's report | `draft`, Sonnet or Sol | About $0.10 for a long report |
 
 These figures are worked out for Claude's defaults. OpenAI's defaults use the same prices for scoring and drafting and a cheaper model (GPT-6.1 Sol) for strategy and research, so those actions usually cost less on OpenAI.
+
+## Batches
+
+When a scan finds 20 or more new conversations in one place (a subreddit's feed, a forum, a keyword search), Startica sends them for scoring through your provider's batch API instead of one by one. Batched requests cost about half as much, and the scores arrive within a few minutes instead of seconds. While it waits, the activity indicator in the header shows **Waiting for batched AI results**; **Stop** there cancels the batch.
+
+In **System** → **AI calls**, batched calls are marked **batch** and their cost already reflects the lower price. Their time is how long the batch took, not the call itself.
+
+To score everything right away, turn off **Score big backlogs in batches** in **Settings** → **General** → **AI**. Pasted links are always scored right away.
 
 ### A rough month
 

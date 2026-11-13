@@ -71,7 +71,18 @@ export type ScanRequest = {
   timeoutMs: number;
   /** Take a screenshot when the page has issues (A2): JPEG, the viewport's width, at most SCREENSHOT_MAX_HEIGHT tall. */
   screenshot?: boolean;
+  /**
+   * S3: load the page in the site's sign-in session (the owner signed in by hand), allowing
+   * these extra hosts too, and answer with its cookies' flags.
+   */
+  signIn?: { siteId: string; extraHosts: string[] };
 };
+
+/** A cookie's name and flags, from the browser's jar (S3). Never its value. */
+export type CookieFlags = { name: string; secure: boolean; httpOnly: boolean; sameSite: string | null };
+
+/** Opening the visible sign-in window for a site (S3). */
+export type SignInRequest = { siteId: string; url: string; siteUrl: string; extraHosts: string[] };
 
 export const SCREENSHOT_MAX_HEIGHT = 4000;
 export const SCREENSHOT_QUALITY = 60;
@@ -90,6 +101,8 @@ export type ScanResponse = {
   screenshot?: { data: string; width: number; height: number } | null;
   /** The main document's security-relevant response headers (`RESPONSE_HEADERS`), lowercase names; Set-Cookie lines joined with "\n". */
   headers?: Record<string, string>;
+  /** S3, signed-in requests only: the flags of the cookies the session holds for the page. */
+  cookies?: CookieFlags[];
 };
 
 /** Response headers the backends keep from each page's main document. */
@@ -121,7 +134,17 @@ export function pickHeaders(raw: Record<string, string | string[] | undefined>):
 export interface ScannerBackend {
   name: "electron" | "playwright";
   scan(request: ScanRequest): Promise<ScanResponse>;
+  /** S3: opens a visible window on the site's sign-in session for the owner to sign in by hand. */
+  signIn?(request: SignInRequest): Promise<void>;
+  /** S3: clears the site's sign-in session (cookies and storage). */
+  forgetSignIn?(siteId: string): Promise<void>;
   close?(): Promise<void>;
+}
+
+/** Only the flags of a browser cookie (S3): the value never leaves the browser side. */
+export function cookieFlags(c: { name: string; secure?: boolean; httpOnly?: boolean; sameSite?: string | null }): CookieFlags {
+  const sameSite = c.sameSite && !/^(unspecified)$/i.test(c.sameSite) ? c.sameSite.toLowerCase().replace("no_restriction", "none") : null;
+  return { name: c.name, secure: Boolean(c.secure), httpOnly: Boolean(c.httpOnly), sameSite };
 }
 
 const KEY = Symbol.for("startica.scanner");

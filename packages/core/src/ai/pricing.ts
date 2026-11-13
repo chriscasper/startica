@@ -7,6 +7,9 @@ const CACHE_WRITE_MULTIPLIER = 1.25;
 // Claude's web fetch is tokens only.
 const WEB_SEARCH_USD_PER_REQUEST = 10 / 1000;
 
+/** Both providers' batch APIs bill tokens at half the usual price. */
+export const BATCH_PRICE_FACTOR = 0.5;
+
 export type TokenUsage = {
   inputTokens: number;
   outputTokens: number;

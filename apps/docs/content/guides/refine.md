@@ -1,6 +1,6 @@
 ---
 title: Refining AI suggestions
-description: Chat with the AI about a suggestion (a reply draft, a post, an ad, a security or accessibility fix), apply the revision you want, and go back to any earlier version.
+description: Chat with the AI about a suggestion (a reply draft, a post, an ad, a fix, an audit finding, a roadmap item), apply the revision you want, go back to any earlier version, or ask about a triage, a review or an AI answer.
 layout: doc
 ---
 
@@ -15,6 +15,19 @@ Many of Startica's AI suggestions have a **Refine** button. It opens a chat besi
 | Ad copy | [Ads](/ads/) → a campaign, next to each ad | Each revision gets the same checks as the ad editor, and any problems are listed under the reply. |
 | Security fix steps | [Security](/security/), on a finding with **Help for your stack** | |
 | Accessibility fixes | [Accessibility](/accessibility/ai-help), on an issue with a **Suggested fix** | |
+| SEO & GEO fix drafts | SEO & GEO → Opportunities, on an opportunity with a draft | Each revision gets the same checks as the draft (lengths, valid JSON-LD, llms.txt links), and any problems are listed under the reply. |
+| Audit findings | Roadmap (landing page, onboarding) and SEO & GEO → Opportunities (SEO, AI search), on each finding | **Apply and add to Roadmap** applies the revision and adds the finding to the Roadmap in one click. |
+| Roadmap items | Roadmap, on each item | Applying makes the item yours, like editing it: re-plans won't change or drop it. |
+
+## Ask about it
+
+Some AI results can be questioned but not revised in a chat. They have an **Ask about it** button instead of Refine. The chat works the same way, but the AI only answers: there's no Apply and no Versions. To get a new result, use the page's own button (**Triage again**, **Ask AI**, or the next AI visibility run).
+
+| Result | Where |
+|---|---|
+| A reported problem's triage | Security → Disclosure, on a triaged report |
+| The AI's suggestion on a Needs review item | Accessibility → Needs review. The chat has the element's code but not the screenshot. |
+| An AI visibility answer | SEO & GEO → AI visibility → **Read the answer** |
 
 Refine needs an AI key (Settings → General → AI) and is off in the [demo](/guides/demo-mode). On reply drafts and pieces, save or undo your own edits first: the chat works on the saved text.
 

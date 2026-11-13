@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { chatSubjectKinds } from "@startica/db/schema";
 import { hasAiKey } from "@startica/core/ai/client";
+import { subjectIdInput } from "@startica/core/chat/subjects";
 import { applyRevision, restoreVersion, retryReply, sendChatMessage, setChatWebSearch, startOver, stopReply } from "@startica/core/chat/threads";
 import type { ActionResult } from "@/components/app/form-dialog";
 import { fail, id, mutate } from "@/lib/actions";
@@ -21,16 +22,16 @@ async function needAi() {
 export async function sendRefineMessage(subjectKind: string, subjectId: string, text: string): Promise<ActionResult> {
   try {
     await needAi();
-    await sendChatMessage((await getWorkspace()).id, kind.parse(subjectKind), id.parse(subjectId), text);
+    await sendChatMessage((await getWorkspace()).id, kind.parse(subjectKind), subjectIdInput.parse(subjectId), text);
     return { error: null };
   } catch (error) {
     return fail(error);
   }
 }
 
-/** Applies a revision: the page shows it, so it's refreshed. */
-export async function applyRefineRevision(messageId: string): Promise<ActionResult> {
-  return mutate(async () => applyRevision((await getWorkspace()).id, id.parse(messageId)));
+/** Applies a revision: the page shows it, so it's refreshed. `also` runs the subject's second action too ("and add to Roadmap"). */
+export async function applyRefineRevision(messageId: string, also = false): Promise<ActionResult> {
+  return mutate(async () => applyRevision((await getWorkspace()).id, id.parse(messageId), { also: z.boolean().parse(also) }));
 }
 
 export async function stopRefineReply(messageId: string): Promise<ActionResult> {
@@ -54,7 +55,7 @@ export async function retryRefineReply(messageId: string): Promise<ActionResult>
 
 export async function startRefineOver(subjectKind: string, subjectId: string): Promise<ActionResult> {
   try {
-    await startOver((await getWorkspace()).id, kind.parse(subjectKind), id.parse(subjectId));
+    await startOver((await getWorkspace()).id, kind.parse(subjectKind), subjectIdInput.parse(subjectId));
     return { error: null };
   } catch (error) {
     return fail(error);

@@ -12,7 +12,8 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { a11yIssueGroups, a11yOccurrences, sitePages, sites } from "@startica/db/schema";
 import { db, getWorkspace } from "@/lib/dal";
 import { desktopApp } from "@/lib/desktop";
-import { OpenHighlightsButton, RecheckButton } from "../../controls";
+import { IgnoreOnPageButton, OpenHighlightsButton, RecheckButton, UnignoreOnPageButton } from "../../controls";
+import { PAGES_REASON } from "@startica/core/a11y/page-ignores";
 import { ago, byPriority, loadSites, pathOf, withSite, type GroupRow } from "../../data";
 import { AutomatedNote, ImpactBadge, Score } from "../../ui";
 
@@ -46,7 +47,8 @@ async function loadReport(pageId: string) {
     .where(eq(a11yOccurrences.pageId, pageId));
   const groups = new Map<string, { group: GroupRow; elements: (typeof items)[number]["occurrence"][] }>();
   for (const { occurrence, group } of items) {
-    if (group.status === "ignored" || (group.kind !== "violation" && group.reviewStatus !== "fail")) continue;
+    // Ignored site-wide: left out. Ignored on pages (this one or every one): shown, marked, with Count again.
+    if ((group.status === "ignored" && group.ignoreReason !== PAGES_REASON) || (group.kind !== "violation" && group.reviewStatus !== "fail")) continue;
     const entry = groups.get(group.id) ?? { group, elements: [] };
     entry.elements.push(occurrence);
     groups.set(group.id, entry);
@@ -166,8 +168,15 @@ async function Report({ params }: { params: PageProps<"/accessibility/pages/[id]
               <CardDescription className="flex flex-wrap items-center gap-2">
                 <ImpactBadge impact={group.impact} />
                 WCAG {group.criteria.join(", ") || "–"} {group.level && `(level ${group.level})`}
-                {group.pagesCount > 1 && <span>· also on {group.pagesCount - 1} other page{group.pagesCount === 2 ? "" : "s"}</span>}
+                {elements.some((e) => e.ignored) ? (
+                  <Badge variant="outline">Ignored on this page</Badge>
+                ) : (
+                  group.pagesCount > 1 && <span>· also on {group.pagesCount - 1} other page{group.pagesCount === 2 ? "" : "s"}</span>
+                )}
               </CardDescription>
+              <CardAction>
+                {elements.some((e) => e.ignored) ? <UnignoreOnPageButton groupId={group.id} pageId={page.id} /> : <IgnoreOnPageButton groupId={group.id} pageId={page.id} />}
+              </CardAction>
             </CardHeader>
             <CardContent className="grid gap-3">
               {elements.map((e) => (

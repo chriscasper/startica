@@ -4,14 +4,16 @@ import { Suspense } from "react";
 import { and, desc, eq } from "drizzle-orm";
 import { localDay } from "@startica/core/growth/moves";
 import { hasAiKey } from "@startica/core/ai/client";
+import { versionsToShowFor } from "@startica/core/chat/threads";
 import { collectOpportunities } from "@startica/core/opportunities/collect";
 import * as schema from "@startica/db/schema";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { PageHeader } from "@/components/app/page-header";
 import { PageSkeleton } from "@/components/app/page-skeleton";
-import { db, getActiveProduct } from "@/lib/dal";
+import { db, getActiveProduct, getWorkspace } from "@/lib/dal";
 import { desktopApp } from "@/lib/desktop";
 import { cn } from "@/lib/utils";
+import { findingVersions } from "../../roadmap/findings";
 import { Audits, type AuditView } from "../../roadmap/roadmap-board";
 import { OpportunityCard, type OpportunityView } from "./opportunity-ui";
 
@@ -68,10 +70,15 @@ async function Opportunities({ searchParams }: { searchParams: PageProps<"/seo/o
     if (audits.some((x) => x.kind === a.kind)) continue;
     audits.push({ id: a.id, kind: a.kind, status: a.status, summary: a.summary, error: a.error, date: date(a.createdAt), findings: a.findings });
   }
+  const auditVersions = await findingVersions(audits);
   const open = all.filter((o) => o.status === "open");
   const shown = filter === "closed" ? all.filter((o) => o.status !== "open") : open.filter((o) => filter === "all" || o.area === filter);
+  const rowIds = shown.flatMap((o) => (o.state?.draft ? [o.state.id] : []));
+  const versions = await versionsToShowFor((await getWorkspace()).id, "seo_draft", rowIds);
   const views: OpportunityView[] = shown.map((o) => ({
     key: o.key,
+    rowId: o.state?.id ?? null,
+    versions: o.state ? (versions[o.state.id] ?? []) : [],
     area: o.area,
     title: o.title,
     why: o.why,
@@ -122,7 +129,7 @@ async function Opportunities({ searchParams }: { searchParams: PageProps<"/seo/o
         </div>
       )}
 
-      <Audits productId={product.id} audits={audits} kinds={["seo", "geo"]} title="AI audits" />
+      <Audits productId={product.id} audits={audits} kinds={["seo", "geo"]} title="AI audits" aiBlocked={aiBlocked} versions={auditVersions} />
     </>
   );
 }

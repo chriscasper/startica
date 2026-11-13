@@ -87,6 +87,7 @@ const docsNav = [
       { title: 'Checks', url: '/security/checks' },
       { title: 'Findings and report', url: '/security/findings' },
       { title: 'Monitoring', url: '/security/monitoring' },
+      { title: 'Signed-in checks and safety', url: '/security/signed-in' },
       { title: 'Disclosure', url: '/security/disclosure' },
     ],
   },

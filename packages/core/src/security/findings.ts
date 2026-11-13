@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, transaction } from "@startica/db/client";
 import { securityComponents, securityFindings, securityOccurrences, sitePages, siteScans, sites } from "@startica/db/schema";
@@ -72,7 +72,8 @@ export async function finishSecurity(site: Site, opts: { scanId: string | null; 
   if (opts.probes) {
     const { drafts, facts } = await siteSecurityProbes(site.startUrl, now.getTime());
     await transaction(async (tx) => {
-      await tx.delete(securityOccurrences).where(and(eq(securityOccurrences.siteId, site.id), isNull(securityOccurrences.pageId)));
+      // Site-level occurrences only: signed-in pages' (S3) have no page id either, and stay.
+      await tx.delete(securityOccurrences).where(and(eq(securityOccurrences.siteId, site.id), isNull(securityOccurrences.pageId), isNull(securityOccurrences.signedInUrl)));
       if (drafts.length) await tx.insert(securityOccurrences).values(rows(site, null, drafts));
       await tx.update(sites).set({ security: facts }).where(eq(sites.id, site.id));
     });
@@ -80,14 +81,14 @@ export async function finishSecurity(site: Site, opts: { scanId: string | null; 
 
   // Live occurrences: site-level ones and those on pages still on the site.
   const live = await db
-    .select({ groupKey: securityOccurrences.groupKey, rule: securityOccurrences.rule, detail: securityOccurrences.detail, pageId: securityOccurrences.pageId })
+    .select({ groupKey: securityOccurrences.groupKey, rule: securityOccurrences.rule, detail: securityOccurrences.detail, pageId: securityOccurrences.pageId, signedInUrl: securityOccurrences.signedInUrl })
     .from(securityOccurrences)
     .leftJoin(sitePages, eq(sitePages.id, securityOccurrences.pageId))
     .where(and(eq(securityOccurrences.siteId, site.id), or(isNull(securityOccurrences.pageId), isNull(sitePages.goneAt))));
   const byKey = new Map<string, { rule: string; detail: Record<string, unknown>; pages: number }>();
   for (const o of live) {
     const entry = byKey.get(o.groupKey) ?? { rule: o.rule, detail: o.detail, pages: 0 };
-    if (o.pageId) entry.pages++;
+    if (o.pageId || o.signedInUrl) entry.pages++;
     byKey.set(o.groupKey, entry);
   }
 
@@ -158,6 +159,16 @@ export async function ownFinding(workspaceId: string, findingId: string) {
 }
 
 /** Pages a finding is on now (page-level findings), with what each page showed. */
+/** The signed-in pages (S3) a finding was found on, in the last signed-in check. */
+export async function findingSignedInPages(siteId: string, groupKey: string): Promise<string[]> {
+  const rows = await getDb()
+    .selectDistinct({ url: securityOccurrences.signedInUrl })
+    .from(securityOccurrences)
+    .where(and(eq(securityOccurrences.siteId, siteId), eq(securityOccurrences.groupKey, groupKey), isNotNull(securityOccurrences.signedInUrl)));
+  return rows.map((r) => r.url!).sort();
+}
+
+/** The crawled pages a finding is on (signed-in pages are `findingSignedInPages`). */
 export async function findingPages(siteId: string, groupKey: string) {
   return getDb()
     .select({ pageId: sitePages.id, url: sitePages.url, title: sitePages.title, detail: securityOccurrences.detail })

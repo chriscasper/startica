@@ -250,6 +250,55 @@ async function accessibility(window) {
     const keys = db.prepare("select group_key from security_findings where status = 'open' and source = 'scan' order by group_key").all().map((r) => r.group_key);
     db.close();
     check(open === 11 && keys.includes("server-version:x-powered-by:standin/1.2") && keys.includes("exposed-git"), `security: the Electron scanner's headers reach the checks (${open} open: ${keys.join(", ")})`);
+
+    // Security S3: the owner signs in by hand in the window Startica opens (played here from the
+    // main process), then the signed-in check reads /account on that partition: the session
+    // cookie's flags reach the checks, its value never reaches the database.
+    const s3card = window.locator("div[data-slot=card]", { hasText: "Signed-in checks and safety" });
+    await s3card.getByRole("button", { name: "Settings" }).click();
+    await window.getByLabel(/^Pages to check after sign-in/).fill("/account");
+    await window.getByRole("button", { name: "Save" }).last().click();
+    await s3card.getByText("/account").waitFor({ timeout: 15_000 });
+    await s3card.getByRole("button", { name: "Sign in…" }).click();
+    const signedIn = await app.evaluate(async ({ BrowserWindow }, loginUrl) => {
+      let win;
+      for (let i = 0; i < 50 && !win; i++) {
+        win = BrowserWindow.getAllWindows().find((w) => w.getTitle().startsWith("Sign in to"));
+        if (!win) await new Promise((r) => setTimeout(r, 200));
+      }
+      if (!win) return "no sign-in window";
+      await win.webContents.loadURL(loginUrl);
+      await win.webContents.executeJavaScript('document.querySelector("form").submit(); 0');
+      for (let i = 0; i < 50 && !win.webContents.getURL().endsWith("/account"); i++) await new Promise((r) => setTimeout(r, 200));
+      const landed = win.webContents.getURL();
+      win.close();
+      return landed;
+    }, `${site.url}/login`);
+    await s3card.getByRole("button", { name: "Check now" }).click();
+    const s3 = new DatabaseSync(join(dataDir, "startica.db"), { readOnly: true });
+    let s3keys = [];
+    for (let i = 0; i < 60 && !s3keys.includes("cookie-not-httponly:standin_session"); i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      s3keys = s3.prepare("select group_key from security_findings where status = 'open'").all().map((r) => r.group_key);
+    }
+    const s3check = s3.prepare("select signed_in_check as c from sites where signed_in_check is not null").get()?.c ?? "";
+    const leaked = s3.prepare("select count(*) as n from security_occurrences where detail like '%signed-in%' or signed_in_url like '%signed-in%'").get().n;
+    s3.close();
+    check(
+      signedIn.endsWith("/account") && s3keys.includes("cookie-not-httponly:standin_session") && s3keys.includes("cookie-no-samesite:standin_session") && s3check.includes('"checked"') && leaked === 0,
+      `security S3: signed in by hand in the sign-in window (${signedIn}), the signed-in check finds the session cookie's flags and stores no session (${s3check.slice(0, 80)})`,
+    );
+    window.once("dialog", (d) => void d.accept());
+    await s3card.getByRole("button", { name: "Forget sign-in" }).click();
+    const dbForget = new DatabaseSync(join(dataDir, "startica.db"), { readOnly: true });
+    const signInSite = dbForget.prepare("select id from sites limit 1").get();
+    dbForget.close();
+    let jar = -1;
+    for (let i = 0; i < 30 && jar !== 0; i++) {
+      await new Promise((r) => setTimeout(r, 500));
+      jar = await app.evaluate(async ({ session }, id) => (await session.fromPartition(`persist:signin-${id}`).cookies.get({})).length, signInSite.id);
+    }
+    check(jar === 0, `security S3: Forget sign-in clears the site's sign-in session (${jar} cookies left)`);
   } catch (error) {
     await window.screenshot({ path: join(outDir, "desktop-accessibility-failed.png"), fullPage: true }).catch(() => {});
     console.log("accessibility problems:", problems, await window.locator("[data-sonner-toast]").allInnerTexts().catch(() => []));

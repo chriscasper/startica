@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { desc, eq } from "drizzle-orm";
 import { closeDatabase, getDb, migrateDatabase, openDatabase } from "@startica/db/client";
-import { a11yIssueGroups, adCampaigns, adGroups, ads, chatMessages, chatThreads, contentPieces, drafts, jobs, opportunities, securityFindings } from "@startica/db/schema";
+import { a11yIssueGroups, adCampaigns, adGroups, ads, aiVisibilityAnswers, audits, chatMessages, chatThreads, contentPieces, drafts, jobs, opportunities, roadmapItems, securityFindings, securityReports, seoOpportunities } from "@startica/db/schema";
 import { seedDemo } from "../demo/seed.ts";
 
 // Replies come from a fake runChat that streams its text and may return a revision.
@@ -39,6 +39,8 @@ const { saveOwnerDraft } = await import("../distribution/jobs.ts");
 const { saveOwnerPiece } = await import("../content/jobs.ts");
 const { saveAd } = await import("../ads/campaigns.ts");
 const { CHAT_SUBJECTS } = await import("./subjects.ts");
+const { collectOpportunities } = await import("../opportunities/collect.ts");
+const { applyRoadmap } = await import("../growth/roadmap.ts");
 
 let workspaceId = "";
 let findingId = "";
@@ -247,7 +249,7 @@ describe("refining writing", () => {
       { subject: "Hi", preview: "Start here", send_day: 0, body: "Hello." },
       { subject: "Tip", preview: "One thing", send_day: 3, body: "Try this." },
     ];
-    expect(subject.toStored({ title: "Welcome", emails, mentions_product: false, rationale: "Two now." }, "m", current)).toMatchObject({ format: "campaign", body: "## Email 1 · Day 0\nSubject: Hi\nPreview: Start here\n\nHello.\n\n## Email 2 · Day 3\nSubject: Tip\nPreview: One thing\n\nTry this." });
+    expect(subject.toStored!({ title: "Welcome", emails, mentions_product: false, rationale: "Two now." }, "m", current, workspaceId, "")).toMatchObject({ format: "campaign", body: "## Email 1 · Day 0\nSubject: Hi\nPreview: Start here\n\nHello.\n\n## Email 2 · Day 3\nSubject: Tip\nPreview: One thing\n\nTry this." });
   });
 
   it("revises an ad in its platform's shape and lists the checks' problems under the reply", async () => {
@@ -276,6 +278,113 @@ describe("refining writing", () => {
     const versions = await listVersions({ workspaceId, kind: "ad_copy", subjectId: ad.id });
     expect(versions.map((v) => v.source)).toEqual(["edited", "chat", "suggested"]);
     expect(versions[0]!.value).toMatchObject({ platform: "google", source: "owner" });
+  });
+});
+
+describe("plans and fixes", () => {
+  it("revises an SEO draft, runs the draft's checks on it and stores the checked draft", async () => {
+    const productId = (await getDb().select().from(roadmapItems).limit(1))[0]!.productId;
+    const opp = (await collectOpportunities(productId)).find((o) => o.draft?.kind === "meta")!;
+    expect(opp).toBeTruthy();
+    const page = opp.draft!.pages![0]!;
+    const draft = { kind: "meta" as const, text: "old", pages: [{ url: page, title: "Fieldnote: notes for field research", description: "x".repeat(130) }], problems: [], model: "m", createdAt: new Date().toISOString() };
+    const [row] = await getDb()
+      .insert(seoOpportunities)
+      .values({ workspaceId, productId, key: opp.key, draft, draftStatus: "ready" })
+      .onConflictDoUpdate({ target: [seoOpportunities.productId, seoOpportunities.key], set: { draft, draftStatus: "ready" } })
+      .returning();
+    const { messageId } = await sendChatMessage(workspaceId, "seo_draft", row!.id, "Put offline in the title.");
+    const long = "Fieldnote: the offline note-taking app for field researchers everywhere";
+    ai.reply = { text: "Added offline.", proposal: { pages: [{ url: page, title: long, description: "y".repeat(140) }] }, proposalError: null };
+    await reply(messageId);
+    expect(ai.calls.at(-1)!.tool?.name).toBe("propose_revision");
+    expect(ai.calls.at(-1)!.system).toContain("Google's search guidelines");
+    const [msg] = await getDb().select().from(chatMessages).where(eq(chatMessages.id, messageId));
+    expect(msg!.body).toMatch(/title is \d+ characters \(over 60\)/);
+
+    await applyRevision(workspaceId, messageId);
+    const [after] = await getDb().select().from(seoOpportunities).where(eq(seoOpportunities.id, row!.id));
+    expect(after!.draft).toMatchObject({ kind: "meta", pages: [{ title: long }], output: { pages: [{ title: long }] } });
+    expect(after!.draft!.problems.join(" ")).toMatch(/over 60/);
+    expect(after!.draft!.text).toContain(`<title>${long}</title>`);
+    expect((await listVersions({ workspaceId, kind: "seo_draft", subjectId: row!.id })).map((v) => v.source)).toEqual(["chat", "suggested"]);
+  });
+
+  it("reads old drafts back into their output's shape", () => {
+    const subject = CHAT_SUBJECTS.seo_draft;
+    const faq = { kind: "faq" as const, text: "### Is it offline?\n\nYes, fully.\n\n<!-- On the FAQ page. -->\n\n<script type=\"application/ld+json\">\n{}\n</script>", problems: [], model: "m", createdAt: "" };
+    expect(subject.toRevision(faq)).toEqual({ question: "Is it offline?", answer: "Yes, fully.", where: "On the FAQ page." });
+    const jsonld = { kind: "jsonld" as const, text: '<script type="application/ld+json">\n{"@type":"Thing"}\n</script>', problems: [], model: "m", createdAt: "" };
+    expect(subject.toRevision(jsonld)).toEqual({ json_ld: '{"@type":"Thing"}' });
+  });
+
+  it("revises one audit finding and can add it to the Roadmap in the same click", async () => {
+    const [audit] = await getDb().select().from(audits).limit(1);
+    const subjectId = `${audit!.id}:0`;
+    const before = audit!.findings[0]!;
+    const { messageId } = await sendChatMessage(workspaceId, "audit_finding", subjectId, "Make the fix more specific.");
+    ai.reply = { text: "Sharper.", proposal: { severity: "high", title: before.title, detail: before.detail, fix: "Put one Start free button above the fold." }, proposalError: null };
+    await reply(messageId);
+    expect(ai.calls.at(-1)!.system).toContain("its other findings".replace("its", "Its"));
+    const snapshot = await chatSnapshot(workspaceId, "audit_finding", subjectId);
+    expect(snapshot).toMatchObject({ askOnly: false, alsoApply: "Apply and add to Roadmap" });
+
+    const items = (await getDb().select().from(roadmapItems)).length;
+    await applyRevision(workspaceId, messageId, { also: true });
+    const [after] = await getDb().select().from(audits).where(eq(audits.id, audit!.id));
+    expect(after!.findings[0]).toMatchObject({ fix: "Put one Start free button above the fold." });
+    expect(after!.findings.slice(1)).toEqual(audit!.findings.slice(1));
+    const all = await getDb().select().from(roadmapItems);
+    expect(all).toHaveLength(items + 1);
+    expect(all.find((i) => i.nextStep === "Put one Start free button above the fold.")).toMatchObject({ source: "owner", priority: 1 });
+  });
+
+  it("revises a roadmap item, which makes it the owner's, and keeps the re-plan's versions", async () => {
+    const [item] = await getDb().select().from(roadmapItems).where(eq(roadmapItems.source, "ai")).limit(1);
+    await applyRoadmap(workspaceId, item!.productId, {
+      summary: "Tweaked.",
+      items: [{ id: item!.id, action: "update", stage: item!.stage, title: `${item!.title} (sharper)`, why: item!.why, playbook: "", success_metric: item!.successMetric, next_step: item!.nextStep, priority: 2, reason: "." }],
+    });
+    const { messageId } = await sendChatMessage(workspaceId, "roadmap_item", item!.id, "Make the metric a number.");
+    ai.reply = { text: "Done.", proposal: { stage: item!.stage, title: "Ten field interviews", why: "Learn first.", playbook: "nonexistent", success_metric: "10 interviews by Friday", next_step: "Email five users today.", priority: 9 }, proposalError: null };
+    await reply(messageId);
+    expect(ai.calls.at(-1)!.system).toContain("<evidence>");
+    expect((await chatSnapshot(workspaceId, "roadmap_item", item!.id)).applyNote).toMatch(/yours/);
+    await applyRevision(workspaceId, messageId);
+    const [after] = await getDb().select().from(roadmapItems).where(eq(roadmapItems.id, item!.id));
+    expect(after).toMatchObject({ title: "Ten field interviews", successMetric: "10 interviews by Friday", playbook: null, priority: 5, source: "owner" });
+    expect((await listVersions({ workspaceId, kind: "roadmap_item", subjectId: item!.id })).map((v) => v.source)).toEqual(["chat", "suggested", "suggested"]);
+  });
+});
+
+describe("ask only", () => {
+  const askOnly = async (kind: "security_triage" | "a11y_review" | "visibility_answer", subjectId: string, expectInSystem: string) => {
+    const { messageId } = await sendChatMessage(workspaceId, kind, subjectId, "Why?");
+    ai.reply = { text: "Because.", proposal: null, proposalError: null };
+    await reply(messageId);
+    const call = ai.calls.at(-1)!;
+    expect(call.tool).toBeUndefined();
+    expect(call.system).toContain("You can't change the");
+    expect(call.system).toContain(expectInSystem);
+    expect(call.system).not.toContain("propose_revision");
+    expect(await chatSnapshot(workspaceId, kind, subjectId)).toMatchObject({ askOnly: true, alsoApply: null });
+    await expect(applyRevision(workspaceId, messageId)).rejects.toThrow(/no revision/);
+  };
+
+  it("answers questions about a reported problem's triage", async () => {
+    const [report] = await getDb().select().from(securityReports).limit(1);
+    await askOnly("security_triage", report!.id, "<report>");
+  });
+
+  it("answers questions about a Needs review suggestion", async () => {
+    const [group] = await getDb().select().from(a11yIssueGroups).where(eq(a11yIssueGroups.kind, "needs_review")).limit(1);
+    await getDb().update(a11yIssueGroups).set({ aiReview: { suggestion: "unsure", reason: "Text over a photo.", model: "m", createdAt: new Date().toISOString() } }).where(eq(a11yIssueGroups.id, group!.id));
+    await askOnly("a11y_review", group!.id, "Text over a photo.");
+  });
+
+  it("answers questions about an AI visibility answer", async () => {
+    const [answer] = await getDb().select().from(aiVisibilityAnswers).limit(1);
+    await askOnly("visibility_answer", answer!.id, answer!.promptText);
   });
 });
 

@@ -15,7 +15,8 @@ import {
   products,
   publications,
 } from "@startica/db/schema";
-import { runStructured, type AiContext } from "../ai/client.ts";
+import { AiError, runStructured, submitBatch, type AiContext, type BatchItemResult } from "../ai/client.ts";
+import { getSetting } from "@startica/db/bootstrap";
 import { reportProgress } from "../jobs/activity.ts";
 import { adapters, channelFromUrl } from "../channels/index.ts";
 import type { RawConversation } from "../channels/types.ts";
@@ -176,8 +177,12 @@ export async function runListenScan(ctx: AiContext, payload: z.infer<typeof list
           });
           if (isNew) newIds.push(opportunityId);
         }
-        for (let i = 0; i < newIds.length; i += SCORE_BATCH) {
-          await enqueue(payload.workspaceId, "opportunity_score", { opportunityIds: newIds.slice(i, i + SCORE_BATCH) });
+        if (newIds.length >= BATCH_SCORING_MIN && (await batchScoring())) {
+          await enqueue(payload.workspaceId, "opportunity_score", { opportunityIds: newIds, batch: true });
+        } else {
+          for (let i = 0; i < newIds.length; i += SCORE_BATCH) {
+            await enqueue(payload.workspaceId, "opportunity_score", { opportunityIds: newIds.slice(i, i + SCORE_BATCH) });
+          }
         }
         fresh += newIds.length;
       } catch (error) {
@@ -196,7 +201,18 @@ export const scorePayload = z.object({
   opportunityIds: z.array(z.guid()).min(1),
   // Pasted links skip the thresholds and always get a draft.
   force: z.boolean().default(false),
+  // A big backlog from a scan: scored through the provider's batch API at about half the price (5.2).
+  batch: z.boolean().default(false),
 });
+
+/** Batch scoring (ARCHITECTURE.md 5.2): on unless the owner turned it off in Settings → General → AI. */
+export const BATCH_SCORING_SETTING = "ai_batch_scoring";
+/** A source's new conversations go through a batch from this many on. */
+export const BATCH_SCORING_MIN = 20;
+
+export async function batchScoring(): Promise<boolean> {
+  return (await getSetting<boolean>(BATCH_SCORING_SETTING)) ?? true;
+}
 
 const conversationFields = {
   id: opportunities.id,
@@ -277,6 +293,57 @@ function earlierCopy(row: { id: string; fingerprint: string | null; createdAt: D
   return findNearDuplicate(row.fingerprint, earlier);
 }
 
+/** Stores a score and queues a draft when it qualifies (`force`: pasted links always do). Returns whether it qualified. */
+export async function applyScore(workspaceId: string, opportunityId: string, product: ProductContext, score: z.infer<typeof scoreOutput>, force: boolean): Promise<boolean> {
+  const relevance = clamp(score.relevance);
+  const intent = clamp(score.intent);
+  const qualifies = force || (relevance >= product.relevanceThreshold && intent >= product.intentThreshold);
+  await getDb()
+    .update(opportunities)
+    .set({ relevance, intent, reasoning: score.reasoning, angle: score.angle, sentiment: score.sentiment, status: qualifies ? "drafting" : "archived", scoredAt: new Date() })
+    .where(eq(opportunities.id, opportunityId));
+  if (qualifies) await enqueue(workspaceId, "draft_generate", { opportunityId });
+  return qualifies;
+}
+
+/**
+ * Stores a batch's scores (BATCH_PURPOSES in jobs/batches.ts). Conversations that changed
+ * meanwhile (scored again, dismissed) are left alone; requests that failed are scored again now.
+ */
+export async function storeBatchScores(ctx: AiContext, results: (BatchItemResult & { ref: Record<string, string> })[]) {
+  const ids = results.map((r) => r.ref.opportunityId!).filter(Boolean);
+  const rows = ids.length ? await getDb().select({ id: opportunities.id, productId: opportunities.productId, status: opportunities.status }).from(opportunities).where(and(inArray(opportunities.id, ids), eq(opportunities.workspaceId, ctx.workspaceId))) : [];
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  const contexts = new Map<string, ProductContext>();
+  const tally = { drafting: 0, archived: 0, retried: 0, skipped: 0 };
+  const retry: string[] = [];
+  for (const result of results) {
+    const row = byId.get(result.ref.opportunityId ?? "");
+    if (!row || row.status !== "new") {
+      tally.skipped++;
+      continue;
+    }
+    if (!result.ok) {
+      retry.push(row.id);
+      continue;
+    }
+    let product = contexts.get(row.productId);
+    if (!product) {
+      product = await loadProductContext(row.productId);
+      contexts.set(row.productId, product);
+    }
+    const parsed = scoreOutput.safeParse(result.value);
+    if (!parsed.success) {
+      retry.push(row.id);
+      continue;
+    }
+    tally[(await applyScore(ctx.workspaceId, row.id, product, parsed.data, false)) ? "drafting" : "archived"]++;
+  }
+  for (let i = 0; i < retry.length; i += SCORE_BATCH) await enqueue(ctx.workspaceId, "opportunity_score", { opportunityIds: retry.slice(i, i + SCORE_BATCH) });
+  tally.retried = retry.length;
+  return tally;
+}
+
 export async function runOpportunityScore(ctx: AiContext, payload: z.infer<typeof scorePayload>) {
   const db = getDb();
   const rows = await db
@@ -288,6 +355,7 @@ export async function runOpportunityScore(ctx: AiContext, payload: z.infer<typeo
   const candidatesByProduct = new Map<string, DedupeCandidate[]>();
   const tally = { drafting: 0, archived: 0, duplicates: 0 };
   const tooOld = daysAgo(MAX_AGE_DAYS);
+  const toScore: { row: (typeof rows)[number]; product: ProductContext }[] = [];
 
   for (const row of rows) {
     if (!payload.force && row.postedAt && row.postedAt < tooOld) {
@@ -327,7 +395,27 @@ export async function runOpportunityScore(ctx: AiContext, payload: z.infer<typeo
       product = await loadProductContext(row.productId);
       contexts.set(row.productId, product);
     }
+    toScore.push({ row, product });
+  }
 
+  if (payload.batch && toScore.length > 0) {
+    try {
+      await submitBatch(ctx, {
+        task: "score",
+        promptVersion: SCORE_PROMPT_VERSION,
+        purpose: "opportunity_score",
+        requests: toScore.map(({ row, product }) => ({ customId: row.id, ref: { opportunityId: row.id }, system: scoreSystem(product.text), messages: [{ role: "user", content: conversationText(row) }] })),
+        schema: scoreOutput,
+      });
+      return { ...tally, batched: toScore.length };
+    } catch (error) {
+      // No batch (the budget, a key, the provider): the budget stops this too; anything else scores now.
+      if (error instanceof AiError && (error.kind === "blocked" || error.kind === "config")) throw error;
+      ctx.signal?.throwIfAborted();
+    }
+  }
+
+  for (const { row, product } of toScore) {
     const score = await runStructured(ctx, {
       task: "score",
       promptVersion: SCORE_PROMPT_VERSION,
@@ -335,28 +423,7 @@ export async function runOpportunityScore(ctx: AiContext, payload: z.infer<typeo
       messages: [{ role: "user", content: conversationText(row) }],
       schema: scoreOutput,
     });
-    const relevance = clamp(score.relevance);
-    const intent = clamp(score.intent);
-    const qualifies = payload.force || (relevance >= product.relevanceThreshold && intent >= product.intentThreshold);
-
-    await db
-      .update(opportunities)
-      .set({
-        relevance,
-        intent,
-        reasoning: score.reasoning,
-        angle: score.angle,
-        sentiment: score.sentiment,
-        status: qualifies ? "drafting" : "archived",
-        scoredAt: new Date(),
-      })
-      .where(eq(opportunities.id, row.id));
-    if (qualifies) {
-      await enqueue(payload.workspaceId, "draft_generate", { opportunityId: row.id });
-      tally.drafting++;
-    } else {
-      tally.archived++;
-    }
+    tally[(await applyScore(payload.workspaceId, row.id, product, score, payload.force)) ? "drafting" : "archived"]++;
   }
   return tally;
 }

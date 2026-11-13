@@ -95,8 +95,14 @@ export function impactCounts(items: { kind: string; impact: A11yImpact | null }[
   return counts;
 }
 
-/** Site score: the average of its pages' scores (weighted by traffic from A2). */
-export function siteScore(pageScores: number[]): number | null {
+/**
+ * Site score: the average of its pages' scores, each weighted (when `weights` are given) by
+ * 1 + its 30-day GA4 sessions, so busy pages count more; a plain average without GA4.
+ */
+export function siteScore(pageScores: number[], weights?: number[]): number | null {
   if (pageScores.length === 0) return null;
-  return Math.round((10 * pageScores.reduce((a, b) => a + b, 0)) / pageScores.length) / 10;
+  const w = (i: number) => Math.max(0, weights?.[i] ?? 1);
+  const total = pageScores.reduce((sum, _, i) => sum + w(i), 0);
+  if (total <= 0) return null;
+  return Math.round((10 * pageScores.reduce((sum, score, i) => sum + score * w(i), 0)) / total) / 10;
 }

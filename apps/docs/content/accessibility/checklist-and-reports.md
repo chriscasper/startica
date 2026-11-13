@@ -34,7 +34,7 @@ An accessibility statement is a page on your site that says what you aim for and
 | **Anything else you do** | Optional, for example how you test before releases. |
 | **Other known limitations** | Optional, for problems the checks can't see. |
 
-Startica writes the statement following W3C's model: your commitment, the standard you aim for, how you check (automated checks and how many criteria you've reviewed by hand), the known limitations (the top open issues and the criteria that fail by hand, with your notes), how to give feedback, and the date. It says you aim for the standard; it never says you meet it. Copy it, or download it as Markdown, and publish it on your site. Update it after each round of fixes.
+Startica writes the statement following W3C's model: your commitment, the standard you aim for, how you check (automated checks and how many criteria you've reviewed by hand), the known limitations (the top open issues and the criteria that fail by hand, with your notes), how to give feedback, and the date. It says you aim for the standard; it never says you meet it. Copy it, or download it as Markdown, and publish it on your site. For a CMS or site builder that takes HTML, open **HTML to paste into your site or CMS** under the statement and copy it, or download it with **HTML**: headings, paragraphs and lists only, with no styles of its own, so it takes your site's look. Update it after each round of fixes.
 
 ## Conformance report draft
 
@@ -48,4 +48,4 @@ The conformance report draft is a table in the style of an Accessibility Conform
 | **Not Applicable** | You marked it N/A. |
 | **Not Evaluated** | You haven't checked it by hand, however clean the automated checks are. |
 
-The remarks say what the checks found and what you noted; a remark you write on a criterion replaces the generated one. It's always a draft: review every row before you share it, and keep in mind that a formal ACR is usually prepared by someone who has tested the product thoroughly. Download it as Markdown.
+The remarks say what the checks found and what you noted; a remark you write on a criterion replaces the generated one. It's always a draft: review every row before you share it, and keep in mind that a formal ACR is usually prepared by someone who has tested the product thoroughly. **Open** shows it as a printable page; in the desktop app, **Save as PDF** asks where to save it. **Markdown** downloads it as a table.

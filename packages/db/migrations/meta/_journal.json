@@ -190,6 +190,34 @@
       "when": 1792895918026,
       "tag": "0026_competitor_briefs",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1794106466395,
+      "tag": "0027_ai_batches",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1794107507596,
+      "tag": "0028_a11y_page_ignores",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1794107966973,
+      "tag": "0029_visibility_models",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1794108336771,
+      "tag": "0030_signed_in_checks",
+      "breakpoints": true
     }
   ]
 }

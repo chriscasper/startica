@@ -46,3 +46,12 @@ export class AiError extends Error {
     return new AiError(error instanceof Error ? error.message : String(error), "api", meta);
   }
 }
+
+/** One request in a batch (ARCHITECTURE.md 5.2): Startica's id for it, and the prompt. */
+export type BatchRequest = { customId: string; system: string; messages: AiMessage[] };
+/** What a batch request came back with: the parsed value, or why there's none. */
+export type BatchItemResult<T = unknown> =
+  | { customId: string; ok: true; value: T; model: string; usage: TokenUsage }
+  | { customId: string; ok: false; error: string; kind: AiError["kind"] | "expired"; model?: string; usage?: TokenUsage };
+/** A batch at the provider: still running, or ended (its results then readable). */
+export type BatchState = { ended: boolean; failed?: string };

@@ -26,7 +26,16 @@ const STARTERS: Record<ChatSubjectKind, string[]> = {
   reply_draft: ["Make it shorter and more casual", "Don't mention the product", "Is mentioning the product OK here?", "Answer their actual question first"],
   content_piece: ["Make the opening stronger", "Cut it by a third", "Less salesy, more of a story", "Would this work on this channel?"],
   ad_copy: ["Make the headlines more specific", "Write it for a different audience: …", "Why would someone click this?", "Fix the problems Startica found"],
+  seo_draft: ["Fix the problems Startica found", "Use the words people search for", "Make it less salesy", "Where exactly does this go on my site?"],
+  audit_finding: ["How sure are you about this?", "Make the fix more specific", "How would I measure whether it worked?", "We already tried this: …"],
+  roadmap_item: ["Make the success metric a number", "Make the next step smaller", "Is this the right priority?", "We tried this before: …"],
+  security_triage: ["Is this report likely real?", "What should I check first?", "Make the reply friendlier", "Could this be a known problem?"],
+  a11y_review: ["Why are you unsure?", "How do I check this myself?", "Who does this affect?", "What would make it pass?"],
+  visibility_answer: ["Why wasn't my product named?", "Which of these sources matter most?", "What could I publish to get mentioned?", "Is this answer typical?"],
 };
+
+/** Ask-only kinds: the chat answers questions and changes nothing. */
+const ASK_ONLY = new Set<ChatSubjectKind>(["security_triage", "a11y_review", "visibility_answer"]);
 
 const WATCHED = new Set(["chat_messages", "chat_threads", "ai_runs"]);
 
@@ -39,7 +48,7 @@ export function RefineButton({ kind, subjectId, disabled, why, variant = "outlin
       <span className="inline-flex" title={disabled ? why : undefined}>
         <Button size="sm" variant={variant} disabled={disabled} onClick={() => setOpen(true)}>
           <MessageSquareTextIcon />
-          Refine
+          {ASK_ONLY.has(kind) ? "Ask about it" : "Refine"}
         </Button>
       </span>
       <SheetContent showOverlay={false} className="w-full gap-0 data-[side=right]:sm:max-w-lg">
@@ -132,7 +141,7 @@ function RefineChat({ kind, subjectId }: { kind: ChatSubjectKind; subjectId: str
   return (
     <>
       <SheetHeader className="border-b pr-12">
-        <SheetTitle>Refine the {noun}</SheetTitle>
+        <SheetTitle>{snapshot?.askOnly ? `Ask about the ${noun}` : `Refine the ${noun}`}</SheetTitle>
         <SheetDescription className="line-clamp-2">{snapshot?.title ?? "Loading…"}</SheetDescription>
         {snapshot && snapshot.earlier.length > 0 && !earlier && (
           <div className="flex flex-wrap items-center gap-1 pt-1 text-xs text-muted-foreground">
@@ -177,7 +186,9 @@ function RefineChat({ kind, subjectId }: { kind: ChatSubjectKind; subjectId: str
               </p>
             )}
             <p className="text-muted-foreground">
-              Ask about the {noun}, push back, or tell it about your setup. When it suggests a change, you&apos;ll see the revised {noun} with an Apply button: nothing changes until you apply.
+              {snapshot.askOnly
+                ? `Ask about the ${noun}: why, what it means, what to check. This chat only answers; it doesn't change anything.`
+                : `Ask about the ${noun}, push back, or tell it about your setup. When it suggests a change, you'll see the revised ${noun} with an Apply button: nothing changes until you apply.`}
             </p>
             <div className="flex flex-col items-start gap-1.5">
               {STARTERS[kind].map((s) => (
@@ -197,9 +208,11 @@ function RefineChat({ kind, subjectId }: { kind: ChatSubjectKind; subjectId: str
               superseded={Boolean(m.proposal) && m.id !== latestProposal}
               last={i === messages.length - 1}
               busy={pending}
-              onApply={() =>
+              applyNote={snapshot.applyNote}
+              alsoApply={snapshot.alsoApply}
+              onApply={(also) =>
                 run(
-                  () => applyRefineRevision(m.id),
+                  () => applyRefineRevision(m.id, also),
                   () => {
                     setApplied(true);
                     toast.success("Applied. Earlier versions are under Versions.");
@@ -272,6 +285,8 @@ function Message({
   superseded,
   last,
   busy,
+  applyNote,
+  alsoApply,
   onApply,
   onRetry,
 }: {
@@ -282,7 +297,9 @@ function Message({
   superseded?: boolean;
   last?: boolean;
   busy?: boolean;
-  onApply?: () => void;
+  applyNote?: string | null;
+  alsoApply?: string | null;
+  onApply?: (also: boolean) => void;
   onRetry?: () => void;
 }) {
   if (m.role === "user") {
@@ -324,11 +341,18 @@ function Message({
           <RevisionView kind={kind} value={m.proposal} />
           {!readOnly && m.proposalStatus !== "applied" && (
             <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" disabled={busy} onClick={onApply}>
+              <Button size="sm" disabled={busy} onClick={() => onApply?.(false)}>
                 <CheckIcon />
                 Apply
               </Button>
-              <span className="text-xs text-muted-foreground">Replaces the current {noun} and ends this chat. You can go back under Versions.</span>
+              {alsoApply && (
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => onApply?.(true)}>
+                  {alsoApply}
+                </Button>
+              )}
+              <span className="text-xs text-muted-foreground">
+                Replaces the current {noun} and ends this chat. You can go back under Versions.{applyNote ? ` ${applyNote}` : ""}
+              </span>
             </div>
           )}
         </div>

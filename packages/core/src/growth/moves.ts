@@ -13,7 +13,7 @@ import {
   voiceProfiles,
 } from "@startica/db/schema";
 import { hasAiKey } from "../ai/client.ts";
-import { topIssue } from "../a11y/track.ts";
+import { freshSummaryLine, topIssue } from "../a11y/track.ts";
 import { topAdSuggestions } from "../ads/results.ts";
 import { latestReadySummary } from "../metrics/summary.ts";
 import { openFindingCounts } from "../security/findings.ts";
@@ -111,10 +111,13 @@ export async function buildCandidates(productId: string): Promise<Candidate[]> {
   const top = await topIssue(productId);
   if (top && top.band !== "low") {
     const where = top.pages.length === 1 ? new URL(top.pages[0]!).pathname : `${top.pages.length} pages`;
+    // The AI summary of the latest scan (A3), when there is one, says where the site stands.
+    const [site] = await getDb().select({ a11ySummary: sites.a11ySummary, lastScanId: sites.lastScanId }).from(sites).where(eq(sites.id, top.group.siteId));
+    const summary = site ? freshSummaryLine(site) : null;
     out.push({
       kind: "audit",
       title: `Fix "${top.group.help}" on ${where}`,
-      why: `${top.group.impact ?? "moderate"} accessibility issue${top.traffic > 0 ? `, on pages with ${Math.round(top.traffic).toLocaleString("en-US")} visits in 30 days` : ""}. ${top.group.pagesCount > 1 ? "Probably one shared template: fix it once." : ""}`.trim(),
+      why: `${top.group.impact ?? "moderate"} accessibility issue${top.traffic > 0 ? `, on pages with ${Math.round(top.traffic).toLocaleString("en-US")} visits in 30 days` : ""}. ${top.group.pagesCount > 1 ? "Probably one shared template: fix it once." : ""}${summary ? ` AI summary: ${summary}` : ""}`.replace(/\s+/g, " ").trim(),
       href: `/accessibility/issues/${top.group.id}`,
       refId: top.group.id,
     });

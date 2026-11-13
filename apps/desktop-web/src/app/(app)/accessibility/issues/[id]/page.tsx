@@ -20,7 +20,8 @@ import { VersionsButton } from "@/components/app/refine/versions-button";
 import { hasAiKey } from "@startica/core/ai/client";
 import { CopyBlock } from "@/components/app/copy-block";
 import { desktopApp } from "@/lib/desktop";
-import { CreateTrackerIssueButton, IgnoreIssueButton, IssueToRoadmapButton, RecheckButton, SuggestFixButton, UnignoreButton } from "../../controls";
+import { CreateTrackerIssueButton, IgnoreIssueButton, IgnoreOnPageButton, IssueToRoadmapButton, RecheckButton, SuggestFixButton, UnignoreButton, UnignoreOnPageButton } from "../../controls";
+import { PAGES_REASON } from "@startica/core/a11y/page-ignores";
 import { loadSites, pathOf, withSite } from "../../data";
 import { AutomatedNote, ImpactBadge } from "../../ui";
 
@@ -53,7 +54,7 @@ async function Issue({ params }: { params: PageProps<"/accessibility/issues/[id]
   const tracker = site ? await trackerFor(site.productId) : null;
   const repoIssue = tracker ? await trackerIssueFor(tracker.id, group.id) : null;
   const elements = await d
-    .select({ id: a11yOccurrences.id, selector: a11yOccurrences.selector, html: a11yOccurrences.html, failureSummary: a11yOccurrences.failureSummary, pageId: sitePages.id, url: sitePages.url })
+    .select({ id: a11yOccurrences.id, selector: a11yOccurrences.selector, html: a11yOccurrences.html, failureSummary: a11yOccurrences.failureSummary, ignored: a11yOccurrences.ignored, pageId: sitePages.id, url: sitePages.url })
     .from(a11yOccurrences)
     .innerJoin(sitePages, eq(sitePages.id, a11yOccurrences.pageId))
     .where(eq(a11yOccurrences.groupId, group.id))
@@ -86,7 +87,7 @@ async function Issue({ params }: { params: PageProps<"/accessibility/issues/[id]
                 Connect GitHub or GitLab
               </Link>
             )}
-            {group.status === "ignored" ? <UnignoreButton groupId={group.id} /> : group.status === "open" && <IgnoreIssueButton groupId={group.id} />}
+            {group.status === "ignored" ? group.ignoreReason !== PAGES_REASON && <UnignoreButton groupId={group.id} /> : group.status === "open" && <IgnoreIssueButton groupId={group.id} />}
             <IssueToRoadmapButton groupId={group.id} />
             {group.status === "open" && <RecheckButton kind="group" id={group.id} canScan={Boolean(ctx?.canScan)} label={`Recheck ${group.pagesCount} page${group.pagesCount === 1 ? "" : "s"}`} />}
           </CardAction>
@@ -109,6 +110,7 @@ async function Issue({ params }: { params: PageProps<"/accessibility/issues/[id]
             <p className="rounded-md border p-3">
               Ignored{group.ignoredAt ? ` on ${group.ignoredAt.toISOString().slice(0, 10)}` : ""}: {IGNORE_LABEL[group.ignoreReason as keyof typeof IGNORE_LABEL] ?? group.ignoreReason}
               {group.ignoreNote ? `. ${group.ignoreNote}` : ""}
+              {group.ignoreReason === PAGES_REASON && ". Count a page again below to open it."}
             </p>
           )}
           {group.helpUrl && (
@@ -175,11 +177,18 @@ async function Issue({ params }: { params: PageProps<"/accessibility/issues/[id]
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
-          {elements.map((e) => (
-            <div key={e.id} className="grid gap-2 rounded-md border p-3 text-sm">
-              <Link href={`/accessibility/pages/${e.pageId}`} className="w-fit font-medium hover:underline">
-                {pathOf(e.url)}
-              </Link>
+          {elements.map((e, i) => (
+            <div key={e.id} className={`grid gap-2 rounded-md border p-3 text-sm ${e.ignored ? "opacity-70" : ""}`}>
+              <div className="flex flex-wrap items-center gap-2">
+                <Link href={`/accessibility/pages/${e.pageId}`} className="w-fit font-medium hover:underline">
+                  {pathOf(e.url)}
+                </Link>
+                {e.ignored && <Badge variant="outline">Ignored on this page</Badge>}
+                {/* One control per page: on its first element. */}
+                {elements[i - 1]?.pageId !== e.pageId && group.status !== "fixed" && (group.status !== "ignored" || group.ignoreReason === PAGES_REASON) && (
+                  <span className="ml-auto">{e.ignored ? <UnignoreOnPageButton groupId={group.id} pageId={e.pageId} /> : <IgnoreOnPageButton groupId={group.id} pageId={e.pageId} />}</span>
+                )}
+              </div>
               <code className="w-fit max-w-full truncate text-xs text-muted-foreground">{e.selector}</code>
               <pre className="overflow-x-auto rounded bg-muted p-2 text-xs whitespace-pre-wrap">{e.html}</pre>
               {e.failureSummary && <p className="whitespace-pre-line text-muted-foreground">{e.failureSummary}</p>}

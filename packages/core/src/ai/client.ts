@@ -2,16 +2,17 @@ import { and, eq, gte, sum } from "drizzle-orm";
 import type { z } from "zod";
 import { getSetting, setSetting } from "@startica/db/bootstrap";
 import { getDb } from "@startica/db/client";
-import { aiModels, aiRuns } from "@startica/db/schema";
+import { enqueue } from "@startica/db/queue";
+import { aiBatches, aiModels, aiRuns } from "@startica/db/schema";
 import { hasSecretNamed, readSecretByName } from "@startica/db/secrets";
-import { anthropicAnswer, anthropicChat, anthropicResearch, anthropicStructured } from "./anthropic.ts";
-import { AiError, type AiMessage, type Answer, type CallRequest, type CallResult, type ChatOptions, type ResearchOptions } from "./errors.ts";
+import { anthropicAnswer, anthropicBatchCancel, anthropicBatchResults, anthropicBatchState, anthropicBatchSubmit, anthropicChat, anthropicResearch, anthropicStructured } from "./anthropic.ts";
+import { AiError, type AiMessage, type Answer, type BatchItemResult, type BatchRequest, type CallRequest, type CallResult, type ChatOptions, type ResearchOptions } from "./errors.ts";
 import { DEFAULT_MODELS, isProvider, PROVIDERS, providerOf, type AiProvider, type AiTask, type ModelConfig } from "./models.ts";
-import { openaiAnswer, openaiChat, openaiImage, openaiResearch, openaiStructured } from "./openai.ts";
-import { emptyUsage, estimateCostUsd, type TokenUsage } from "./pricing.ts";
+import { openaiAnswer, openaiBatchCancel, openaiBatchResults, openaiBatchState, openaiBatchSubmit, openaiChat, openaiImage, openaiResearch, openaiStructured } from "./openai.ts";
+import { BATCH_PRICE_FACTOR, emptyUsage, estimateCostUsd, type TokenUsage } from "./pricing.ts";
 
-export { AiError, type AiImage, type AiMessage, type AiPart, type Answer } from "./errors.ts";
-export type { AiProvider, AiTask } from "./models.ts";
+export { AiError, type AiImage, type AiMessage, type AiPart, type Answer, type BatchItemResult } from "./errors.ts";
+export type { AiProvider, AiTask, ModelConfig } from "./models.ts";
 
 export type AiContext = {
   workspaceId: string;
@@ -35,6 +36,8 @@ type BaseRequest = {
   messages: AiMessage[];
   /** A long answer (a fix plan for many issues): raises the task's output budget to at least this. */
   minOutputTokens?: number;
+  /** Runs the task on this model instead of the workspace's (AI visibility asking both providers). */
+  modelConfig?: ModelConfig;
 };
 
 export type StructuredRequest<S extends z.ZodType> = BaseRequest & { schema: S };
@@ -127,13 +130,15 @@ export async function monthlyBudgetUsd(): Promise<number> {
 }
 
 type RunLog = {
-  task: AiTask;
+  task: AiTask | string;
   model: string;
   promptVersion: string;
   status: "ok" | "error" | "refused" | "blocked";
   usage?: TokenUsage;
   latencyMs?: number;
   error?: string;
+  /** A request in a batch: billed at half price. */
+  batchId?: string;
 };
 
 async function logRun(ctx: AiContext, log: RunLog): Promise<void> {
@@ -151,9 +156,10 @@ async function logRun(ctx: AiContext, log: RunLog): Promise<void> {
       outputTokens: usage.outputTokens,
       cacheReadTokens: usage.cacheReadTokens,
       cacheWriteTokens: usage.cacheWriteTokens,
-      costUsd: estimateCostUsd(log.model, usage),
+      costUsd: estimateCostUsd(log.model, usage) * (log.batchId ? BATCH_PRICE_FACTOR : 1),
       latencyMs: log.latencyMs ?? null,
       error: log.error ?? null,
+      batchId: log.batchId ?? null,
     });
 }
 
@@ -162,12 +168,9 @@ async function logRun(ctx: AiContext, log: RunLog): Promise<void> {
  * provider), enforces the monthly budget, and logs the attempt to ai_runs,
  * whatever the outcome.
  */
-async function call<T>(
-  ctx: AiContext,
-  req: BaseRequest,
-  run: (provider: AiProvider, key: string, request: CallRequest) => Promise<CallResult<T>>,
-): Promise<T> {
-  const loaded = await loadModelConfig(ctx, req.task);
+/** The task's model (with the request's output floor), after the budget guard and the key check; logs and throws when either stops it. */
+async function prepare(ctx: AiContext, req: Pick<BaseRequest, "task" | "promptVersion" | "minOutputTokens" | "modelConfig">): Promise<{ config: ModelConfig; provider: AiProvider; key: string }> {
+  const loaded = req.modelConfig ?? (await loadModelConfig(ctx, req.task));
   // OpenAI's budget includes reasoning, hence twice as much (like the defaults in models.ts).
   const floor = (req.minOutputTokens ?? 0) * (providerOf(loaded.model) === "openai" ? 2 : 1);
   const config = floor > loaded.maxTokens ? { ...loaded, maxTokens: floor } : loaded;
@@ -190,6 +193,16 @@ async function call<T>(
     await logRun(ctx, { ...base, status: "error", error: message });
     throw new AiError(message, "config");
   }
+  return { config, provider, key };
+}
+
+async function call<T>(
+  ctx: AiContext,
+  req: BaseRequest,
+  run: (provider: AiProvider, key: string, request: CallRequest) => Promise<CallResult<T>>,
+): Promise<T> {
+  const { config, provider, key } = await prepare(ctx, req);
+  const base = { task: req.task, model: config.model, promptVersion: req.promptVersion };
 
   ctx.signal?.throwIfAborted();
   const started = Date.now();
@@ -256,4 +269,137 @@ export async function runImage(ctx: AiContext, req: BaseRequest & { size: string
     if (provider !== "openai") throw new AiError("Pictures are drawn by OpenAI's image models: pick one for the image task in Settings → General → AI", "config");
     return openaiImage(key, { ...request, size: req.size });
   });
+}
+
+// --- Batches (ARCHITECTURE.md 5.2) -------------------------------------------------------------
+
+export const BATCH_POLL_QUEUE = "ai_batch_poll";
+/** Waits between checks on a batch: a minute at first, then up to ten. */
+export const batchPollDelaySeconds = (polls: number) => [60, 60, 120, 120, 300][polls] ?? 600;
+
+export type BatchSubmitRequest = {
+  task: AiTask;
+  promptVersion: string;
+  /** What the results are for; its handler stores them (`BATCH_PURPOSES` in jobs/batches.ts). */
+  purpose: (typeof aiBatches.$inferSelect)["purpose"];
+  /** Each request with what its result is for (`ref`, e.g. the opportunity). */
+  requests: (BatchRequest & { ref: Record<string, string> })[];
+  schema: z.ZodType;
+};
+
+/**
+ * Sends structured requests through the task's provider's batch API at about half the price,
+ * after the same budget guard and key check as a single call, and queues the job that waits for
+ * the results. Nothing is logged to ai_runs until the results come back (`collectBatch`).
+ */
+export async function submitBatch(ctx: AiContext, req: BatchSubmitRequest): Promise<string> {
+  if (req.requests.length === 0) throw new Error("A batch needs at least one request");
+  const { config, provider, key } = await prepare(ctx, req);
+  ctx.signal?.throwIfAborted();
+  const request = { task: req.task, config, requests: req.requests, schema: req.schema, signal: ctx.signal };
+  let externalId: string;
+  let inputFileId: string | null = null;
+  try {
+    if (provider === "openai") ({ id: externalId, inputFileId } = await openaiBatchSubmit(key, request));
+    else externalId = await anthropicBatchSubmit(key, request);
+  } catch (error) {
+    const e = AiError.wrap(error, { model: config.model });
+    await logRun(ctx, { task: req.task, model: config.model, promptVersion: req.promptVersion, status: "error", error: `Couldn't send the batch: ${e.message}` });
+    throw e;
+  }
+  const [row] = await getDb()
+    .insert(aiBatches)
+    .values({
+      workspaceId: ctx.workspaceId,
+      provider,
+      externalId,
+      inputFileId,
+      purpose: req.purpose,
+      task: req.task,
+      model: config.model,
+      promptVersion: req.promptVersion,
+      items: req.requests.map((r) => ({ customId: r.customId, ref: r.ref })),
+    })
+    .returning({ id: aiBatches.id });
+  await enqueue(ctx.workspaceId, BATCH_POLL_QUEUE, { batchId: row!.id }, { runAfter: new Date(Date.now() + batchPollDelaySeconds(0) * 1000) });
+  return row!.id;
+}
+
+export type CollectedBatch = { ended: false } | { ended: true; failed?: string; results: (BatchItemResult & { ref: Record<string, string> })[] };
+
+/**
+ * Checks a batch; once it has ended, reads its results, logs one ai_runs row per request (half
+ * price, the wait as latency) and marks the batch ended. Requests with no result (expired,
+ * cancelled) come back as failed so their handler can retry them another way.
+ */
+export async function collectBatch(ctx: AiContext, batch: typeof aiBatches.$inferSelect, schema: z.ZodType): Promise<CollectedBatch> {
+  const provider = batch.provider;
+  const key = await aiApiKey(provider);
+  if (!key) throw new AiError(`No ${PROVIDERS[provider].keyLabel} to read the batch's results: add it again in Settings → General → AI`, "config");
+  const state = provider === "openai" ? await openaiBatchState(key, batch.externalId, ctx.signal) : await anthropicBatchState(key, batch.externalId, ctx.signal);
+  if (!state.ended) {
+    await getDb().update(aiBatches).set({ polls: batch.polls + 1 }).where(eq(aiBatches.id, batch.id));
+    return { ended: false };
+  }
+  const expect = { schema, task: batch.task, config: { maxTokens: (await loadModelConfig(ctx, batch.task as AiTask)).maxTokens } };
+  const results = state.failed
+    ? []
+    : provider === "openai"
+      ? await openaiBatchResults(key, batch.externalId, expect, ctx.signal)
+      : await anthropicBatchResults(key, batch.externalId, expect, ctx.signal);
+  const byId = new Map(results.map((r) => [r.customId, r]));
+  const latencyMs = Date.now() - batch.submittedAt.getTime();
+  const out: (BatchItemResult & { ref: Record<string, string> })[] = [];
+  let cost = 0;
+  for (const item of batch.items) {
+    const result: BatchItemResult = byId.get(item.customId) ?? { customId: item.customId, ok: false, error: state.failed ?? "No result: the batch ended before this request ran", kind: "expired" };
+    out.push({ ...result, ref: item.ref });
+    if (!result.usage && !result.ok && result.kind === "expired") continue; // never ran, never billed
+    const usage = result.usage ?? emptyUsage();
+    const model = result.model ?? batch.model;
+    cost += estimateCostUsd(model, usage) * BATCH_PRICE_FACTOR;
+    await logRun(ctx, {
+      task: batch.task,
+      model,
+      promptVersion: batch.promptVersion,
+      status: result.ok ? "ok" : result.kind === "refused" ? "refused" : "error",
+      usage,
+      latencyMs,
+      error: result.ok ? undefined : result.error,
+      batchId: batch.id,
+    });
+  }
+  await getDb()
+    .update(aiBatches)
+    .set({
+      status: state.failed ? "failed" : "ended",
+      error: state.failed ?? null,
+      succeeded: out.filter((r) => r.ok).length,
+      errored: out.filter((r) => !r.ok).length,
+      costUsd: cost,
+      polls: batch.polls + 1,
+      endedAt: new Date(),
+    })
+    .where(eq(aiBatches.id, batch.id));
+  return { ended: true, failed: state.failed, results: out };
+}
+
+/** Cancels a batch at the provider (Stop); requests that already ran are billed there but not stored. */
+export async function cancelBatch(workspaceId: string, batchId: string): Promise<void> {
+  const [batch] = await getDb()
+    .select()
+    .from(aiBatches)
+    .where(and(eq(aiBatches.id, batchId), eq(aiBatches.workspaceId, workspaceId)));
+  if (!batch || batch.status !== "submitted") return;
+  const key = await aiApiKey(batch.provider);
+  let error: string | null = "Stopped by you";
+  if (key) {
+    try {
+      if (batch.provider === "openai") await openaiBatchCancel(key, batch.externalId);
+      else await anthropicBatchCancel(key, batch.externalId);
+    } catch (e) {
+      error = `Stopped by you; the provider didn't confirm the cancel (${e instanceof Error ? e.message : String(e)})`;
+    }
+  }
+  await getDb().update(aiBatches).set({ status: "cancelled", error, endedAt: new Date() }).where(eq(aiBatches.id, batch.id));
 }

@@ -56,13 +56,14 @@ export async function ownGroup(workspaceId: string, groupId: string) {
   return g;
 }
 
-async function samples(groupId: string) {
+export async function samples(groupId: string) {
   return getDb()
     .select({ url: sitePages.url, pageId: sitePages.id, selector: a11yOccurrences.selector, html: a11yOccurrences.html, summary: a11yOccurrences.failureSummary, box: a11yOccurrences.box, screenshot: sitePages.screenshot, size: sitePages.screenshotSize, siteId: sitePages.siteId })
     .from(a11yOccurrences)
     .innerJoin(sitePages, eq(sitePages.id, a11yOccurrences.pageId))
     .where(eq(a11yOccurrences.groupId, groupId))
-    .orderBy(asc(sitePages.depth), asc(sitePages.url))
+    // Pages where the owner ignored it come last.
+    .orderBy(asc(a11yOccurrences.ignored), asc(sitePages.depth), asc(sitePages.url))
     .limit(MAX_SAMPLES);
 }
 
@@ -144,18 +145,20 @@ export async function requestReviewHelp(workspaceId: string, groupId: string): P
   await enqueue(workspaceId, "a11y_review_assist", { groupId: g.id });
 }
 
+type Sample = Awaited<ReturnType<typeof samples>>[number];
+
+/** What the review helper reads about a Needs review item (also a Refine chat's context). */
+export function reviewText(g: { ruleId: string; help: string; description: string }, first: Sample): string {
+  return `Rule: ${g.ruleId}: ${g.help}\nWhat it checks: ${g.description}\n<element page="${first.url}" selector="${first.selector}">\n<html>${first.html}</html>\nWhy axe couldn't decide: ${first.summary ?? ""}\n</element>${first.box ? `\nThe element's box in the screenshot: x ${first.box.x}, y ${first.box.y}, ${first.box.width} × ${first.box.height} px.` : ""}`;
+}
+
 export async function runReviewAssist(ctx: AiContext, payload: z.infer<typeof reviewPayload>) {
   const where = eq(a11yIssueGroups.id, payload.groupId);
   try {
     const g = await ownGroup(payload.workspaceId, payload.groupId);
     const [first] = await samples(g.id);
     if (!first) throw new Error("This item isn't on any page right now");
-    const parts: AiPart[] = [
-      {
-        type: "text",
-        text: `Rule: ${g.ruleId}: ${g.help}\nWhat it checks: ${g.description}\n<element page="${first.url}" selector="${first.selector}">\n<html>${first.html}</html>\nWhy axe couldn't decide: ${first.summary ?? ""}\n</element>${first.box ? `\nThe element's box in the screenshot: x ${first.box.x}, y ${first.box.y}, ${first.box.width} × ${first.box.height} px.` : ""}`,
-      },
-    ];
+    const parts: AiPart[] = [{ type: "text", text: reviewText(g, first) }];
     const shot = first.screenshot ? readScreenshot(first.siteId, first.screenshot) : null;
     if (shot && first.box) parts.push({ type: "image", mediaType: "image/jpeg", data: shot.toString("base64") });
     const out = await runStructured(ctx, { task: "vision", promptVersion: REVIEW_PROMPT_VERSION, system: REVIEW_SYSTEM, messages: [{ role: "user", content: parts }], schema: reviewOutput });

@@ -9,12 +9,13 @@ import { DEFAULT_CAP_USD, MAX_PROMPTS } from "./analysis.ts";
 
 /** Questions, settings and reading runs (ARCHITECTURE.md section 10.2). Server actions call these. */
 
-export type VisibilitySettings = { weekly: boolean; capUsd: number };
+/** `both`: ask each question of both providers' answer models when both keys are saved (one run, twice the answers). */
+export type VisibilitySettings = { weekly: boolean; capUsd: number; both: boolean };
 const settingKey = (productId: string) => `ai_visibility:${productId}`;
 
 export async function visibilitySettings(productId: string): Promise<VisibilitySettings> {
   const saved = await getSetting<Partial<VisibilitySettings>>(settingKey(productId));
-  return { weekly: saved?.weekly ?? false, capUsd: saved?.capUsd ?? DEFAULT_CAP_USD };
+  return { weekly: saved?.weekly ?? false, capUsd: saved?.capUsd ?? DEFAULT_CAP_USD, both: saved?.both ?? false };
 }
 
 export const settingsInput = z.object({
@@ -23,10 +24,14 @@ export const settingsInput = z.object({
     .optional()
     .transform((v) => v === "on"),
   cap_usd: z.coerce.number().min(0.1, "Set a cap of at least $0.10").max(50, "At most $50 a run"),
+  both: z
+    .string()
+    .optional()
+    .transform((v) => v === "on"),
 });
 
 export async function saveVisibilitySettings(productId: string, input: z.infer<typeof settingsInput>): Promise<void> {
-  await setSetting(settingKey(productId), { weekly: input.weekly, capUsd: Math.round(input.cap_usd * 100) / 100 } satisfies VisibilitySettings);
+  await setSetting(settingKey(productId), { weekly: input.weekly, capUsd: Math.round(input.cap_usd * 100) / 100, both: input.both } satisfies VisibilitySettings);
 }
 
 export const questionInput = z.object({

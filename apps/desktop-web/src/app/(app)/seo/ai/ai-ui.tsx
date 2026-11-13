@@ -29,10 +29,14 @@ export function RunButton({
   estimate,
   cap,
   disabled,
+  answers = 1,
 }: {
   productId: string;
   questions: number;
+  /** The models asked, in words ("Claude Sonnet 5.5 and GPT-6.1 Sol"). */
   model: string;
+  /** Answers per question: 2 when both providers are asked. */
+  answers?: number;
   estimate: number;
   cap: number;
   disabled?: string | null;
@@ -47,7 +51,10 @@ export function RunButton({
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Ask {questions === 1 ? "1 question" : `${questions} questions`}</DialogTitle>
+          <DialogTitle>
+            Ask {questions === 1 ? "1 question" : `${questions} questions`}
+            {answers > 1 ? `, ${answers} times each` : ""}
+          </DialogTitle>
           <DialogDescription>
             Each question goes to {model} with web search, as a person would ask it, without mentioning your product. Then a smaller model reads each
             answer.
@@ -63,7 +70,7 @@ export function RunButton({
             {usd(cap)}: the run stops before it would go over{capped ? `, so it may not ask every question` : ""}
           </dd>
           <dt className="text-muted-foreground">Time</dt>
-          <dd>about {Math.max(1, Math.round((questions * 25) / 60))} min</dd>
+          <dd>about {Math.max(1, Math.round((questions * answers * 25) / 60))} min</dd>
         </dl>
         <p className="text-xs text-muted-foreground">Billed to your AI key and counted against your monthly AI budget. You can stop it any time and keep the answers so far.</p>
         <DialogFooter>
@@ -94,7 +101,7 @@ export function StopRunButton({ runId }: { runId: string }) {
   );
 }
 
-export function SettingsButton({ productId, weekly, cap }: { productId: string; weekly: boolean; cap: number }) {
+export function SettingsButton({ productId, weekly, cap, both }: { productId: string; weekly: boolean; cap: number; both: boolean }) {
   return (
     <FormDialog
       trigger={
@@ -106,8 +113,9 @@ export function SettingsButton({ productId, weekly, cap }: { productId: string; 
       fields={[
         { name: "weekly", label: "Run every week (Monday morning, while Startica is open)", type: "checkbox" },
         { name: "cap_usd", label: "Cost cap per run, in USD", type: "number", required: true, hint: "A run stops before it would go over this." },
+        { name: "both", label: "Ask both Claude and OpenAI (needs both keys; each question is asked twice, so a run costs about twice as much)", type: "checkbox" },
       ]}
-      values={{ weekly: weekly ? "on" : "", cap_usd: String(cap) }}
+      values={{ weekly: weekly ? "on" : "", cap_usd: String(cap), both: both ? "on" : "" }}
       action={(fd) => saveSettings(productId, fd)}
     />
   );

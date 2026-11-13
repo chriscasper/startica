@@ -367,6 +367,15 @@ try {
     await page.getByRole("link", { name: /Images must have alternative text/ }).click();
     await page.getByText("probably part of a shared template").waitFor({ timeout: 15_000 });
     check((await page.getByText("/signup.html").count()) > 0, "an issue on 5 pages shows as one template issue, with each page");
+    // Ignore it on one page only: that page leaves the counts, and counts again when undone (section 9.3).
+    await page.getByRole("button", { name: "Ignore on this page" }).first().click();
+    await page.getByRole("button", { name: "Ignore on this page" }).last().click();
+    await page.getByText("Ignored on this page", { exact: true }).first().waitFor({ timeout: 15_000 });
+    const lessPages = await page.getByText(/· \d+ pages?, \d+ elements?/).first().innerText();
+    await page.getByRole("button", { name: "Count this page again" }).click();
+    await page.getByRole("button", { name: "Count this page again" }).waitFor({ state: "detached", timeout: 15_000 });
+    const allPages = await page.getByText(/· \d+ pages?, \d+ elements?/).first().innerText();
+    check(/· 4 pages/.test(lessPages) && /· 5 pages/.test(allPages), `an issue ignored on one page counts 4 pages, and 5 again when the page counts (${lessPages.trim()} → ${allPages.trim()})`);
     await page.getByRole("link", { name: "/signup.html" }).first().click();
     await page.getByText("Sign up: Fieldnote", { exact: true }).waitFor({ timeout: 15_000 });
     check((await page.getByText(/Form elements must have labels/).count()) > 0, "the page report lists the page's issues with their elements");
@@ -378,11 +387,11 @@ try {
     const shot = shotRes.ok() && shotRes.headers()["content-type"] === "image/jpeg" ? true : `${shotRes.status()} ${shotSrc}`;
     await page.goto(`${server.url}/accessibility/issues`);
     await page.getByRole("link", { name: /Elements must meet minimum color contrast/ }).click();
-    await page.getByRole("button", { name: "Ignore" }).click();
-    await page.getByRole("button", { name: "Ignore" }).last().click();
+    await page.getByRole("button", { name: "Ignore", exact: true }).click();
+    await page.getByRole("button", { name: "Ignore", exact: true }).last().click();
     await page.getByText(/^Ignored on \d{4}-\d{2}-\d{2}: False positive/).waitFor({ timeout: 15_000 });
     await page.getByRole("button", { name: "Stop ignoring" }).click();
-    await page.getByRole("button", { name: "Ignore" }).waitFor({ timeout: 15_000 });
+    await page.getByRole("button", { name: "Ignore", exact: true }).waitFor({ timeout: 15_000 });
     const exportHref = await page.locator("a", { hasText: "Export CSV" }).first().getAttribute("href");
     const csv = await page.request.get(`${server.url}${exportHref}`);
     const csvText = await csv.text();
@@ -419,11 +428,20 @@ try {
     await page.getByRole("button", { name: "Save" }).last().click();
     await page.getByText("# Accessibility statement for Stand-in site").waitFor({ timeout: 15_000 });
     const supports = await page.getByRole("row", { name: /2\.1\.1 Keyboard/ }).innerText();
-    const printable = await page.request.get(`${server.url}${await page.getByRole("link", { name: "Open" }).getAttribute("href")}`);
+    const printable = await page.request.get(`${server.url}${await page.getByRole("link", { name: "Open", exact: true }).first().getAttribute("href")}`);
     const printed = await printable.text();
     check(
       /Supports/.test(supports) && printable.ok() && printed.includes("Accessibility report: Stand-in site") && !/\bcompliant\b/i.test(printed),
       `A4: a criterion checked by hand shows as Supports in the conformance draft, the statement is written, and the printable report opens (${supports.replace(/\s+/g, " ")})`,
+    );
+    // The statement as HTML for a CMS, and the conformance draft as a printable page.
+    const statementHtml = await page.request.get(`${server.url}${await page.getByRole("link", { name: "HTML", exact: true }).getAttribute("href")}`);
+    const acrPage = await page.request.get(`${server.url}${await page.getByRole("link", { name: "Open", exact: true }).last().getAttribute("href")}`);
+    const html = await statementHtml.text();
+    const acr = await acrPage.text();
+    check(
+      statementHtml.ok() && html.startsWith("<h1>Accessibility statement for Stand-in site</h1>") && html.includes("<h2>Known limitations</h2>") && acrPage.ok() && acr.includes("Accessibility conformance report (draft): Stand-in site") && acr.includes("2.1.1 Keyboard"),
+      `A4: the statement downloads as HTML and the conformance draft opens as a printable page (${statementHtml.status()} ${html.slice(0, 50)}, ${acrPage.status()})`,
     );
 
     // A5: the scan checked spelling and readability; the content check job then reads the linked PDF and checks the external link.

@@ -12,7 +12,8 @@ import { getScanner } from "@startica/core/a11y/scanner";
 import { NO_SCANNER } from "@startica/core/a11y/scan";
 import { ownSite, startPageCheck } from "@startica/core/a11y/sites";
 import { addFindingToRoadmap } from "@startica/core/security/actions";
-import { decideFinding, decisionInput, findingPages, ownFinding } from "@startica/core/security/findings";
+import { decideFinding, decisionInput, findingPages, findingSignedInPages, ownFinding } from "@startica/core/security/findings";
+import { forgetSignIn, noScanReason, openSignIn, queueSignedInCheck, saveSignedInSettings, signedInInput } from "@startica/core/security/signed-in";
 import { SECURITY_RULES, isSecurityRule } from "@startica/core/security/rules";
 import { verifySite, type VerifyAttempt } from "@startica/core/security/verify";
 import { queueMonitor } from "@startica/core/security/monitor";
@@ -69,8 +70,10 @@ export async function recheckFinding(findingId: string): Promise<ActionResult> {
     }
     if (!getScanner()) throw new Error(NO_SCANNER);
     const urls = (await findingPages(site.id, finding.groupKey)).map((p) => p.url);
-    if (urls.length === 0) throw new Error("This finding isn't on any page right now; run a full scan instead");
-    await startPageCheck(site, urls.slice(0, 500), "group");
+    // Found after sign-in (S3): those pages are rechecked with the signed-in check.
+    const signedIn = (await findingSignedInPages(site.id, finding.groupKey)).length > 0 && (await queueSignedInCheck(site));
+    if (urls.length === 0 && !signedIn) throw new Error("This finding isn't on any page right now; run a full scan instead");
+    if (urls.length) await startPageCheck(site, urls.slice(0, 500), "group");
   });
 }
 
@@ -169,6 +172,42 @@ export async function setReportStatus(reportId: string, status: "new" | "resolve
       .set({ status: z.enum(["new", "resolved", "dismissed"]).parse(status) })
       .where(and(eq(securityReports.id, id.parse(reportId)), eq(securityReports.workspaceId, workspace.id)));
   });
+}
+
+// --- S3: signed-in checks and safety controls (ARCHITECTURE.md section 11.5)
+
+export async function saveSignedIn(siteId: string, formData: FormData): Promise<ActionResult> {
+  return mutate(async () => {
+    const site = await ownSite((await getWorkspace()).id, id.parse(siteId));
+    await saveSignedInSettings(site, signedInInput.parse(formFields(formData)));
+  });
+}
+
+/** Opens the window where the owner signs in to the site by hand. */
+export async function signInToSite(siteId: string): Promise<ActionResult> {
+  try {
+    noDemo();
+    await openSignIn(await ownSite((await getWorkspace()).id, id.parse(siteId)));
+    return { error: null };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function checkSignedInNow(siteId: string): Promise<ActionResult> {
+  return mutate(async () => {
+    noDemo();
+    const site = await ownSite((await getWorkspace()).id, id.parse(siteId));
+    if (site.signedInPages.length === 0) throw new Error("List the pages to check after sign-in first");
+    const blocked = noScanReason(site);
+    if (blocked) throw new Error(blocked);
+    if (!getScanner()) throw new Error(NO_SCANNER);
+    if (!(await queueSignedInCheck(site))) throw new Error("A signed-in check is already under way");
+  });
+}
+
+export async function forgetSiteSignIn(siteId: string): Promise<ActionResult> {
+  return mutate(async () => forgetSignIn(await ownSite((await getWorkspace()).id, id.parse(siteId))));
 }
 
 // --- S2: exposure monitoring

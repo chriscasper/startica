@@ -97,13 +97,13 @@ function NeedsYou({ items }: { items: Attention[] }) {
           <CardTitle>Needs you</CardTitle>
           <span className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
             {toFix > 0 && (
-              <span className="inline-flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
                 <span className="size-2 rounded-full bg-destructive" aria-hidden />
                 {toFix} to fix
               </span>
             )}
             {waiting > 0 && (
-              <span className="inline-flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-300">
                 <span className="size-2 rounded-full bg-amber-500" aria-hidden />
                 {waiting} waiting
               </span>
@@ -148,10 +148,13 @@ function NeedsYou({ items }: { items: Attention[] }) {
 function ModuleCard({ module, icon: Icon, title, href, status, children }: { module: DashboardModule; icon: LucideIcon; title: string; href: string; status: string; children: ReactNode }) {
   return (
     <Accent module={module} className="flex">
-      <Card className="flex-1 border-t-2 border-t-(--module)">
+      {/* The module's color fades in from the top edge, behind the title. */}
+      <Card className="flex-1 border-t-2 border-t-(--module) bg-[linear-gradient(to_bottom,var(--module-soft),transparent_6rem)]">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Icon className="size-4 text-(--module)" aria-hidden />
+          <CardTitle className="flex items-center gap-2.5">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-(--module-soft)">
+              <Icon className="size-4 text-(--module)" aria-hidden />
+            </span>
             <Link href={href} className="hover:underline">
               {title}
             </Link>

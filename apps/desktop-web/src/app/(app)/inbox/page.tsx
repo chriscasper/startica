@@ -276,7 +276,7 @@ async function InboxContent({ searchParams }: { searchParams: PageProps<"/inbox"
     <>
       <LiveRefresh tables={["opportunities", "drafts", "publications", "publication_replies"]} />
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <nav className="flex flex-wrap gap-1 rounded-lg bg-muted p-1 text-sm" aria-label="Inbox views">
+        <nav className="flex flex-wrap gap-1 rounded-lg bg-tint p-1 text-sm" aria-label="Inbox views">
           {(Object.keys(TABS) as TabKey[]).map((key) => (
             <Link
               key={key}

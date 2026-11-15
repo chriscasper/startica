@@ -80,7 +80,7 @@ async function SettingsContent({ searchParams }: { searchParams: PageProps<"/set
   const tab: Tab = typeof param === "string" && param in TABS ? (param as Tab) : "general";
   return (
     <>
-      <nav className="flex w-fit gap-1 rounded-lg bg-muted p-1 text-sm" aria-label="Settings sections">
+      <nav className="flex w-fit gap-1 rounded-lg bg-tint p-1 text-sm" aria-label="Settings sections">
         {(Object.keys(TABS) as Tab[]).map((key) => (
           <Link
             key={key}

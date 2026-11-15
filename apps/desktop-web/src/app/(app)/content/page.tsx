@@ -172,7 +172,7 @@ async function ContentStudio({ searchParams }: { searchParams: PageProps<"/conte
   return (
     <>
       <LiveRefresh tables={["content_pieces", "content_images", "content_snapshots", "voice_profiles", "voice_samples", "voice_sources", "jobs"]} />
-      <nav className="flex w-fit flex-wrap gap-1 rounded-lg bg-muted p-1 text-sm" aria-label="Content Studio views">
+      <nav className="flex w-fit flex-wrap gap-1 rounded-lg bg-tint p-1 text-sm" aria-label="Content Studio views">
         {(Object.keys(TABS) as Tab[]).map((key) => (
           <Link
             key={key}

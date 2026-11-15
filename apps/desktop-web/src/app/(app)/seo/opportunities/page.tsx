@@ -100,7 +100,7 @@ async function Opportunities({ searchParams }: { searchParams: PageProps<"/seo/o
   return (
     <>
       <LiveRefresh tables={["seo_opportunities", "search_stats", "site_pages", "ai_visibility_runs", "audits", "content_pieces", "daily_moves"]} />
-      <nav className="flex flex-wrap gap-1 rounded-lg bg-muted p-1 text-sm" aria-label="Filter">
+      <nav className="flex flex-wrap gap-1 rounded-lg bg-tint p-1 text-sm" aria-label="Filter">
         {FILTERS.map((f) => (
           <Link
             key={f.key}

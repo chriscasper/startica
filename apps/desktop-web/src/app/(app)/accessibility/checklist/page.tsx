@@ -59,7 +59,7 @@ async function Checklist({ searchParams }: { searchParams: PageProps<"/accessibi
       <LiveRefresh tables={["a11y_issue_groups"]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SitePicker ctx={ctx} path="/accessibility/checklist" />
-        <nav className="flex gap-1 rounded-lg bg-muted p-1 text-sm" aria-label="Show">
+        <nav className="flex gap-1 rounded-lg bg-tint p-1 text-sm" aria-label="Show">
           {FILTERS.map((f) => (
             <Link key={f.key} href={`/accessibility/checklist?site=${site.id}&show=${f.key}`} className={pill(filter === f.key)} aria-current={filter === f.key ? "page" : undefined}>
               {f.label} ({count(f.key)})

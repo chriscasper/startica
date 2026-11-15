@@ -48,7 +48,7 @@ export function SeoNoSite({ ctx }: { ctx: Loaded }) {
 export function SeoSitePicker({ ctx, path }: { ctx: Loaded; path: string }) {
   if (ctx.sites.length < 2) return null;
   return (
-    <nav className="flex flex-wrap gap-1 rounded-lg bg-muted p-1 text-sm" aria-label="Sites">
+    <nav className="flex flex-wrap gap-1 rounded-lg bg-tint p-1 text-sm" aria-label="Sites">
       {ctx.sites.map((s) => (
         <Link
           key={s.id}

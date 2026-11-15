@@ -62,14 +62,14 @@ async function Issues({ searchParams }: { searchParams: PageProps<"/accessibilit
       <LiveRefresh tables={["a11y_issue_groups"]} />
       <SitePicker ctx={ctx} path="/accessibility/issues" />
       <div className="flex flex-wrap gap-3">
-        <nav className="flex gap-1 rounded-lg bg-muted p-1 text-sm" aria-label="Status">
+        <nav className="flex gap-1 rounded-lg bg-tint p-1 text-sm" aria-label="Status">
           {Object.entries(STATUSES).map(([key, label]) => (
             <Link key={key} href={href({ status: key })} className={pill(status === key)} aria-current={status === key ? "page" : undefined}>
               {label}
             </Link>
           ))}
         </nav>
-        <nav className="flex flex-wrap gap-1 rounded-lg bg-muted p-1 text-sm" aria-label="Impact">
+        <nav className="flex flex-wrap gap-1 rounded-lg bg-tint p-1 text-sm" aria-label="Impact">
           <Link href={href({ impact: null })} className={pill(!impact)} aria-current={!impact ? "page" : undefined}>
             Any impact
           </Link>

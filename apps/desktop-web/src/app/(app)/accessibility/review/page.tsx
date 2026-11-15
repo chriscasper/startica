@@ -64,7 +64,7 @@ async function Review({ searchParams }: { searchParams: PageProps<"/accessibilit
       <LiveRefresh tables={["a11y_issue_groups"]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SitePicker ctx={ctx} path="/accessibility/review" />
-        <nav className="flex gap-1 rounded-lg bg-muted p-1 text-sm" aria-label="Show">
+        <nav className="flex gap-1 rounded-lg bg-tint p-1 text-sm" aria-label="Show">
           <Link href={`/accessibility/review?site=${site.id}`} className={pill(!decided)} aria-current={!decided ? "page" : undefined}>
             To review ({all.filter((g) => !g.reviewStatus).length})
           </Link>

@@ -2,12 +2,22 @@
 (() => {
   const root = document.documentElement;
 
+  // App screenshots (yarn screenshots) come in a light and a dark set: show the one for the theme.
+  const showScreenshots = () => {
+    const dark = root.dataset.theme === 'dark';
+    document.querySelectorAll('img[src^="/images/app/"]').forEach((img) => {
+      const src = img.getAttribute('src').replace(/(-dark)?\.png$/, dark ? '-dark.png' : '.png');
+      if (src !== img.getAttribute('src')) img.setAttribute('src', src);
+    });
+  };
+  showScreenshots();
   // Theme toggle (initial theme is set inline in <head>)
   document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
     button.addEventListener('click', () => {
       const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
       root.dataset.theme = next;
       try { localStorage.setItem('startica-theme', next); } catch {}
+      showScreenshots();
     });
   });
 

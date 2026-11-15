@@ -50,7 +50,7 @@ async function Compliance({ searchParams }: { searchParams: PageProps<"/accessib
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SitePicker ctx={ctx} path="/accessibility/compliance" />
-        <nav className="flex flex-wrap gap-1 rounded-lg bg-muted p-1 text-sm" aria-label="Standard">
+        <nav className="flex flex-wrap gap-1 rounded-lg bg-tint p-1 text-sm" aria-label="Standard">
           {Object.entries(PROFILES).map(([key, p]) => (
             <Link key={key} href={`/accessibility/compliance?site=${site.id}&profile=${key}`} className={pill(profile === key)} aria-current={profile === key ? "page" : undefined}>
               {p.label}

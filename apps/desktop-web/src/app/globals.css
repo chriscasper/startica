@@ -2,10 +2,16 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/*
+ * Dark mode follows the system setting (prefers-color-scheme), like the splash and About
+ * windows: Tailwind's dark: variant is its default media query, and the dark tokens below
+ * sit in the same query. Printing (the PDF reports) always uses the light theme.
+ */
 
 @theme inline {
   --color-background: var(--background);
+  --color-canvas: var(--canvas);
+  --color-tint: var(--tint);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
@@ -49,6 +55,7 @@
 }
 
 :root {
+  color-scheme: light;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -57,15 +64,17 @@
   --popover-foreground: oklch(0.145 0 0);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
+  --secondary: oklch(0.967 0.003 264);
   --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
+  --muted: oklch(0.967 0.003 264);
+  /* 5.3:1 on the canvas, 5.8:1 on white. */
+  --muted-foreground: #62666e;
+  --accent: oklch(0.967 0.003 264);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
+  /* 4.9:1 on its own 10% tint (badges), 5.4:1 on the canvas. */
+  --destructive: #c8102e;
+  --border: oklch(0.92 0.004 264);
+  --input: oklch(0.92 0.004 264);
   --ring: oklch(0.708 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
@@ -73,48 +82,60 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
+  --sidebar: oklch(0.984 0.003 264);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent: oklch(0.955 0.005 264);
   --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-border: oklch(0.92 0.004 264);
   --sidebar-ring: oklch(0.708 0 0);
+  /* The page behind the cards: off-white, so white cards, the toolbar and buttons stand out. */
+  --canvas: #f5f6f8;
+  /* A soft fill for table headers and tab strips; takes the module's color inside a module. */
+  --tint: var(--muted);
+  /* Outside a module (Dashboard, Settings, System) the accent pieces stay neutral. */
+  --module: var(--foreground);
+  --module-foreground: var(--background);
+  --module-soft: color-mix(in oklab, var(--foreground) 8%, transparent);
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.922 0 0);
+    --sidebar-primary-foreground: oklch(0.205 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+    --canvas: var(--background);
+  }
 }
 
 @layer base {
@@ -132,8 +153,11 @@
  * Module accents: each sidebar section (Marketing, Accessibility, SEO & GEO, Security)
  * has its own color, set with data-module on the section's pages (ModuleScope) and on
  * its sidebar group. Inside a module, primary buttons, focus rings, badges and charts
- * take the accent. Shades are checked for 4.5:1 or better, as text on the background
- * and behind their foreground, in light and dark mode. Settings and System stay neutral.
+ * take the accent, the page canvas carries 5% of it, and table headers and tab strips
+ * 8% (--tint). Shades are checked for 4.5:1 or better, as text on white and on the
+ * tinted canvas and behind their foreground, in light and dark mode. On --module-soft
+ * use the accent for icons only (text there stays in the foreground color).
+ * Dashboard, Settings and System stay neutral.
  */
 [data-module="marketing"] {
   --module: #c2441c;
@@ -151,38 +175,30 @@
   --module: #6b4fd6;
   --module-foreground: #ffffff;
 }
-.dark[data-module="marketing"],
-.dark [data-module="marketing"] {
-  --module: #f47a52;
-  --module-foreground: #171717;
-}
-.dark[data-module="accessibility"],
-.dark [data-module="accessibility"] {
-  --module: #4fb3e0;
-  --module-foreground: #171717;
-}
-.dark[data-module="seo"],
-.dark [data-module="seo"] {
-  --module: #3ec79c;
-  --module-foreground: #171717;
-}
-.dark[data-module="security"],
-.dark [data-module="security"] {
-  --module: #a996ff;
-  --module-foreground: #171717;
+@media (prefers-color-scheme: dark) {
+  [data-module="marketing"] {
+    --module: #f47a52;
+    --module-foreground: #171717;
+  }
+  [data-module="accessibility"] {
+    --module: #4fb3e0;
+    --module-foreground: #171717;
+  }
+  [data-module="seo"] {
+    --module: #3ec79c;
+    --module-foreground: #171717;
+  }
+  [data-module="security"] {
+    --module: #a996ff;
+    --module-foreground: #171717;
+  }
 }
 [data-module] {
   --module-soft: color-mix(in oklab, var(--module) 12%, transparent);
+  --canvas: color-mix(in oklab, var(--module) 5%, var(--background));
+  --tint: color-mix(in oklab, var(--module) 8%, transparent);
   --primary: var(--module);
   --primary-foreground: var(--module-foreground);
   --ring: var(--module);
   --module-chart: var(--module);
-}
-
-/* The accent bar above a page title shows only inside a module. */
-.module-bar {
-  display: none;
-}
-[data-module] .module-bar {
-  display: block;
 }

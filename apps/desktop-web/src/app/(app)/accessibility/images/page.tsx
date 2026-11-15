@@ -59,7 +59,7 @@ async function Images({ searchParams }: { searchParams: PageProps<"/accessibilit
       <LiveRefresh tables={["a11y_images"]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SitePicker ctx={ctx} path="/accessibility/images" />
-        <nav className="flex gap-1 rounded-lg bg-muted p-1 text-sm" aria-label="Show">
+        <nav className="flex gap-1 rounded-lg bg-tint p-1 text-sm" aria-label="Show">
           <Link href={`/accessibility/images?site=${site.id}`} className={pill(filter === "attention")} aria-current={filter === "attention" ? "page" : undefined}>
             Need attention ({rows.filter(attention).length})
           </Link>

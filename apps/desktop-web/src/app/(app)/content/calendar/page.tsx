@@ -118,7 +118,7 @@ async function Calendar({ searchParams }: { searchParams: PageProps<"/content/ca
   return (
     <>
       <LiveRefresh tables={["content_pieces", "content_plans", "content_images", "opportunities", "drafts", "jobs"]} />
-      <nav className="flex w-fit flex-wrap gap-1 rounded-lg bg-muted p-1 text-sm" aria-label="Content Studio views">
+      <nav className="flex w-fit flex-wrap gap-1 rounded-lg bg-tint p-1 text-sm" aria-label="Content Studio views">
         {[
           ["/content", "Create"],
           ["/content?tab=library", "Library"],
@@ -167,7 +167,7 @@ async function Calendar({ searchParams }: { searchParams: PageProps<"/content/ca
           <h2 className="ml-2 text-base font-medium">{cal.title}</h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex gap-1 rounded-lg bg-muted p-1 text-sm">
+          <div className="flex gap-1 rounded-lg bg-tint p-1 text-sm">
             {(["week", "month"] as const).map((v) => (
               <Link key={v} href={link({ view: v })} className={cn("rounded-md px-3 py-1 text-muted-foreground", view === v && "bg-background font-medium text-foreground shadow-sm")}>
                 {v === "week" ? "Week" : "Month"}

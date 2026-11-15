@@ -1,8 +1,11 @@
 // Screenshots of the Dashboard and each module's main page, for the website and docs.
 // Seeds the Fieldnote demo into a temporary data folder and runs its own server (port
 // 58397, build folder .next-screenshots), so it never touches your real data or a
-// running app. Writes the same PNGs to apps/web/public/images/app/ and
+// running app. Takes each screen in the light and the dark theme (<name>.png and
+// <name>-dark.png; the sites show the one for their theme). Writes the same PNGs to apps/web/public/images/app/ and
 // apps/docs/public/images/app/. Usage: yarn screenshots
+// To look at the app without replacing those: STARTICA_SCREENSHOT_DIR=<folder>, with
+// STARTICA_SCREENSHOT_PATHS=/inbox,/settings for other screens (named after the path).
 import { spawnSync } from "node:child_process";
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -10,7 +13,8 @@ import { join } from "node:path";
 import { chromium } from "playwright";
 
 const root = join(import.meta.dirname, "../../..");
-const outDirs = [join(root, "apps/web/public/images/app"), join(root, "apps/docs/public/images/app")];
+// STARTICA_SCREENSHOT_DIR=<folder> writes there instead: a look at the app without touching the sites' images.
+const outDirs = process.env.STARTICA_SCREENSHOT_DIR ? [process.env.STARTICA_SCREENSHOT_DIR] : [join(root, "apps/web/public/images/app"), join(root, "apps/docs/public/images/app")];
 const shots = [
   { name: "dashboard", path: "/dashboard" },
   { name: "marketing", path: "/today" },
@@ -18,6 +22,12 @@ const shots = [
   { name: "seo", path: "/seo" },
   { name: "security", path: "/security" },
 ];
+const extra = (process.env.STARTICA_SCREENSHOT_PATHS ?? "").split(",").filter(Boolean);
+if (extra.length > 0 && !process.env.STARTICA_SCREENSHOT_DIR) {
+  console.error("STARTICA_SCREENSHOT_PATHS needs STARTICA_SCREENSHOT_DIR: the sites' images are the five screens above.");
+  process.exit(1);
+}
+if (extra.length > 0) shots.splice(0, shots.length, ...extra.map((path) => ({ name: path.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, ""), path, extra: true })));
 
 const dataDir = mkdtempSync(join(tmpdir(), "startica-screenshots-"));
 const seeded = spawnSync("yarn", ["workspace", "@startica/core", "seed:demo"], { cwd: root, env: { ...process.env, STARTICA_DATA_DIR: dataDir }, stdio: "inherit" });
@@ -52,12 +62,18 @@ try {
   for (const shot of shots) {
     await page.goto(`${server.url}${shot.path}`);
     await page.waitForLoadState("networkidle");
-    await page.locator('[data-slot="card"]').first().waitFor({ timeout: 60_000 });
+    await page.locator(shot.extra ? "h1" : '[data-slot="card"]').first().waitFor({ timeout: 60_000 });
     await page.waitForTimeout(800); // charts animate in
-    const file = join(outDirs[0], `${shot.name}.png`);
-    await page.screenshot({ path: file });
-    for (const outDir of outDirs.slice(1)) copyFileSync(file, join(outDir, `${shot.name}.png`));
-    console.log(`✓ ${shot.name}.png (${shot.path})`);
+    // The app follows the system theme, so the same loaded page gives both.
+    for (const [scheme, name] of [["light", `${shot.name}.png`], ["dark", `${shot.name}-dark.png`]]) {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.waitForTimeout(300);
+      const file = join(outDirs[0], name);
+      await page.screenshot({ path: file });
+      for (const outDir of outDirs.slice(1)) copyFileSync(file, join(outDir, name));
+      console.log(`✓ ${name} (${shot.path})`);
+    }
+    await page.emulateMedia({ colorScheme: "light" });
   }
 } catch (error) {
   console.error(error);

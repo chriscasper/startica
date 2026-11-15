@@ -136,7 +136,7 @@ function KeyTable({ rows, label, link, compare = true }: { rows: KeyRow[]; label
 
 function Chips<T extends string | number>({ items, current, href }: { items: { key: T; label: string }[]; current: T; href: (key: T) => string }) {
   return (
-    <nav className="flex flex-wrap gap-1 rounded-lg bg-muted p-1 text-sm">
+    <nav className="flex flex-wrap gap-1 rounded-lg bg-tint p-1 text-sm">
       {items.map((i) => (
         <Link
           key={String(i.key)}

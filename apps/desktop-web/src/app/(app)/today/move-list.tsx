@@ -24,6 +24,7 @@ const kindLabel: Record<string, string> = {
   inbox: "Inbox",
   roadmap: "Roadmap",
   intel: "Intel",
+  competitors: "Competitors",
   setup: "Setup",
   content: "Content",
   audit: "Audit",
@@ -33,6 +34,30 @@ const kindLabel: Record<string, string> = {
   listening: "Listening",
   replies: "Replies",
   custom: "Yours",
+};
+
+// Where a move comes from, by color: conversations blue, planning violet, writing green,
+// site checks amber, paid rose, numbers teal. Setup and the owner's own moves stay neutral.
+const tone = {
+  blue: "border-transparent bg-sky-500/10 text-sky-800 dark:text-sky-300",
+  violet: "border-transparent bg-violet-500/10 text-violet-800 dark:text-violet-300",
+  green: "border-transparent bg-emerald-500/10 text-emerald-800 dark:text-emerald-300",
+  amber: "border-transparent bg-amber-500/10 text-amber-800 dark:text-amber-300",
+  rose: "border-transparent bg-rose-500/10 text-rose-800 dark:text-rose-300",
+  teal: "border-transparent bg-teal-500/10 text-teal-800 dark:text-teal-300",
+};
+const kindStyle: Record<string, string> = {
+  inbox: tone.blue,
+  replies: tone.blue,
+  listening: tone.blue,
+  roadmap: tone.violet,
+  calendar: tone.violet,
+  content: tone.green,
+  audit: tone.amber,
+  ads: tone.rose,
+  analytics: tone.teal,
+  intel: tone.teal,
+  competitors: tone.teal,
 };
 
 function useAction() {
@@ -50,7 +75,7 @@ function Move({ move }: { move: MoveView }) {
   const [pending, run] = useAction();
   const closed = move.status !== "open";
   return (
-    <li className={`flex gap-3 rounded-lg border p-4 ${closed ? "opacity-60" : ""}`}>
+    <li className={`flex gap-3 rounded-lg border p-4 transition-colors hover:border-(--module)/40 hover:bg-(--tint) ${closed ? "opacity-60" : ""}`}>
       <Button
         size="icon-sm"
         variant={move.status === "done" ? "default" : "outline"}
@@ -64,7 +89,7 @@ function Move({ move }: { move: MoveView }) {
       <div className="grid min-w-0 flex-1 gap-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className={`font-medium ${move.status === "done" ? "line-through" : ""}`}>{move.title}</span>
-          <Badge variant="outline">{kindLabel[move.kind] ?? move.kind}</Badge>
+          <Badge variant="outline" className={kindStyle[move.kind]}>{kindLabel[move.kind] ?? move.kind}</Badge>
           {move.status === "skipped" && <Badge variant="secondary">Skipped</Badge>}
         </div>
         {move.why && <p className="line-clamp-2 text-sm text-muted-foreground" title={move.why}>{move.why}</p>}

@@ -104,7 +104,7 @@ async function Content({ searchParams }: { searchParams: PageProps<"/accessibili
       <LiveRefresh tables={["site_pages", "sites"]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SitePicker ctx={ctx} path="/accessibility/content" />
-        <nav className="flex flex-wrap gap-1 rounded-lg bg-muted p-1 text-sm" aria-label="Sections">
+        <nav className="flex flex-wrap gap-1 rounded-lg bg-tint p-1 text-sm" aria-label="Sections">
           {TABS.map((t) => (
             <Link key={t.key} href={`/accessibility/content?site=${site.id}&tab=${t.key}`} className={pill(tab === t.key)} aria-current={tab === t.key ? "page" : undefined}>
               {t.label} ({counts[t.key]})

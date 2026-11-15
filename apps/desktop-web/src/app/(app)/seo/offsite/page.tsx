@@ -156,7 +156,7 @@ async function Offsite({ searchParams }: { searchParams: PageProps<"/seo/offsite
     <>
       <LiveRefresh tables={["offsite_pages", "ai_visibility_runs", "communities"]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <nav className="flex flex-wrap gap-1 rounded-lg bg-muted p-1 text-sm" aria-label="Filter">
+        <nav className="flex flex-wrap gap-1 rounded-lg bg-tint p-1 text-sm" aria-label="Filter">
           {FILTERS.map((f) => (
             <Link
               key={f.key}

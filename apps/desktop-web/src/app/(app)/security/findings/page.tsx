@@ -63,7 +63,7 @@ async function Findings({ searchParams }: { searchParams: PageProps<"/security/f
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SitePicker ctx={ctx} path="/security/findings" />
         <ImportReportButton siteId={site.id} disabled={!aiReady} />
-        <nav className="flex flex-wrap gap-1 rounded-lg bg-muted p-1 text-sm" aria-label="Status">
+        <nav className="flex flex-wrap gap-1 rounded-lg bg-tint p-1 text-sm" aria-label="Status">
           {FILTERS.map((f) => (
             <Link
               key={f.key}

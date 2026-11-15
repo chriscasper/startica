@@ -6,7 +6,7 @@ import { fork } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { app, BrowserWindow, dialog, Menu, nativeImage, Notification, safeStorage, session, shell, Tray } from "electron";
+import { app, BrowserWindow, dialog, Menu, nativeImage, nativeTheme, Notification, safeStorage, session, shell, Tray } from "electron";
 import { createAbout } from "./about/window.mjs";
 import { createPosting } from "./posting/window.mjs";
 import { createHighlighter } from "./scanner/highlight.mjs";
@@ -385,6 +385,8 @@ function createWindow() {
     title: "Startica",
     icon: join(assetsDir, "icon.png"), // Windows/Linux; macOS uses the app bundle's icon
     show: true,
+    // The app's canvas color (globals.css) for the system's theme, so the window doesn't flash white in dark mode.
+    backgroundColor: nativeTheme.shouldUseDarkColors ? "#0a0a0a" : "#f5f6f8",
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false },
   });
   // Links to other sites (and sign-in pages) open in the normal browser.

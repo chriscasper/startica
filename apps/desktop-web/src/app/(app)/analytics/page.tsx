@@ -82,7 +82,7 @@ async function AnalyticsContent({ searchParams }: { searchParams: PageProps<"/an
   return (
     <>
       <LiveRefresh tables={["connections", "metrics_snapshots", "publications", "content_snapshots", "analytics_summaries", "jobs"]} />
-      <nav className="flex w-fit flex-wrap gap-1 rounded-lg bg-muted p-1 text-sm" aria-label="Analytics sections">
+      <nav className="flex w-fit flex-wrap gap-1 rounded-lg bg-tint p-1 text-sm" aria-label="Analytics sections">
         {(Object.keys(TABS) as Tab[]).map((key) => (
           <Link
             key={key}

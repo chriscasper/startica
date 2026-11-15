@@ -27,7 +27,8 @@ const isActive = (item: NavItem, pathname: string) =>
 
 // Inside a module's group: icons in the module's accent, and the current page tinted with it.
 // The label stays in the sidebar's text color, which reads well on the tint.
-const accented = "[&_svg]:text-(--module) data-active:bg-(--module-soft) data-active:text-sidebar-foreground";
+const accented =
+  "[&_svg]:text-(--module) data-active:bg-(--module-soft) data-active:text-sidebar-foreground data-active:shadow-[inset_3px_0_0_var(--module)]";
 
 function NavButton({ item, active, accent }: { item: NavItem; active: boolean; accent: boolean }) {
   return (
@@ -132,7 +133,7 @@ export function AppSidebar() {
               <SidebarGroup data-module={module.key}>
                 <SidebarGroupLabel
                   render={<CollapsibleTrigger />}
-                  className="w-full cursor-pointer hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  className="w-full cursor-pointer font-semibold text-(--module) hover:bg-sidebar-accent"
                 >
                   <span className="mr-2 size-2 shrink-0 rounded-full bg-(--module)" aria-hidden />
                   {module.label}

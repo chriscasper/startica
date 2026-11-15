@@ -142,4 +142,11 @@ describe("seedDemo", () => {
     await seedDemo();
     expect(await productCount()).toBe(1);
   }, 30_000);
+
+  // Late evening within 90 days of the clocks going back: 24-hour steps used to give one local day twice.
+  it("seeds late in the evening after the clocks went back", async () => {
+    await clearProductData();
+    await seedDemo(new Date(2026, 10, 14, 23, 36));
+    expect(await productCount()).toBe(1);
+  }, 30_000);
 });

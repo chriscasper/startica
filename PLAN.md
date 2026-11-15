@@ -96,14 +96,13 @@ Both sites are built: the marketing site (`apps/web`) and 80 docs pages (`apps/d
 
 ## 5. Release and launch
 
-Done already: the repository is public, releases are published with macOS (signed and notarized), Windows and Linux installers, auto-update reads them, Discussions, topics and the website link are set, and the sites lead with `/download`.
+Done already: the repository is public, releases are published with macOS (signed and notarized), Windows and Linux installers, auto-update reads them, Discussions, topics and the website link are set, the sites lead with `/download`, and CI passes on `main` on macOS and Ubuntu.
 
-- **CI green on `main`:** the macOS job's smoke test timed out in the dev server from 2026-10-25 on; CI now runs it against a production build (`yarn smoke:desktop --build`). Confirm the next run on `main` passes on both systems.
 - **GitHub settings:** the description still has the replaced "AI co-founder" tagline (section 6); no social preview image; `main` has no branch protection (a ruleset "Main" exists but is disabled).
 - **Final check:** links, a `grep` for personal data, a Lighthouse and accessibility pass on both sites.
 - **Windows signing:** a code-signing certificate or Azure Trusted Signing (paid: ask first). Until then SmartScreen warns on first open.
 - **Install and run the Windows and Linux installers** on real machines (installer, tray, close-to-tray, launch at login, auto-update): they build on GitHub's runners but only macOS has been run.
-- **Open Dependabot pull requests** (nine, some with major versions: postgres 4, eslint 10, croner 11, @types/node 26): review once CI is green.
+- **`@types/node` 26** (Dependabot): left out while the app runs on Node 24; the types should match the Node version. Take it when Node moves up.
 
 ---
 

@@ -9,7 +9,7 @@ Startica is the open-source startup harness: an MIT-licensed desktop app that pu
 It runs on your computer, keeps its data in a local SQLite file, and calls the Claude or OpenAI API with your own key. Nothing is posted, launched or changed without you.
 
 > [!NOTE]
-> There are no published installers yet. You run Startica from source, or build an installer for your own computer with one command. See [Install from source](/getting-started/install). The release workflow and automatic updates are built, and signed installers will follow on GitHub Releases.
+> Startica is in beta. Download the installer for macOS, Windows or Linux from [mystartica.com/download](https://mystartica.com/download); installed copies update themselves. The Windows installer isn't code-signed yet, and Windows and Linux are less tested than macOS. To run it from source instead, see [Install from source](/getting-started/install).
 
 ## Start here
 

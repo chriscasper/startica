@@ -1,6 +1,10 @@
 // End-to-end smoke test in a real browser (Playwright), against an isolated
 // server: temporary data folder, port 58399, its own build folder. Never touches
 // your real Startica data. Usage: yarn smoke
+// yarn smoke --build builds the app first and tests the production server: slower to
+// start, but no page waits for the dev server to compile it (CI's runners are too slow
+// for that), and it's what the installed app runs.
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -22,6 +26,12 @@ process.env.STARTICA_GOOGLE_API_BASE = googleApi.url;
 // Exposure monitoring (security S2) talks to a stand-in for crt.sh, OSV, EPSS and KEV, never the real services.
 const securityApi = await startSecurityStandin(0);
 process.env.STARTICA_SECURITY_API_BASE = securityApi.url;
+const production = process.argv.includes("--build");
+if (production) {
+  process.env.NODE_ENV = "production";
+  const built = spawnSync("yarn", ["next", "build"], { cwd: join(import.meta.dirname, ".."), env: process.env, stdio: "inherit" });
+  if (built.status !== 0) process.exit(built.status ?? 1);
+}
 const { startServer } = await import("../server.mjs");
 // Requests to a route the dev server hasn't compiled yet wait for the compile, which
 // takes over 30 s (Playwright's default) on slow CI runners.
@@ -33,7 +43,7 @@ const check = (ok, label) => {
   if (!ok) failed = true;
 };
 
-const server = await startServer({ port: 58399, dataDir });
+const server = await startServer({ port: 58399, dataDir, dev: !production });
 const standin = await startStandin(58395); // accessibility stand-in site (ARCHITECTURE.md 9.2)
 const trackerApi = await startTrackerStandin(0); // stand-in GitHub / GitLab issue APIs
 const umamiApi = await startUmamiStandin(0); // stand-in Umami API

@@ -565,9 +565,9 @@ These are for the installed app's automatic updates. See [Updating](/getting-sta
 
 **Symptom.** **Check for Updates…** says "Couldn't check for updates", with the reason.
 
-**Cause.** The check couldn't read the release files on GitHub: you're offline, GitHub didn't answer, or there's no published release to read yet. Automatic checks fail silently; their reason is in [the logs](#the-logs), on lines tagged `[updates]`.
+**Cause.** The check couldn't read the release files on GitHub: you're offline or GitHub didn't answer. Automatic checks fail silently; their reason is in [the logs](#the-logs), on lines tagged `[updates]`.
 
-**Fix.** Check your connection and click **Check for Updates…** again. Until a release is published, update [from source](/getting-started/updating#update-from-source).
+**Fix.** Check your connection and click **Check for Updates…** again. If it keeps failing, download the newest installer from [mystartica.com/download](https://mystartica.com/download) and install it over the old one; your data stays where it is.
 
 ### macOS: the update doesn't install
 

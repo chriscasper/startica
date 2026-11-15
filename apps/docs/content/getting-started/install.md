@@ -4,7 +4,7 @@ description: Clone the Startica repository, install dependencies, and run the ap
 layout: doc
 ---
 
-There are no published installers yet. You clone the repository and either run Startica in dev mode or build an unsigned installer for your own computer. Both take a few minutes. Check the [requirements](/getting-started/requirements) first.
+The quickest way to get Startica is an installer from [mystartica.com/download](https://mystartica.com/download). This page is for running it from source: you clone the repository and either run Startica in dev mode or build an unsigned installer for your own computer. Both take a few minutes. Check the [requirements](/getting-started/requirements) first.
 
 ## Get the code
 

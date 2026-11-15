@@ -50,5 +50,7 @@ jobs:
       - name: Test
         run: yarn test
 
+      # Against a production build: the runners (macOS most of all) take longer to compile a
+      # page in the dev server than the smoke test waits for it.
       - name: Smoke test
-        run: yarn smoke:desktop
+        run: yarn smoke:desktop --build

@@ -11,7 +11,7 @@ Follow along, or argue for something, in [GitHub Discussions](https://github.com
 ## Now
 
 - **Open-source launch:** making the repository public, with documentation, contributor guides, CI and the Fieldnote demo product to try the app with.
-- **Signed installers and automatic updates:** the release workflow already builds macOS, Windows and Linux installers, and installed copies update themselves from GitHub Releases. Code signing for macOS and Windows comes next, then the first published release.
+- **Windows code signing:** installers for macOS, Windows and Linux are published on GitHub Releases, and installed copies update themselves. The Mac builds are signed and notarized; the Windows installer isn't code-signed yet. Windows and Linux builds also need more testing.
 - **Testing on real sites and accounts:** every module is tested against stand-ins. Next is real sites, real Search Console properties, real posts on each of the seven posting sites, and Windows and Linux desktops. Reports are especially welcome.
 
 ## Next

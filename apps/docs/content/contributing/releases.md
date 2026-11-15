@@ -8,13 +8,10 @@ A release is a version tag on `main`. Pushing the tag starts a GitHub Actions wo
 
 ## Current state
 
-> [!WARNING]
-> The pipeline is built, but nothing has been released through it yet. Read this before you cut the first release.
-
-- **Not signed yet.** The Apple Developer ID and a Windows code-signing certificate haven't been bought, so every build is unsigned. Unsigned builds work, but users see OS warnings, and macOS can't install updates (see [Unsigned builds](#unsigned-builds)).
-- **Auto-update can't reach the releases yet.** The app reads the releases of `chriscasper/startica` without a token, so it only works once the repository is public. Until then every check fails quietly.
+- **Releases are published.** Installers for macOS, Windows and Linux are on GitHub Releases and on [mystartica.com/download](https://mystartica.com/download), and installed copies update themselves from them.
+- **macOS is signed and notarized.** The five macOS secrets are set.
+- **Windows isn't signed yet.** No Windows code-signing certificate has been bought, so SmartScreen warns on first open (see [Unsigned builds](#unsigned-builds)).
 - **Windows and Linux builds haven't been tried by hand.** They build on GitHub's runners, but nobody has installed and run them yet. See [Test Windows and Linux builds](#test-windows-and-linux-builds).
-- **Users still build from source.** [Install from source](/getting-started/install) stays the documented way in until signed releases are published.
 
 ## Versioning
 
@@ -100,7 +97,7 @@ node apps/desktop/scripts/release-notes.mjs v0.0.2
 
 - The `Sites` workflow runs on `release: published` as well as pushes to `main`, so publishing a release redeploys the site from `main`.
 - In CI, a failed request to GitHub fails the site build, so a deploy never swaps real links for "no release yet". Locally it only warns. `GH_TOKEN` or `GITHUB_TOKEN` raises the API's rate limit.
-- With nothing published, the page says the first release isn't out yet and links to building from source.
+- If no release were published, the page would say the first release isn't out yet and link to building from source.
 
 ## Signing and notarization
 
@@ -280,8 +277,5 @@ Report what you find on the pull request or in [GitHub Discussions](https://gith
 
 These need a decision or money first. Discuss before starting on any of them.
 
-- **Buy the Apple Developer ID** ($99 a year) and set the five macOS secrets. Until then, macOS users see Gatekeeper warnings and can't auto-update.
 - **Windows signing:** an exportable code-signing certificate, or Azure Trusted Signing with a change to the workflow.
-- **Make the repository public**, so auto-update can read the releases.
-- **Run the workflow by hand once** and test the Windows and Linux installers.
-- **Point Get started at the download page** once a release is published: the home page, Get started and the install guide still lead with building from source.
+- **Install and run the Windows and Linux installers** on real machines: installer, tray, close-to-tray, launch at login, auto-update.

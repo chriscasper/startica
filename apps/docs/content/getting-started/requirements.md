@@ -4,7 +4,7 @@ description: The operating systems, tools, disk space and accounts you need to b
 layout: doc
 ---
 
-Startica is built from source for now. You need a few developer tools to build it, and an AI API key (Anthropic or OpenAI) to use it. Everything else is optional.
+To use Startica you need an AI API key (Anthropic or OpenAI). The installers from [mystartica.com/download](https://mystartica.com/download) need nothing else; to run or build it from source you also need a few developer tools. Everything else is optional.
 
 ## Operating systems
 

@@ -6,9 +6,6 @@ layout: doc
 
 How you update depends on how you got Startica. An installed copy from a published release checks for updates and installs them itself. A copy you run from source, or built yourself, you update by pulling the latest code and rebuilding. Either way, your data stays where it is.
 
-> [!NOTE]
-> No release has been published yet, and the app can only read releases once the repository is public. Until then, everyone installs and updates [from source](#update-from-source).
-
 ## Automatic updates
 
 The installed app looks for a newer release on GitHub 30 seconds after it starts, then every 6 hours while it runs. When it finds one, it downloads it in the background; you can keep working. When the download is done, Startica asks:

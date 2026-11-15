@@ -23,9 +23,11 @@ Website: [mystartica.com](https://mystartica.com) · Documentation: [docs.mystar
 
 The **Dashboard**, **Today** and the **Roadmap** tie the modules together: what needs you, a short list of what to do today, and a growth plan that's re-planned weekly.
 
-## Quickstart (build from source)
+## Install
 
-Signed installers don't exist yet, so for now you run Startica from source.
+Download the installer for macOS, Windows or Linux from [mystartica.com/download](https://mystartica.com/download). Startica is in beta: the Mac builds are signed and notarized, the Windows installer isn't code-signed yet, and Windows and Linux are less tested than macOS.
+
+## Quickstart (from source)
 
 Requirements: **Node.js 24+** (Startica uses `node:sqlite`) and **Yarn 4** via Corepack.
 

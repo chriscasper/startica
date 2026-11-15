@@ -305,11 +305,14 @@ export async function seedDemo(now = new Date()): Promise<SeedResult> {
     const metric = (d: string, source: "ga4" | "stripe" | "product_db", name: string, value: number, dimension = "") =>
       metrics.push({ ...base, day: d, source, metric: name, dimension, value });
     // 90 days, Analytics' default history. Local days, as the sync writes them.
+    // Counted in calendar days, not 24-hour steps: across the night the clocks go back, two
+    // steps of 24 hours can land on the same local day, and a day must appear once.
     const localDay = (d: Date) => d.toLocaleDateString("en-CA");
+    const dayAgo = (n: number) => new Date(now.getFullYear(), now.getMonth(), now.getDate() - n, 12);
     const DEMO_DAYS = 90;
     let subs = 7;
     for (let i = DEMO_DAYS - 1; i >= 0; i--) {
-      const date = ago(i);
+      const date = dayAgo(i);
       const d = localDay(date);
       const growth = 0.6 + (DEMO_DAYS - 1 - i) * 0.0125; // traffic about doubles over the 90 days
       const weekend = [0, 6].includes(date.getDay()) ? 0.7 : 1;
@@ -367,7 +370,7 @@ export async function seedDemo(now = new Date()): Promise<SeedResult> {
     const attributed = [...replyUtm.values(), ...pieceUtm];
     for (const [n, utm] of attributed.entries()) {
       for (let i = 0; i < 4; i++) {
-        const d = localDay(ago(14 + n * 2 - i));
+        const d = localDay(dayAgo(14 + n * 2 - i));
         metric(d, "ga4", "sessions", Math.round((30 - i * 6) * noise()), `utm_content:${utm}`);
         metric(d, "ga4", "key_events", i < 2 ? 2 - i : 0, `utm_content:${utm}`);
       }
@@ -377,8 +380,8 @@ export async function seedDemo(now = new Date()): Promise<SeedResult> {
     // Last Monday's weekly analytics read-out (written by hand here: the demo makes no AI calls).
     await db.insert(s.analyticsSummaries).values({
       ...base,
-      periodStart: localDay(ago(7)),
-      periodEnd: localDay(ago(1)),
+      periodStart: localDay(dayAgo(7)),
+      periodEnd: localDay(dayAgo(1)),
       body: DEMO_ANALYTICS_SUMMARY,
       model: "demo",
       createdAt: ago(0, 3),

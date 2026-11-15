@@ -96,12 +96,14 @@ Both sites are built: the marketing site (`apps/web`) and 80 docs pages (`apps/d
 
 ## 5. Release and launch
 
-- **CI and site workflows green** (`ci.yml`, `sites.yml`), then deploy both sites and attach `docs.mystartica.com`.
-- **Make the repository public.** Auto-update reads its public releases, so it fails quietly until then.
-- **GitHub settings:** Discussions on (the docs link to it throughout), description, topics, website link, social preview image, branch protection on `main`.
+Done already: the repository is public, releases are published with macOS (signed and notarized), Windows and Linux installers, auto-update reads them, Discussions, topics and the website link are set, and the sites lead with `/download`.
+
+- **CI green on `main`:** the macOS job's smoke test timed out in the dev server from 2026-10-25 on; CI now runs it against a production build (`yarn smoke:desktop --build`). Confirm the next run on `main` passes on both systems.
+- **GitHub settings:** the description still has the replaced "AI co-founder" tagline (section 6); no social preview image; `main` has no branch protection (a ruleset "Main" exists but is disabled).
 - **Final check:** links, a `grep` for personal data, a Lighthouse and accessibility pass on both sites.
-- **Signing:** buy an Apple Developer ID ($99/year) and a Windows code-signing certificate or Azure Trusted Signing (paid: ask first). Until then release builds are unsigned and the sites say "build from source".
-- Run the release workflow once by hand to test the Windows and Linux builds (installers, tray, launch at login). Once a release is published, point the home page's FAQ, Get started and the docs' install guide at `/download` instead of building from source.
+- **Windows signing:** a code-signing certificate or Azure Trusted Signing (paid: ask first). Until then SmartScreen warns on first open.
+- **Install and run the Windows and Linux installers** on real machines (installer, tray, close-to-tray, launch at login, auto-update): they build on GitHub's runners but only macOS has been run.
+- **Open Dependabot pull requests** (nine, some with major versions: postgres 4, eslint 10, croner 11, @types/node 26): review once CI is green.
 
 ---
 

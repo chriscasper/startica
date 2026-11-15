@@ -2,18 +2,25 @@
 title: Get started
 layout: page
 eyebrow: Get started
-lede: Startica is built from source for now. It takes about ten minutes on macOS, Windows or Linux.
-description: Install Startica from source on macOS, Windows or Linux, add your Claude or OpenAI API key and set up your first product and its website.
+lede: Download the installer for macOS, Windows or Linux, or run Startica from source. Either way takes about ten minutes.
+description: Install Startica on macOS, Windows or Linux, from an installer or from source, add your Claude or OpenAI API key and set up your first product and its website.
 ---
 
-Signed installers with automatic updates are on the [roadmap](/roadmap): the release builds are ready and will be published on GitHub Releases. Until then, you clone the repository and either run the app directly or build an installer for your own computer.
+## Download
 
-## What you need
+The quickest way in is the [download page](/download): pick the installer for your system and open it. The Mac builds are signed and notarized. The Windows installer isn't code-signed yet, so Windows asks you to confirm the first time you open it. Startica is in beta, and Windows and Linux are less tested than macOS.
+
+You need **a Claude or OpenAI API key**, from the [Anthropic Console](https://platform.claude.com) or the [OpenAI platform](https://platform.openai.com/api-keys). You set a monthly budget inside Startica. Site scans and checks don't use AI, so they cost nothing.
+
+The first time it opens, Startica shows the [three-step setup](#install-and-run) described below.
+
+## Run from source instead
+
+To read or change the code, or to run the newest changes before they're released, clone the repository. You need:
 
 - **Node.js 24 or newer.** Startica uses Node's built-in SQLite.
 - **Yarn 4**, which comes with Node through Corepack.
 - **git**
-- **A Claude or OpenAI API key**, from the [Anthropic Console](https://platform.claude.com) or the [OpenAI platform](https://platform.openai.com/api-keys). You set a monthly budget inside Startica. Site scans and checks don't use AI, so they cost nothing.
 
 ## Install and run
 
@@ -39,7 +46,7 @@ To check your site for accessibility, search and security problems, open **Acces
 
 ## Build an installer for your computer
 
-To keep Startica in your Applications folder or Start menu instead of running it from a terminal, build an installer for the system you're on:
+To keep a copy you built yourself in your Applications folder or Start menu instead of running it from a terminal, build an installer for the system you're on:
 
 ```bash
 yarn build:desktop --mac     # or --win, or --linux

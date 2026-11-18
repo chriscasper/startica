@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.8] - 2026-11-17
+
+Refine and Ask about it in more places, half-price AI for big scoring backlogs, security checks behind your own sign-in, and a more colorful app with dark mode.
+
+### Added
+
+- **Refine in more places:** chat with the AI to revise SEO opportunity drafts, audit findings and roadmap items, and apply the revision it proposes. Security triage, accessibility Needs review and AI visibility answers get an ask-only chat for questions.
+- **Cheaper bulk AI:** large scoring backlogs go through Anthropic's and OpenAI's batch APIs at about half the price. Stop cancels a batch.
+- **Accessibility:** ignore an issue on one page only, a site score weighted by traffic, an accessibility statement as HTML to paste into your site, a PDF of the ACR draft, and an AI summary on Today.
+- **AI visibility with both providers:** ask Claude and OpenAI in the same run, with results broken down by topic.
+- **Security checks behind a sign-in:** sign in to your own site by hand and Startica checks the cookie flags of the signed-in pages. Startica never signs in itself and never saves cookie values. Plus no-scan windows and extra hosts.
+- **Dark mode,** following your system setting.
+
+### Changed
+
+- **More color:** white cards on a tinted canvas, each module's pages in its own accent color, and Today's moves color-coded by source. Muted text and the destructive red are darker for contrast.
+- **Dependencies updated,** including Next.js 16.4.5.
+
+### Fixed
+
+- **The demo opening late in the evening** in the weeks after the clocks go back.
+
+### Security
+
+- **Dependency advisories fixed** in undici, zod, fast-uri, body-parser, ip-address and minimatch.
+
 ## [0.0.7] - 2026-10-25
 
 Keep up with competitors: follow their accounts, blogs, pages and people, with AI briefs for the day, week, month and year. Plus a content calendar, listening trends, and Refine for everything you write.
@@ -124,7 +150,8 @@ First public release. Installers are unsigned for now, so the documented way in 
 - **Releases and updates:** a GitHub Actions workflow builds macOS, Windows and Linux installers into a draft release (signed and notarized once certificates are set up), and the installed app updates itself from GitHub Releases.
 - **Developer tooling:** `yarn seed:demo`, eval sets for the scorer, Accessibility and Security, browser and desktop smoke tests, and CI on macOS and Linux.
 
-[Unreleased]: https://github.com/chriscasper/startica/compare/v0.0.7...HEAD
+[Unreleased]: https://github.com/chriscasper/startica/compare/v0.0.8...HEAD
+[0.0.8]: https://github.com/chriscasper/startica/compare/v0.0.7...v0.0.8
 [0.0.7]: https://github.com/chriscasper/startica/compare/v0.0.6...v0.0.7
 [0.0.6]: https://github.com/chriscasper/startica/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/chriscasper/startica/compare/v0.0.4...v0.0.5

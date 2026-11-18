@@ -39,6 +39,7 @@ The smoke tests and `yarn eval` always use a fresh temporary folder, so they nev
 | `ads/` | Only created once you make an [ad creative](/ads/creatives) or upload a logo. Ad pictures, rendered ad images and product logos. See [Ad images](#ad-images). |
 | `demo/` | Only created once you open the demo. The demo's own data folder, with its own `startica.db`, holding the Fieldnote sample product. |
 | `Partitions/posting` | The posting window's own browser profile: your sign-ins to X, Hacker News, Reddit, LinkedIn, Bluesky, your Mastodon server and any Discourse forums for [Posting with Startica](/guides/assisted-posting). Deleting it signs you out of them. See [Posting sign-ins](#posting-sign-ins). |
+| `Partitions/signin-<site id>` | Only created once you click **Sign in…** for Security's [signed-in checks](/security/signed-in). One browser profile per site, holding the sign-in you did by hand on your own site. **Forget sign-in** on the Security Overview clears it. It sits next to `Partitions/posting`, in Electron's own profile folder. |
 | Other files and folders | Electron's own browser-profile data for the app window (cookies, caches, preferences). Safe to lose. |
 
 The database schema is upgraded automatically when the app starts (migrations run on every launch).

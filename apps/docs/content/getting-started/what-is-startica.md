@@ -34,7 +34,7 @@ Accessibility, SEO & GEO and Security share one scan: each page of a site is loa
 
 ## The pages
 
-The left sidebar starts with the **Dashboard**, then has one section per module: **Marketing**, **Accessibility**, **SEO & GEO** and **Security**, each in its own color. Click a module's header to collapse or expand it; Startica remembers your choice on this device. **Settings** and **System** are at the bottom. The product switcher at the top picks which product you're working on, and the status indicator at the top right shows what's running in the background.
+The left sidebar starts with the **Dashboard**, then has one section per module: **Marketing**, **Accessibility**, **SEO & GEO** and **Security**, each in its own color. The app follows your system's light or dark setting. Click a module's header to collapse or expand it; Startica remembers your choice on this device. **Settings** and **System** are at the bottom. The product switcher at the top picks which product you're working on, and the status indicator at the top right shows what's running in the background.
 
 | Page | What it does |
 |---|---|
@@ -48,7 +48,7 @@ The left sidebar starts with the **Dashboard**, then has one section per module:
 | **Analytics** | Traffic, conversions and revenue from Google Analytics or Umami, your product database and Stripe, each compared with the period before, plus what each posted reply or piece brought in and a weekly summary written by the AI. |
 | **Accessibility** | **Overview**, **Issues**, **Pages**, **Needs review**, **Images**, **Content**, **Documents**, **By criterion**, **Checklist** and **Reports**. Automated checks (axe-core, against WCAG 2.2 A and AA) with a score and what to fix first, AI help on request, the checks a person has to make, and a report, statement and ACR draft. See [Accessibility](/accessibility). |
 | **SEO & GEO** | **Overview**, **Site health**, **Search**, **AI visibility**, **Opportunities**, **Agents** and **Off-site**. Technical checks for search engines and AI crawlers, clicks and queries from Search Console and Bing, whether AI assistants recommend you, one ranked list of what to do with drafts to copy, agent readiness, and the sites AI answers cite. See [SEO & GEO](/seo). |
-| **Security** | **Overview**, **Findings**, **Monitoring**, **Report** and **Disclosure**. Checks on verified sites with a score, findings with how to fix them, exposure monitoring, a report with related OWASP, SOC 2 and ISO 27001 references, and a disclosure kit. See [Security](/security). |
+| **Security** | **Overview**, **Findings**, **Monitoring**, **Report** and **Disclosure**. Checks on verified sites with a score, findings with how to fix them, checks on pages behind your own sign-in, exposure monitoring, a report with related OWASP, SOC 2 and ISO 27001 references, and a disclosure kit. See [Security](/security). |
 | **Settings** | Three tabs. **General**: your AI provider and keys, monthly budget and model choices, and app settings. **Products**: products, their connections (Google Analytics or Umami, Search Console, Bing, Stripe, the product database), sites and issue tracker. **Channels**: the optional X API token, your Mastodon server and scoring. See [Settings](/reference/settings). |
 | **System** | Jobs running and waiting (with **Stop**), job runs, every AI call with its tokens and cost, and this month's AI spend. |
 

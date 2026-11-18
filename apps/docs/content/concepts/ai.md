@@ -43,7 +43,7 @@ Why this split:
 - **The strongest default model for strategy and research.** These calls are rare (a brief per product, a weekly replan, an occasional audit) and benefit most from careful reasoning over a lot of context: a whole site crawl, months of metrics. Effort is set to `high` explicitly.
 - **A mid-priced model for writing.** Drafts and content are frequent and need good writing in a specific voice. Sonnet and GPT-6.1 Sol write well at half Opus's price.
 - **The cheapest model for scoring.** Scoring runs on every new conversation found, up to 60 per product from each source per hourly scan. It needs to be cheap and fast, and it returns just two scores and a short reason. AI visibility uses the same model to read each answer.
-- **A mid-priced model, at low effort, for answers.** AI visibility's `answer` task stands in for an AI assistant answering a customer's question. A mid-priced model with web search is close to what assistants use, and the answer only needs to be a good everyday answer, not deep reasoning. This model also decides which provider's assistant you're measuring; see [Models](/seo/ai-visibility#models).
+- **A mid-priced model, at low effort, for answers.** AI visibility's `answer` task stands in for an AI assistant answering a customer's question. A mid-priced model with web search is close to what assistants use, and the answer only needs to be a good everyday answer, not deep reasoning. This model also decides which provider's assistant you're measuring, unless you [ask both providers](/seo/ai-visibility#both-providers) in the same run; see [Models](/seo/ai-visibility#models).
 
 ### The image task
 
@@ -116,7 +116,7 @@ The stable part of each prompt (the system prompt with instructions, the product
 
 ### Batch APIs
 
-Startica doesn't use either provider's batch API in the current version. All calls are regular API calls, made as jobs run.
+Big scoring backlogs go through the provider's batch API (Anthropic's Message Batches or OpenAI's Batch API) at half price, when batches are on. The results arrive later, and **Stop** cancels a batch. Every other call is a regular API call, made as its job runs. See [Batches](/concepts/costs#batches).
 
 ## Every call is logged
 
@@ -149,11 +149,14 @@ Prompts live in the code next to the feature that uses them. Each has a version 
 | `content-write@2`, `email-campaign@1`, `content-topics@2` | Content Studio |
 | `roadmap-plan@3` | Roadmap and replan |
 | `analytics-summary@1` | [Weekly analytics summary](/guides/analytics#weekly-ai-summary) |
-| `ad-plan@1`, `ad-copy@1` | [Ads](/ads): campaign plans and ad rewrites |
+| `ad-plan@2`, `ad-copy@1` | [Ads](/ads): campaign plans and ad rewrites |
 | `ad-creative-ideas@1`, `ad-image@1` | [Ad creatives](/ads/creatives): suggested ideas and the pictures |
 | `visibility-answer@1`, `visibility-analysis@1`, `visibility-questions@1` | [AI visibility](/seo/ai-visibility): answering a question, reading the answer, suggesting questions |
 | `opportunity-draft@1` | [Opportunities](/seo/opportunities#drafts): fix drafts (titles and descriptions, JSON-LD, `llms.txt`, FAQ answers) |
 | `audit@3:<kind>`, `audit@3:geo-research` | Audits |
+| `refine-chat@3` | [Refine and Ask about it](/guides/refine) chats (since `@3` also the ask-only chats) |
+| `a11y-fix@1`, `a11y-fix-plan@1`, `a11y-alt@1`, `a11y-review@1`, `a11y-summary@1` | [Accessibility's AI help](/accessibility/ai-help) |
+| `security-explain@1`, `security-import@1`, `security-triage@1` | Security's AI help: explaining a finding, reading another report, triaging a reported problem |
 | `ping@1` | Health check |
 
 These are the versions at the time of writing; the **AI calls** table shows the ones your copy uses. To change or add prompts, see [Prompts and evals](/contributing/prompts-evals).

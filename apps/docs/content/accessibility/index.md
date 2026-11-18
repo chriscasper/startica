@@ -22,7 +22,9 @@ This page covers what the module does, how to find it, and how to add a site. [S
 - **Groups issues.** The same failure on the same element across many pages (for example a logo in a shared header with no alt text) shows as one issue, so you fix it once.
 - **Ranks what to fix.** **Fix these first** lists the open issues with the most impact across the most pages.
 - **Checks content and documents.** Broken links, spelling, readability, your own content rules, and the PDFs your pages link to. See [Content and documents](/accessibility/content-and-documents).
-- **Tracks progress.** Each scan records how many issues are new and how many were fixed, and gives the site a score out of 100.
+- **Tracks progress.** Each scan records how many issues are new and how many were fixed, and gives the site a score out of 100, weighted by each page's traffic when analytics are connected. See [The score](/accessibility/results#the-score).
+- **Lets you ignore what doesn't apply,** everywhere or [on one page only](/accessibility/results#on-one-page-only).
+- **Writes the paperwork.** A report, an accessibility statement (also as HTML to paste into your site) and a conformance report (ACR) draft, also as a PDF. See [Checklist and reports](/accessibility/checklist-and-reports).
 - **Sends issues to your tracker.** Optionally, it opens a GitHub or GitLab issue for each problem, by hand or after each scan, and closes it when the problem is fixed. See [Issues in GitHub or GitLab](/accessibility/issue-trackers).
 
 ## Find it in the sidebar

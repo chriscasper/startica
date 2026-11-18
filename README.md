@@ -18,8 +18,8 @@ Website: [mystartica.com](https://mystartica.com) · Documentation: [docs.mystar
 |---|---|
 | **Marketing** | Intel on your market, conversations worth joining on Reddit, Hacker News, Bluesky, Mastodon, Discourse and X with drafted replies, content in your voice, ad plans and creatives, and analytics from GA4 or Umami, Stripe and your product's database |
 | **SEO & GEO** | Site health for search engines and AI crawlers, Search Console and Bing data, whether AI assistants recommend you, agent readiness, and one ranked list of fixes |
-| **Accessibility** | WCAG 2.2 checks across your whole site in a real browser, ranked by impact, with AI fix suggestions, a manual checklist and reports |
-| **Security** | Outside checks on sites you've proven are yours (HTTPS, headers, cookies, exposed files, email spoofing), plus monitoring and a disclosure kit. Defensive checks only |
+| **Accessibility** | WCAG 2.2 checks across your whole site in a real browser, ranked by impact, with AI fix suggestions, a manual checklist, reports, an accessibility statement and an ACR draft |
+| **Security** | Outside checks on sites you've proven are yours (HTTPS, headers, cookies, exposed files, email spoofing), the same checks on pages behind your own sign-in, plus monitoring and a disclosure kit. Defensive checks only |
 
 The **Dashboard**, **Today** and the **Roadmap** tie the modules together: what needs you, a short list of what to do today, and a growth plan that's re-planned weekly.
 

@@ -52,7 +52,7 @@ Each verdict comes with a reason and, where it helps, a suggested `alt` to copy.
 
 ## Needs review
 
-On **Needs review**, **Ask AI** looks at an item's element, with the page screenshot when there is one, and suggests **Pass** or **Fail** (or that you look closely) with its reasoning. It's a second opinion: you still press Pass, Fail or Skip. About $0.01 each.
+On **Needs review**, **Ask AI** looks at an item's element, with the page screenshot when there is one, and suggests **Pass** or **Fail** (or that you look closely) with its reasoning. It's a second opinion: you still press Pass, Fail or Skip. About $0.01 each. **Ask about it** on a suggestion opens a chat about it (see [Refine](/guides/refine#ask-about-it)).
 
 ## Summary
 

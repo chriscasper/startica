@@ -28,7 +28,7 @@ layout: doc
 
 ## Reported problems
 
-When someone emails you about a security problem, paste it here with **Add a report**. With an AI key, it's triaged (about $0.02):
+When someone emails you about a security problem, paste it here with **Add a report**. With an AI key, it's triaged (about $0.02). **Ask about it** on a triaged report opens a chat about the triage (see [Refine](/guides/refine#ask-about-it)). The triage gives:
 
 - **Severity**, and whether it **looks real**, is **unclear** (no concrete evidence yet) or is **probably not a problem** (generic or automated reports, like ones asking for a bounty before sharing details).
 - **A finding you already have**, when it's the same problem the checks found.

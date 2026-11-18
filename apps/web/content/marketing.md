@@ -36,7 +36,7 @@ Marketing runs in a loop, and each turn takes about twenty minutes of your day:
 1. **Analyze.** Intel studies your site and market once, and again whenever you ask.
 2. **Plan.** The [Roadmap](https://docs.mystartica.com/guides/roadmap) turns that into growth bets across the funnel, each with a playbook, a success metric and a next step.
 3. **Act.** The Inbox fills with conversations worth joining, and [Today](https://docs.mystartica.com/guides/today) ranks up to seven moves for the day.
-4. **You approve.** You edit each draft and post it yourself, under your own account.
+4. **You approve.** You edit each draft, or refine it in a chat with the AI, and post it yourself, under your own account.
 5. **Measure.** Links carry UTM tags, so Analytics can tell which reply, post or ad brought a visit or a signup.
 6. **Re-plan.** Every week the roadmap is updated from what worked. Items you wrote yourself stay.
 
@@ -53,4 +53,4 @@ Drafts answer the question before they mention anything. Your product comes up o
 
 ## What it costs
 
-Finding conversations is free. AI runs on your own Claude or OpenAI key, under a monthly budget you set: scoring a thread costs about $0.0005, a drafted reply $0.01 to $0.03, and building intel under $1. A typical month for one product costs a few dollars. See [Costs and budget](https://docs.mystartica.com/concepts/costs).
+Finding conversations is free. AI runs on your own Claude or OpenAI key, under a monthly budget you set: scoring a thread costs about $0.0005 (about half that when a big backlog goes through your provider's batch API), a drafted reply $0.01 to $0.03, and building intel under $1. A typical month for one product costs a few dollars. See [Costs and budget](https://docs.mystartica.com/concepts/costs).

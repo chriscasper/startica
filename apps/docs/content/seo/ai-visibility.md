@@ -101,7 +101,7 @@ The dialog, titled for example **Ask 20 questions**, says: "Each question goes t
 | --- | --- |
 | **Likely cost** | "about $1.27 (up to 3 web searches a question, $0.01 each)". See [What a run costs](#what-a-run-costs). |
 | **Cap** | "$2: the run stops before it would go over". When the estimate is over the cap, it adds ", so it may not ask every question". |
-| **Time** | About 25 seconds a question, for example "about 8 min" for 20 questions. |
+| **Time** | About 25 seconds a question, for example "about 8 min" for 20 questions; twice that when the run [asks both providers](#both-providers). |
 
 "Billed to your AI key and counted against your monthly AI budget. You can stop it any time and keep the answers so far." Click **Run**. The toast says "Running. Answers appear as they come in."
 
@@ -159,7 +159,7 @@ Click **Stop** on the progress bar (the toast says "Stopping…"), or stop the j
 
 ### How long it takes
 
-About 25 seconds a question, so 20 questions take about 8 minutes, and 100 about 40. Startica must stay open; closing the window keeps it running in the tray or menu bar. See [Running in the background](/guides/background).
+About 25 seconds a question, so 20 questions take about 8 minutes, and 100 about 40. A run that [asks both providers](#both-providers) takes about twice as long. Startica must stay open; closing the window keeps it running in the tray or menu bar. See [Running in the background](/guides/background).
 
 ## Read the results
 

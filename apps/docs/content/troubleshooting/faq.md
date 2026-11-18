@@ -55,7 +55,7 @@ The scans and checks don't use AI and cost nothing. Problems show on the Dashboa
 
 ## Does it make my site compliant or secure?
 
-No tool can promise that, and Startica doesn't claim it. Automated accessibility checks cover only part of what WCAG asks for, so Startica lists what a person still has to review, and its statement and ACR draft say "Not Evaluated" for anything not checked by hand. Security checks see only the outside of a site: nothing behind a sign-in, and nothing about how the application handles input. Startica's scores are its own measure of progress, and it never calls a site compliant, certified or secure.
+No tool can promise that, and Startica doesn't claim it. Automated accessibility checks cover only part of what WCAG asks for, so Startica lists what a person still has to review, and its statement and ACR draft say "Not Evaluated" for anything not checked by hand. Security checks see a site the way a visitor's browser does: nothing about how the application handles input, and nothing behind a sign-in unless you list pages for [signed-in checks](/security/signed-in) and sign in yourself. Startica's scores are its own measure of progress, and it never calls a site compliant, certified or secure.
 
 ## Can I scan any website?
 
@@ -107,9 +107,9 @@ Yes. Add each product in **Settings** → **Products** with **Add product**, the
 
 No. Startica is single-user: one person, one computer, one database. There are no logins, shared workspaces or sync. If you move to a new computer, copy the data folder and enter your secrets again in Settings.
 
-## Why are there no installers to download?
+## Where are the installers?
 
-Startica is early, and installers that others can open without warnings need to be code-signed and notarized (an Apple Developer ID and a Windows code-signing certificate), which isn't set up yet. The release pipeline and auto-update are built, but no release has been published. Until then, you build from source, which also lets you see exactly what you're running. You can build an unsigned installer for your own computer with `yarn build:desktop`. See [Install from source](/getting-started/install).
+Installers for macOS, Windows and Linux are on [mystartica.com/download](https://mystartica.com/download), and installed copies update themselves. The macOS builds are signed and notarized. The Windows installer isn't code-signed yet, so SmartScreen warns the first time you open it: click **More info**, then **Run anyway**. You can also run or build Startica from source, which lets you see exactly what you're running. See [Install from source](/getting-started/install).
 
 ## Why Electron?
 

@@ -105,7 +105,9 @@ Only the latest run of each audit is shown. The roadmap re-plan reads the high-s
 
 ## Add a finding to the roadmap
 
-Click **Roadmap** on a finding. Startica adds it as your own roadmap item, so re-plans won't change or drop it:
+Click **Roadmap** on a finding. Startica adds it as your own roadmap item, so re-plans won't change or drop it. To change a finding first, click **Refine** on it and chat with the AI; **Apply and add to Roadmap** applies the revision and adds it in one click (see [Refine](/guides/refine)).
+
+The roadmap item is filled in like this:
 
 | Roadmap field | Comes from |
 | --- | --- |

@@ -234,6 +234,8 @@ An opportunity can go to Content Studio once. If you delete the piece, the butto
 
 A draft is a fix written by the AI for one opportunity, for you to review and copy. Startica never changes your site. Each draft is one AI call on the `draft` task, runs in the background as the `opportunity_draft` job ("Drafting a fix" on the System page), and takes a few seconds.
 
+A draft has a **Refine** button: chat with the AI to revise it, and apply the revision you like. Audit findings listed here have one too. See [Refine](/guides/refine).
+
 Before it starts, Startica recomputes the list from the latest data, so the draft follows the opportunity as it is now, not as it was when the page loaded. Every draft is then checked in code before it's shown, and anything that didn't pass is listed with it.
 
 Every draft is written with your product's context: name, website, one-liner, brief, personas, competitors and your notes. The instructions tell the AI to follow Google's search guidelines (write for people first, describe the page accurately, no keyword stuffing or hidden text), to make no claim the product description doesn't support (prices, numbers, awards, features), to use plain, specific language in the product's terms, and to respect every length limit.

@@ -59,7 +59,7 @@ Planning uses the `strategy` model task, which is Claude Opus or GPT-6.1 Sol by 
 
 | | AI items | Your items |
 | --- | --- | --- |
-| Created by | A plan or re-plan | **Add item**, editing an AI item, adding an audit finding, or **Roadmap** on an [SEO & GEO opportunity](/seo/opportunities#add-to-the-roadmap) |
+| Created by | A plan or re-plan | **Add item**, editing an AI item, applying a [Refine](/guides/refine) revision to one, adding an audit finding, or **Roadmap** on an [SEO & GEO opportunity](/seo/opportunities#add-to-the-roadmap) |
 | Badge | AI | You |
 | Re-plans can update or drop them | Yes, unless done | Never |
 

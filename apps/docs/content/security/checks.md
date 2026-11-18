@@ -10,6 +10,7 @@ This page lists every security check, grouped by area, with its severity. Each f
 
 - **Page checks** run on every page a scan loads, from the main document's response headers and what the page loads. A finding that appears on several pages (a missing header, usually set once at the server or CDN) is one finding listing its pages.
 - **Site checks** run once at the end of every full scan: a TLS handshake, the `http://` address, `/.well-known/security.txt`, three well-known file addresses and DNS lookups for your email domain.
+- **Signed-in pages**, when you list some, get the page checks after each full scan, with a session you sign in to by hand. See [Signed-in checks](/security/signed-in).
 - **Check a page** and a finding's **Recheck** run the page checks for those pages; **Recheck** on a site-wide finding runs the site checks again.
 
 Sites on your own computer or network skip the HTTPS, certificate, redirect and email checks, which don't apply there. Nothing is requested for addresses ending in `.example`, `.test` or `.invalid`.
@@ -51,7 +52,7 @@ Sites on your own computer or network skip the HTTPS, certificate, redirect and 
 
 ## Cookies
 
-Checked for each cookie a page sets, so you can accept one cookie's risk without hiding the others.
+Checked for each cookie a page sets, so you can accept one cookie's risk without hiding the others. With [signed-in checks](/security/signed-in), the cookies of your signed-in session are checked the same way, by name and flags only.
 
 | Check | Severity |
 | --- | --- |

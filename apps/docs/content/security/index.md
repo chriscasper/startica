@@ -11,7 +11,7 @@ layout: doc
 This page explains how to turn it on and what it does and doesn't do. [Checks](/security/checks) lists every check, and [Findings and report](/security/findings) explains the findings, the score and the report.
 
 > [!WARNING]
-> Security checks look at your site from the outside, the way any visitor's browser does. They don't test how your application handles input, whether one user can see another's data, or anything behind a sign-in. A short list of findings doesn't mean the site is safe, and nothing in Startica certifies a site as secure or compliant.
+> Security checks look at your site from the outside, the way any visitor's browser does. They don't test how your application handles input or whether one user can see another's data, and they see pages behind a sign-in only when you list them for [signed-in checks](/security/signed-in) and sign in yourself. A short list of findings doesn't mean the site is safe, and nothing in Startica certifies a site as secure or compliant.
 
 ## Turn it on
 
@@ -40,7 +40,7 @@ If you change a site's address to a different host name, it needs verifying agai
 
 ## What it never does
 
-- **It never tries to break in.** No attack payloads, no guessing passwords, no filling in or submitting forms, no fuzzing. It never signs in by itself: [signed-in checks](/security/signed-in) use a session you sign in to by hand, and never store it. Every request is an ordinary GET of a page or a well-known address, a TLS handshake or a DNS lookup. [Monitoring](/security/monitoring) also asks free public services about your domain and libraries, and downloads the third-party scripts your pages load.
+- **It never tries to break in.** No attack payloads, no guessing passwords, no filling in or submitting forms, no fuzzing. It never signs in by itself: [signed-in checks](/security/signed-in) use a session you sign in to by hand. Startica never saves the cookies' values in its database; the sign-in stays in that window's own browser profile for as long as the site keeps it. Every request is an ordinary GET of a page or a well-known address, a TLS handshake or a DNS lookup. [Monitoring](/security/monitoring) also asks free public services about your domain and libraries, and downloads the third-party scripts your pages load.
 - **It never checks sites you haven't verified.**
 - **It never changes your site or DNS.** It tells you what to change.
 - **Its checks make no AI calls** and cost nothing. AI help (explaining a finding, reading another report, triaging a reported problem) runs only when you ask, on your own key.

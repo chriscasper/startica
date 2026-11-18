@@ -13,16 +13,16 @@ features:
     body: Starts from your home page and sitemap, loads each page in Chromium, and runs axe-core against WCAG 2.0, 2.1 and 2.2 levels A and AA. Politely, at most one page a second.
     doc: /accessibility/scanning
   - title: Fix these first
-    body: The same failure on the same element across many pages is one issue. Issues are ranked by impact and by how many pages, and visits, they affect, with the element highlighted on the page.
+    body: The same failure on the same element across many pages is one issue. Issues are ranked by impact and by how many pages, and visits, they affect, with the element highlighted on the page. Ignore an issue on the one page where it doesn't apply.
     doc: /accessibility/results
   - title: AI help, on request
-    body: A fix written for the issue's actual HTML, a review of your images' alt text in context, a second opinion on items that need review, and a plain-language summary. About a cent each.
+    body: A fix written for the issue's actual HTML, a review of your images' alt text in context, a second opinion on items that need review that you can ask about, and a plain-language summary that also leads Today's suggestion. About a cent each.
     doc: /accessibility/ai-help
   - title: Content and documents
     body: Broken links, spelling, readability and your own content rules on every page, and checks of the PDFs your pages link to.
     doc: /accessibility/content-and-documents
   - title: Checklist and reports
-    body: The WCAG criteria automation can't decide, for you to mark Pass or Fail. A printable report, an accessibility statement and a conformance report (ACR) draft built from your results.
+    body: The WCAG criteria automation can't decide, for you to mark Pass or Fail. A printable report, an accessibility statement in Markdown or HTML to paste into your site, and a conformance report (ACR) draft you can save as a PDF, all built from your results.
     doc: /accessibility/checklist-and-reports
   - title: Issues in GitHub or GitLab
     body: Open an issue for any problem, by hand or after every scan, and Startica closes it when the problem is fixed.
@@ -32,7 +32,7 @@ features:
 ## How it works
 
 1. **Scan.** Add your site and press **Scan now**. A 250-page site is checked on your computer, and every page is checked for search and security basics in the same pass.
-2. **Prioritize.** The Overview shows a score out of 100, what changed since the last scan, and the issues to fix first.
+2. **Prioritize.** The Overview shows a score out of 100 (weighted by each page's traffic once web analytics is connected), what changed since the last scan, and the issues to fix first.
 3. **Fix.** Each issue explains what's wrong for people using assistive technology and how to fix it. Ask the AI for a fix written for your markup if you want one.
 4. **Verify.** **Recheck** just the pages an issue was on. Fixed issues are marked fixed, and reopen if they come back.
 5. **Monitor.** Startica rescans every week on its own, and the Dashboard and Today bring up anything critical.

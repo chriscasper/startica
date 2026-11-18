@@ -6,7 +6,7 @@
 // Usage: yarn workspace @startica/desktop build [--no-package] [electron-builder args, e.g. --mac --win --linux]
 import { spawnSync } from "node:child_process";
 import { cpSync, existsSync, rmSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkLinks } from "./links.cjs";
 
@@ -38,7 +38,15 @@ rmSync(out, { recursive: true, force: true });
 // verbatimSymlinks: Next links the packages it loads at run time (.next-desktop/node_modules/
 // axe-core-<hash> and so on) with relative paths, which cpSync would otherwise make absolute,
 // pointing at this machine's folders: broken in the installed app, and rejected by code signing.
-cpSync(standalone, out, { recursive: true, verbatimSymlinks: true });
+// Tracing also follows the web app's other build folders on a developer's machine (.next,
+// .next-smoke, …: dev caches of several GB), which made local installers 11 GB instead of 140 MB.
+// A clean checkout (CI) has none. Only this build's folder belongs in the app.
+const webInStandalone = join(standalone, "apps", "desktop-web");
+cpSync(standalone, out, {
+  recursive: true,
+  verbatimSymlinks: true,
+  filter: (src) => !(dirname(src) === webInStandalone && basename(src).startsWith(".next") && basename(src) !== distName),
+});
 // Next ships sharp for image optimization, which the app turns off (images.unoptimized). Its native
 // files match the build machine only, so one Mac would put its own architecture's copy in both Mac apps.
 for (const dir of ["sharp", "@img"]) rmSync(join(out, "node_modules", dir), { recursive: true, force: true });

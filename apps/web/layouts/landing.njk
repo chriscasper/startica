@@ -20,7 +20,7 @@
     points: [
       "Site health: titles, indexing, broken links, structured data, AI crawler access",
       "Search: queries, clicks and positions from Search Console and Bing",
-      "AI visibility: whether assistants mention you, and who they name instead",
+      "AI visibility: whether assistants mention you, by provider and topic, and who they name instead",
       "Opportunities, agent readiness, and the sites AI answers cite"
     ],
     doc: "/seo"
@@ -32,7 +32,7 @@
       "Issues ranked by impact and reach, with highlights on the page",
       "Alt text review and fix suggestions written for your actual HTML",
       "Links, spelling, readability and the PDFs your pages link to",
-      "A checklist for what automation can't decide, a statement and an ACR draft"
+      "A checklist for what automation can't decide, an HTML statement and an ACR draft as a PDF"
     ],
     doc: "/accessibility"
   },
@@ -40,7 +40,7 @@
     module: "security", job: "Stay safe", name: "Security",
     body: "Once you prove a site is yours, checks what anyone on the internet can see: HTTPS, headers, cookies, exposed files and email spoofing. Then it keeps watching.",
     points: [
-      "Findings with how to fix them, a score, and a recheck when you're done",
+      "Findings with fixes, a score and a recheck, on public pages and behind your sign-in",
       "Monitoring: new subdomains, expiring certificates, look-alike domains",
       "Known-vulnerable libraries, ranked by how likely they are to be exploited",
       "A security.txt, a disclosure policy and an inbox for reported problems"
@@ -59,7 +59,7 @@
 {% set principles = [
   { title: "Local-first", body: "Everything lives in one SQLite file on your computer. No account, no Startica server, no telemetry." },
   { title: "Bring your own keys", body: "Your Claude or OpenAI key, your Google, Stripe and database connections. Secrets are encrypted with your OS keychain." },
-  { title: "Spend you control", body: "Scans and checks are free. AI is opt-in per task, under a monthly budget you set, and every call is logged with its cost." },
+  { title: "Spend you control", body: "Scans and checks are free. AI is opt-in per task, under a monthly budget you set. Big scoring backlogs are batched at about half the price, and every call is logged with its cost." },
   { title: "Nothing goes out without you", body: "Startica can fill in a reply, but you press the site's own button. You launch the ads. You change your site. It never acts for you." },
   { title: "Honest about what it checks", body: "It reports what automated checks found and what still needs a person. It never calls your site compliant, certified or secure." },
   { title: "Plays by the rules", body: "Public feeds and official APIs, no scraping. It scans only sites you own, politely, and runs security checks only after you prove it." }
@@ -71,6 +71,7 @@
   { q: "Who is it for?", a: "Founders and small teams who look after their own product: no marketing department, no accessibility consultant, no security team. It's a single-user app with no logins or sync." },
   { q: "Does it post or change anything for me?", a: "No. On supported sites, Startica opens the page, fills in your reply and waits for you to press the site's own button. Ads are files you import and launch yourself. Fixes for your site are suggestions to copy. It never sends email." },
   { q: "Will it make my site compliant or secure?", a: "It will find a lot of real problems and help you fix them, but no automated tool can promise that. Startica shows what still needs a person to review, and never calls a site compliant, certified or secure." },
+  { q: "Can I change what the AI suggests?", a: "Yes. Most suggestions have a Refine button that opens a chat about that one suggestion: ask questions, push back or describe your setup, then apply the revision you want. Earlier versions are kept, and nothing changes until you apply it." },
   { q: "Can I scan any website?", a: "Only sites you own or are allowed to test. Startica asks you to confirm that when you add a site, crawls politely, and runs its security checks only after you prove ownership with a DNS record, a file or Search Console." },
   { q: "Where does my data go?", a: "It stays in a SQLite file on your computer. Startica sends prompts to Claude or OpenAI with your key, reads public feeds, loads the sites you scan, and calls Google, Stripe, your database or a few free public security services only for features you turn on. The privacy page lists every one." },
   { q: "How do I install it?", a: "Download the installer for macOS, Windows or Linux from the download page. The Mac builds are signed and notarized; the Windows installer isn't code-signed yet, so Windows asks you to confirm the first time. You can also run it from source." },
@@ -161,7 +162,7 @@
         <figure class="mt-10">
           <img src="/images/app/dashboard.png" width="2880" height="1800" loading="lazy" decoding="async" class="w-full border border-line shadow-xl shadow-ink/10"
             alt="Startica's Dashboard for the demo product Fieldnote: a collapsed Needs you line with 3 to fix and 1 waiting, then Marketing, Accessibility, SEO & GEO and Security cards with each module's numbers, and a System card">
-          <figcaption class="mt-3 text-sm text-muted">The Dashboard, with the fictional demo product Fieldnote.</figcaption>
+          <figcaption class="mt-3 text-sm text-muted">The Dashboard, with the fictional demo product Fieldnote. The app follows your system's light or dark setting.</figcaption>
         </figure>
       </div>
     </section>
@@ -338,7 +339,7 @@
       <div class="hero-grain absolute inset-0 -z-10" aria-hidden="true"></div>
       <div class="mx-auto max-w-6xl px-6 py-20 md:px-8 md:py-24">
         <h2 class="max-w-2xl font-display text-3xl font-bold tracking-tight sm:text-5xl sm:leading-[1.05]">Get Startica running in about ten minutes.</h2>
-        <p class="mt-5 max-w-xl text-lg text-chalk/70">You need Node 24, git and a Claude or OpenAI key. A short setup takes you from there, or you can look around with a sample product first.</p>
+        <p class="mt-5 max-w-xl text-lg text-chalk/70">Download the installer for macOS, Windows or Linux and add a Claude or OpenAI key. A short setup takes you from there, or you can look around with a sample product first. Running from source needs Node 24 and git.</p>
         <div class="mt-10 flex flex-wrap gap-4">
           <a href="/get-started" class="btn btn-primary">Get started {{ icon.arrow() }}</a>
           <a href="{{ site.docs }}" class="btn btn-ghost text-chalk">Read the docs</a>

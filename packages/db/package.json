@@ -19,7 +19,7 @@
     "drizzle-kit": "^0.31.11",
     "typescript": "^6.0.3",
     "vite": "^8.3.6",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.1"
   },
   "dependencies": {
     "croner": "^11.0.0",
